@@ -18,9 +18,6 @@ make_data <- function(T, fac=1, noise = 0.2){
 }
 
 
-##' Crude function to check convergence.
-check_converge <- function(old, new, tol=1E-6){ return(abs(new-old) < tol)  }
-
 
 ##' Helper
 myplot <- function(data, mu, pie=NULL, sigma, lam1=NULL, lam2=NULL, T=3, dimdat=3, numclust=2, fac=8, lwd=1, cex.data=1){
@@ -42,7 +39,7 @@ myplot <- function(data, mu, pie=NULL, sigma, lam1=NULL, lam2=NULL, T=3, dimdat=
   for(t in 1:T){
     for(iis in iis.list){
       plot(data[[t]][,iis], pch=16, main=paste0("time=",t, " lam1=", lam1, ", lam2=", lam2),
-           xlim = all.lims[,iis[2]], ylim = all.lims[,iis[1]], cwx=cex.data)
+           xlim = all.lims[,iis[2]], ylim = all.lims[,iis[1]], cex=cex.data)
            ##, xlim=c(0,10), ylim=c(0,10))
 
       ## Add cluster centers
@@ -88,4 +85,36 @@ svdsolve <- function(A,b,rtol=1E-20) {
   di[ii] = 1/di[ii]
   di[!ii] = 0
   return(list(x=s$v%*%(di*(t(s$u)%*%b)),q=sum(ii)))
+}
+
+
+
+##' plotter for *series* of plots.
+myplots <- function(plotname=NULL, data, labels, mns1, mns2, mns3, sigmas1,
+                    sigmas2, sigmas3, results){
+  if(is.null(plotname))plotname = "example-dat.pdf"
+  pdf(file=file.path("~/Desktop/cytometry-plots", plotname),
+      width=10, height=10)
+file.path("~/Desktop/cytometry-plots", plotname)
+  for(tt in 1:TT){
+    plot(data[[tt]][,1:2],
+         col=labels[[tt]],
+         xlim = c(-3,5), ylim=c(-3,6))
+
+    ## Plot actual means
+    for(ttt in (1:TT)[-tt]){
+      points(rbind(mns1[[ttt]], mns2[[ttt]]), col="lightgrey",
+             cex=2, pch="+")
+    }
+    points(rbind(mns1[[tt]], mns2[[tt]]), col=c(1,2), cex=3, pch="+")
+
+
+    ## Plot fitted means
+    points(results$mulist[[results$final.iter]][tt,,], col=c(1,2,3),
+           cex=results$pielist[[results$final.iter]][tt,]*10,
+           pch=16)
+
+    ## Plot the covariances as well.
+  }
+  graphics.off()
 }
