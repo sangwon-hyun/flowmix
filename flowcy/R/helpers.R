@@ -29,3 +29,8 @@ printprogress <- function(isim, nsim, type="simulation", lapsetime=NULL,
     }
     if(fill) cat(fill=TRUE)
 }
+
+
+
+##' Crude function to check convergence.
+check_converge <- function(old, new, tol=1E-6){ return(abs(new-old) < tol)  }
