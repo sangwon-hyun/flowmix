@@ -32,6 +32,72 @@ init_mu <- function(data, numclust, TT, all.times.same=FALSE){
   return(muarray)
 }
 
+
+##' Initialize   the  cluster   centers  by   applying  one-image   GMM  results
+##' sequentially as starting points for the next image.
+##'  @param data  A T-length list of (nt  by 3) datasets.  There should  be T of
+##'   such datasets. 3 is actually \code{mulen}.
+##' @param numclust Number of clusters (M).
+##' @param TT total number of (training) time points.
+##' @return An array of dimension (T by numclust by M).
+init_mu_warmstart <- function(data, numclust, TT, tol2, verbose=FALSE){
+  muhats = list()
+  muhat = init_mu(data, numclust, 1)
+  if(verbose){cat(fill=TRUE);cat("Warm start calculation in progress.");  cat(fill=TRUE)}
+  for(tt in 1:TT){
+    if(verbose){cat(fill=TRUE); printprogress(tt, TT, "warm start time points");   cat(fill=TRUE)}
+    res = driftem(data[[tt]], numclust=numclust, mu=muhat, tol2=tol2/TT)
+    ## potentially more lenient!
+    muhat = res$mu[[res$final.iter]]
+    muhats[[tt]] = muhat[1,,]
+    if(verbose){cat(fill=TRUE)}
+  }
+  names(muhats) = 1:TT
+  muarray = abind::abind(muhats, along=0)
+  return(muarray)
+}
+
+
+##' Initialize  the cluster  centers by  learning clusters  from each  image and
+##' aggregating..
+##'  @param data  A T-length list of (nt  by 3) datasets.  There should  be T of
+##'   such datasets. 3 is actually \code{mulen}.
+##' @param numclust Number of clusters (M).
+##' @param TT total number of (training) time points.
+##' @return An array of dimension (T by numclust by M).
+init_mu_warmstart_v2 <- function(data, numclust, TT, tol2, verbose=FALSE){
+  muhats = list()
+  muhat = init_mu(data, numclust, 1)
+  if(verbose){cat(fill=TRUE);cat("Warm start calculation in progress.");  cat(fill=TRUE)}
+
+
+  ktlist = c()
+  centers = list()
+  for(tt in 1:TT){
+    if(verbose){cat(fill=TRUE); printprogress(tt, TT, "warm start time points");   cat(fill=TRUE)}
+
+    ## Obtain best number of clusters in each image
+    kt = get_best_kmean_numclust(data[[tt]])
+    obj = kmeans(data[[tt]], kt)
+    ktlist[tt] = kt
+    centers[[tt]] = obj$centers
+  }
+  ktmax = max(ktlist)
+  ## plot(do.call(rbind, data))
+  ## points(do.call(rbind, centers), pch=16, cex=2)
+  allcenters = do.call(rbind, centers)
+  res = driftem(allcenters, numclust=ktmax)
+  ## points(res$mulist[[res$final.iter]][1,,], pch=18, col='red', cex=6)
+
+  centers = res$mulist[[res$final.iter]][1,,]
+  muhats = (lapply(1:TT, function(tt){centers}))
+  names(muhats) = 1:TT
+  muarray = abind::abind(muhats, along=0)
+  return(muarray)
+}
+
+
+
 ##' Initialize the covariances (naively).
 ##' @param data The (nt by 3) datasets. There should be T of them.
 ##' @param numclust Number of clusters (M).
@@ -150,14 +216,18 @@ objective_overall <- function(mu, pie, sigma, data){
 ##' @param lam2 Tuning parameter for mu.
 ##' @param s Step size.
 ##' @param numclust number of clusters.
-##' @param size of marginal variance in the initial sigmas.
+##' @param sigma.fac Size of marginal variance in the initial sigmas.
+##' Wparam warmstart
 ##' @return List containing the list of mus, pies, and objective values.
 driftem <- function(data, mu=NULL, pie=NULL, niter=1000,
-                    sigma=NULL, tol1 = 1E-10, tol2 = 1E-4, lam1=0, lam2=0,
+                    sigma=NULL, tol1 = 1E-10, tol2 = 1E-4, lam.pi=0, lam.mu=0,
                     s=1E-4, numclust,
                     sigma.fac=1,
                     fix.sigma=FALSE,
-                    mu.all.times.same=FALSE){
+                    ## mu.all.times.same=FALSE
+                    warmstart=FALSE,
+                    verbose=FALSE
+                    ){
 
   ## Define a few things
   if(class(data)!="list") data = list(data)
@@ -167,7 +237,10 @@ driftem <- function(data, mu=NULL, pie=NULL, niter=1000,
 
   ## If missing, generate initial values
   if(is.null(pie)) pie = init_pi(numclust, TT)
-  if(is.null(mu)) mu = init_mu(data, numclust, TT)
+  if(is.null(mu)){
+    if(warmstart){ mu = init_mu_warmstart(data, numclust, TT, tol2, verbose) }
+    if(!warmstart){ mu = init_mu(data, numclust, TT) }
+  }
   if(is.null(sigma)) sigma = init_sigma(data, numclust, TT, fac=sigma.fac)
 
   ## Initialize
@@ -178,51 +251,44 @@ driftem <- function(data, mu=NULL, pie=NULL, niter=1000,
   sigmalist[[1]] = sigma
   objectives[[1]] = objective_overall(mulist[[1]], pielist[[1]], sigmalist[[1]], data)
   if(class(data[[1]])!="matrix"){  data = lapply(data, as.matrix) }
+  sound = TRUE
 
   ## Make t(tilde D3) times tilde D3
-  if(TT>1){
-    D = dual1d_Dmat(TT)
-    D3 = Matrix::bdiag(D,D,D)
-    D3 = Matrix::bdiag(lapply(1:dimdat, function(mydim){D}))
-    D3.permuted =  D3 %*% makePmat(dimdat, TT)
-    DD3.permuted = t(D3.permuted) %*% D3.permuted
+  if(TT > 1){
+    DD3.permuted = make_DD3_permuted(TT, dimdat)
   } else {
-    if(lam2!=0 | lam1 !=0) stop("Can't use regularization if there isonly one time point!")
+    if(lam.mu!=0 | lam.pi !=0) stop("Can't use regularization if there isonly one time point!")
     DD3.permuted = NULL
   }
 
   tryCatch({
+    for(iter in 2:niter){
+      if(verbose)printprogress(iter, niter, "iteration")
 
-  for(iter in 2:niter){
-    printprogress(iter, niter)
+      ## E step, done on each image separately.
+      resp.list = Estep(data, TT, mulist[[iter-1]], sigmalist[[iter-1]], pielist[[iter-1]], numclust)
 
-    ## E step, done on each image separately.
-    resp.list = Estep(data, TT, mulist[[iter-1]], sigmalist[[iter-1]], pielist[[iter-1]], numclust)
-
-    ## M step: calculate mu / sigma / pi.
-    if(lam1 ==0){ pielist[[iter]] = Mstep_pi_nopenalty(10000, resp.list, TT, pielist[[iter-1]], s, tol=tol1, lam1)   ## Mstep_pi_nopenalty()
+      ## M step: calculate mu / sigma / pi.
+      pielist[[iter]] = Mstep_pi(10000, resp.list, TT, pielist[[iter-1]], s, tol=tol1, lam.pi)$pie
+      mulist[[iter]] = Mstep_mu_exact(resp.list, numclust, sigmalist[[iter-1]], mulist[[iter-1]],
+                                      TT, dimdat, lam.mu, data, Xslist=Xslist, DD3.permuted=DD3.permuted,
+                                      ntlist=ntlist)
+      if(!fix.sigma){
+        sigmalist[[iter]] = Mstep_sigma(resp.list, data, numclust, mulist[[iter]], TT, dimdat)
       } else {
-    pielist[[iter]] = Mstep_pi(10000, resp.list, TT, pielist[[iter-1]], s, tol=tol1, lam1)$pie   ## Mstep_pi_nopenalty()
-    }
-    ##                                                                                                    ## $pie
-    mulist[[iter]] = Mstep_mu_exact(resp.list, numclust, sigmalist[[iter-1]], mulist[[iter-1]],
-                                    TT, dimdat, lam2, data, Xslist=Xslist, DD3.permuted=DD3.permuted,
-                                    ntlist=ntlist)
-    if(!fix.sigma){
-    sigmalist[[iter]] = Mstep_sigma(resp.list, data, numclust, mulist[[iter]], TT, dimdat)
-    } else {
-    sigmalist[[iter]] = Mstep_sigma_constant(resp.list, data, numclust, mulist[[iter]], TT, dimdat)
-    }
-    objectives[iter] = objective_overall(mulist[[iter]], pielist[[iter]], sigmalist[[iter]], data)
+        sigmalist[[iter]] = Mstep_sigma_constant(resp.list, data, numclust, mulist[[iter]], TT, dimdat)
+      }
+      objectives[iter] = objective_overall(mulist[[iter]], pielist[[iter]], sigmalist[[iter]], data)
 
-    if(check_converge(objectives[iter - 1],
-                      objectives[iter],
-                      tol=tol2)) break
-  }
+      if(check_converge_rel(objectives[iter - 1],
+                            objectives[iter],
+                            tol=tol2)) break
+    }
   },  error = function(err) {
-    err$message = paste(err$message,"\n(Path computation has been terminated;",
-                        " partial path is being returned.)",sep="")
-    warning(err)})
+    err$message = paste(err$message,"\n(EM computation has been terminated;",
+                        " partial results are being returned.)",sep="")
+    warning(err)
+  })
 
   ## Trim and return
   return(list(objectives = objectives[1:iter],
@@ -230,7 +296,46 @@ driftem <- function(data, mu=NULL, pie=NULL, niter=1000,
               mulist = mulist[1:iter],
               sigmalist = sigmalist[1:iter],
               final.iter = iter,
-              lam1=lam1,
-              lam2=lam2))
+              lam.pi=lam.pi,
+              lam.mu=lam.mu,
+              sound=sound))
   ## Consider adding the data object and other configurations in here.
+}
+
+
+##' Wrapper to run EM with progressively small step size for the exponentiated gradient descent.
+driftem_wrapper <- function(data, mu=NULL, pie=NULL, niter=1000,
+                    sigma=NULL, tol1 = 1E-10, tol2 = 1E-4, lam.pi=0, lam.mu=0,
+                    s=1E-4, numclust,
+                    sigma.fac=1,
+                    fix.sigma=FALSE,
+                    mu.all.times.same=FALSE){
+
+  ## Run while sound
+  s.curr = s
+  sound = FALSE
+  while(!sound){
+    cat(fill=TRUE)
+    res = driftem(data, mu, pie, niter,
+                    sigma, tol1, tol2, lam.pi, lam.mu,
+                    s.curr, numclust,
+                    sigma.fac,
+                    fix.sigma,
+                    mu.all.times.same)
+    print(paste0("running with s=", s.curr))
+    cat(fill=TRUE)
+    s.curr = s.curr * 0.1
+  }
+  return(res)
+}
+
+
+
+##' Making the permuted version of \tilde D \tilde D.
+make_DD3_permuted <- function(TT, dimdat){
+  D = dual1d_Dmat(TT)
+  D3 = Matrix::bdiag(lapply(1:dimdat, function(mydim){D}))
+  D3.permuted =  D3 %*% makePmat(dimdat, TT)
+  DD3.permuted = t(D3.permuted) %*% D3.permuted
+  return(DD3.permuted)
 }

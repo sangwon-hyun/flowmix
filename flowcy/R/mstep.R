@@ -28,6 +28,10 @@ Mstep_pi_nopenalty <- function(maxsteps=100, resp.list, TT,
 Mstep_pi <- function(maxsteps=100, resp.list, TT,
                      pie_init=matrix(NA, ncol=M, nrow=TT), s=1E-1, tol=1E-10,
                      lam){
+  if(lam==0){
+    return(list(pie=Mstep_pi_nopenalty(maxsteps, resp.list, TT, pie_init, s, tol=tol, lam)))
+  }
+
   ## Initialize
   pielist = list()
   objlist = rep(NA, maxsteps)
@@ -252,7 +256,7 @@ Mstep_mu_exact <- function(resp.list, M, Sigma, mu, TT, dimdat, lam, data,
   ## Solve seaparately for each dimension jj=1:M
   muhat.mat = array(0, c(TT, M, dimdat))
   for(jj in 1:M){
-    muhat.mat[,jj,] =  Mstep_mu_jj(Sigma, resp.list, jj, ntlist, TT, DD3.permuted, lam)
+    muhat.mat[,jj,] =  Mstep_mu_jj(Sigma, resp.list, jj, ntlist, TT, DD3.permuted, lam, data)
   }
   return(muhat.mat)
 }
@@ -260,7 +264,7 @@ Mstep_mu_exact <- function(resp.list, M, Sigma, mu, TT, dimdat, lam, data,
 
 ##' Helper (workhorse) to do a single  Mu step for jj in 1:M, where M  is the number of data
 ##' dimensions (dimdat).
-Mstep_mu_jj <- function(Sigma, resp.list, jj, ntlist, TT, DD3.permuted=NULL, lam){
+Mstep_mu_jj <- function(Sigma, resp.list, jj, ntlist, TT, DD3.permuted=NULL, lam, data){
 
 
   ## Making a list of Xi vectors; only make them once.
