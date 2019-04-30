@@ -70,7 +70,6 @@ init_mu_warmstart_v2 <- function(data, numclust, TT, tol2, verbose=FALSE){
   muhat = init_mu(data, numclust, 1)
   if(verbose){cat(fill=TRUE);cat("Warm start calculation in progress.");  cat(fill=TRUE)}
 
-
   ktlist = c()
   centers = list()
   for(tt in 1:TT){
@@ -83,14 +82,9 @@ init_mu_warmstart_v2 <- function(data, numclust, TT, tol2, verbose=FALSE){
     centers[[tt]] = obj$centers
   }
   ktmax = max(ktlist)
-  ## plot(do.call(rbind, data))
-  ## points(do.call(rbind, centers), pch=16, cex=2)
   allcenters = do.call(rbind, centers)
-  res = driftem(allcenters, numclust=ktmax)
-  ## points(res$mulist[[res$final.iter]][1,,], pch=18, col='red', cex=6)
-
-  centers = res$mulist[[res$final.iter]][1,,]
-  muhats = (lapply(1:TT, function(tt){centers}))
+  final.centers = (kmeans(allcenters, ktmax))$centers
+  muhats = (lapply(1:TT, function(tt){final.centers}))
   names(muhats) = 1:TT
   muarray = abind::abind(muhats, along=0)
   return(muarray)
@@ -225,7 +219,8 @@ driftem <- function(data, mu=NULL, pie=NULL, niter=1000,
                     sigma.fac=1,
                     fix.sigma=FALSE,
                     ## mu.all.times.same=FALSE
-                    warmstart=FALSE,
+                    ## warmstart=FALSE,
+                    warmstart = c("none", "seq", "v2"),
                     verbose=FALSE
                     ){
 
@@ -234,12 +229,14 @@ driftem <- function(data, mu=NULL, pie=NULL, niter=1000,
   dimdat = ncol(data[[1]])
   ntlist = sapply(data, nrow)
   TT = length(data)
+  warmstart = match.arg(warmstart)
 
   ## If missing, generate initial values
   if(is.null(pie)) pie = init_pi(numclust, TT)
   if(is.null(mu)){
-    if(warmstart){ mu = init_mu_warmstart(data, numclust, TT, tol2, verbose) }
-    if(!warmstart){ mu = init_mu(data, numclust, TT) }
+    if(warmstart=="v2"){ mu = init_mu_warmstart_v2(data, numclust, TT, tol2, verbose) }
+    if(warmstart=="seq"){ mu = init_mu_warmstart(data, numclust, TT, tol2, verbose) }
+    if(warmstart=="none"){ mu = init_mu(data, numclust, TT) }
   }
   if(is.null(sigma)) sigma = init_sigma(data, numclust, TT, fac=sigma.fac)
 
@@ -247,7 +244,7 @@ driftem <- function(data, mu=NULL, pie=NULL, niter=1000,
   pielist = mulist = sigmalist = list()
   objectives = rep(NA, niter)
   pielist[[1]] = pie
-  mulist[[1]] = mu
+  mulist[[1]] = mu_init = mu
   sigmalist[[1]] = sigma
   objectives[[1]] = objective_overall(mulist[[1]], pielist[[1]], sigmalist[[1]], data)
   if(class(data[[1]])!="matrix"){  data = lapply(data, as.matrix) }
@@ -273,6 +270,7 @@ driftem <- function(data, mu=NULL, pie=NULL, niter=1000,
       mulist[[iter]] = Mstep_mu_exact(resp.list, numclust, sigmalist[[iter-1]], mulist[[iter-1]],
                                       TT, dimdat, lam.mu, data, Xslist=Xslist, DD3.permuted=DD3.permuted,
                                       ntlist=ntlist)
+
       if(!fix.sigma){
         sigmalist[[iter]] = Mstep_sigma(resp.list, data, numclust, mulist[[iter]], TT, dimdat)
       } else {
@@ -290,6 +288,13 @@ driftem <- function(data, mu=NULL, pie=NULL, niter=1000,
     warning(err)
   })
 
+  ## As a hackish check, truncate further
+  ## if(is.null(sigmalist[[iter]]) | is.null(mulist[[iter]]))  iter = iter-1
+  if(length(sigmalist)!=iter | length(sigmalist)!=iter )  iter = iter-1 #Alternatively,
+                                                                        #final.iter
+                                                                        #can be
+                                                                        #adjusted.
+
   ## Trim and return
   return(list(objectives = objectives[1:iter],
               pielist = pielist[1:iter],
@@ -298,7 +303,8 @@ driftem <- function(data, mu=NULL, pie=NULL, niter=1000,
               final.iter = iter,
               lam.pi=lam.pi,
               lam.mu=lam.mu,
-              sound=sound))
+              sound=sound,
+              mu_init=mu_init))
   ## Consider adding the data object and other configurations in here.
 }
 
