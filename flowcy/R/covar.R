@@ -43,7 +43,6 @@ covarem <- function(ylist, X, numclust, niter=100, mn=NULL){
 
   for(iter in 2:niter){
     printprogress(iter,niter, "EM iterations.")
-    ## if(iter==3)browser()
 
     ## Conduct E step
     resp.list[[iter]] <- Estep_covar(mn.list[[iter-1]],
@@ -74,18 +73,14 @@ covarem <- function(ylist, X, numclust, niter=100, mn=NULL){
     mn.list[[iter]]    = res.beta$mns
 
     ## Calculate the objectives
-    objectives[iter] = objective_overall2(aperm(mn.list[[iter]], c(1,3,2)),
-                                          pie.list[[iter]],
-                                          sigma.list[[iter]],
-                                          ylist)
+    objectives[iter] = objective_overall_cov(aperm(mn.list[[iter]], c(1,3,2)),
+                                             pie.list[[iter]],
+                                             sigma.list[[iter]], ylist)
 
     ## Check convergence
     if(check_converge_rel(objectives[iter-1],
                           objectives[iter], tol=1E-6))break
   }
-
-  ## This contains the list of all things that went /into/ running the EM
-  ## setup = list(tol=tol, ...)
 
   return(list(alpha.list=alpha.list[1:iter],
               beta.list=beta.list[1:iter],
@@ -95,7 +90,6 @@ covarem <- function(ylist, X, numclust, niter=100, mn=NULL){
               pie.list=pie.list[1:iter],
               objectives=objectives[1:iter],
               final.iter=iter))
-              ## setup=setup))
 }
 
 
@@ -104,7 +98,7 @@ covarem <- function(ylist, X, numclust, niter=100, mn=NULL){
 ##' @param mu array of dimension T by M by p.
 ##' @param data TT lengthed list of data
 ##' @param sigma array of dimension T by M by p by p.
-objective_overall2 <- function(mu, pie, sigma, data){
+objective_overall_cov <- function(mu, pie, sigma, data){
   TT = length(data)
   loglikelihood_tt <- function(data, tt, mu, sigma, pie){
     dat = data[[tt]]
@@ -129,6 +123,5 @@ objective_overall2 <- function(mu, pie, sigma, data){
     loglikelihood_tt(data, tt, mu, sigma, pie)
   })
 
-  ## loglikelihood(datalist[[1]], mulist, pielist, sigmalist)
   -sum(loglikelihoods)
 }

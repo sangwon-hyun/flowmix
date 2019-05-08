@@ -14,24 +14,18 @@ Mstep_alpha <- function(resp, X, numclust, lambda=0, alpha=1, iter){
   resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
 
   stopifnot(dim(resp)==c(TT, numclust))
-  ## stopifnot(dim(covar)==c(TT, dimcov))
-  ## if(iter==3)browser()
 
   ## Fit the model, possibly with some regularization
   fit = glmnet(x=X, y=resp.sum, family="multinomial", lambda=lambda, alpha=alpha)
 
   ## While you're at it, calculate the fitted values (\pi) as well:
-  ## piehat = predict(fit, newx=X)[,,1] ## This is assuming only one lambda and
-  ##                                    ## alpha was used.
   piehat = predict(fit, newx=X, type="response")[,,1]
   stopifnot(all(dim(piehat)==c(TT,numclust)))
   ## This should be dimension (T x K)
 
-  ## The coefficients for the fit are (K x (p+1))
+  ## The coefficients for the multinomial logit model are (K x (p+1))
   alphahat = do.call(rbind, lapply(coef(fit), t))
   stopifnot(all(dim(alphahat)==c(numclust, (p+1))))
-  ## Now we have the multinomial logit model coefficients. A matrix of dimension
-  ## (K x (p+1)).
 
   return(list(pie=piehat, alpha=alphahat))
 }
@@ -41,8 +35,6 @@ Mstep_alpha <- function(resp, X, numclust, lambda=0, alpha=1, iter){
 Mstep_beta <- function(resp, ylist, X){
 
   Xa = cbind(rep(1,nrow(X)), X)
-
- ## resp= resp.list[[2]]
 
   resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
 
@@ -97,11 +89,9 @@ Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
 
     ## Stack them all as rows, and take the inner product
     resid.rows = do.call(rbind, wt.resids)
-    ## range(sapply(wt.resids, var))
 
     ## Calculate the covariance matrix
     resp.grandsum = sum(sapply(1:TT, function(tt){ resp[[tt]][,iclust] }))
-    ## browser()
     myvar = t(resid.rows) %*% resid.rows / resp.grandsum
 
     return(myvar)
@@ -113,9 +103,7 @@ Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
   }), along=0)
   ## stopifnot(all(dim(sigma) == c(TT, numclust, dimdat, dimdat)))
 
-
   ## Return |K| of them.
-  ## return(vars)
   return(sigma)
 }
 
