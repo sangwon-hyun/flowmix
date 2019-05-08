@@ -132,7 +132,9 @@ objective_pi <- function(pie, resp){
 ##' @param dimdat dimension of data.
 ##'   @return An  array containing  optimized covariances.   Dimension is  (T by
 ##'   numclust by dimdat by dimdat).
-Mstep_sigma_constant <- function(resp.list, data, numclust, mu, TT, dimdat){
+Mstep_sigma_constant <- function(resp.list, data, numclust, mu, TT, dimdat,
+                                 regularize=FALSE, eval.min=0, eval.max=Inf## Added experimentally
+                                 ){
 
   ## Make summed responsibilities (over i)
   resp.sum = t(sapply(resp.list, function(resp){
@@ -159,6 +161,10 @@ Mstep_sigma_constant <- function(resp.list, data, numclust, mu, TT, dimdat){
                             diag(all.resp.for.jj) %*%
                             all.centered.dat) / resp.sum.over.tt
 
+    if(regularize){
+      fixedsigma = sigma_regularize(fixedsigma, eval.min, eval.max)
+    }
+
     ## Assign the same fitted covariance to every tt=1:TT.
     for(tt in 1:TT){
       sigmalist[tt,jj,,] = fixedsigma
@@ -169,7 +175,7 @@ Mstep_sigma_constant <- function(resp.list, data, numclust, mu, TT, dimdat){
 
 
 ##' Optimize the  penalized Q function  with respect to covariance  (closed form
-##' solution).
+##' solution). The covariances are allowed to vary across time.
 ##' @param resp.list List of responsibility matrices.
 ##' @param  mu array of dimension  T by M by  p. This needs to  be the /updated/
 ##'   value of mu, in this iteration of EM.
@@ -179,7 +185,9 @@ Mstep_sigma_constant <- function(resp.list, data, numclust, mu, TT, dimdat){
 ##' @param dimdat dimension of data.
 ##'   @return An  array containing  optimized covariances.   Dimension is  (T by
 ##'   numclust by dimdat by dimdat).
-Mstep_sigma <- function(resp.list, data, numclust, mu, TT, dimdat){
+Mstep_sigma <- function(resp.list, data, numclust, mu, TT, dimdat,
+                        regularize=FALSE, eval.min=0, eval.max=Inf## Added experimentally
+                        ){
 
   ## Make summed responsibilities (over i)
   ## browser()
@@ -197,14 +205,42 @@ Mstep_sigma <- function(resp.list, data, numclust, mu, TT, dimdat){
       ## Subtract a single row from data, then get outer product
       mujt = mu[tt,jj,]
       centered.dat <- sweep(data[[tt]][,], 2, rbind(mujt))
-      sigmalist[tt,jj,,] = (t(centered.dat)  %*%
+      sigmahat = (t(centered.dat)  %*%
                             diag(resp.list[[tt]][,jj]) %*%
-                            centered.dat) / resp.sum[tt,jj]
+                  centered.dat) / resp.sum[tt,jj]
+      if(regularize){
+        sigmahat = sigma_regularize(sigmahat, eval.min, eval.max)
+      }
+      sigmalist[tt,jj,,] = sigmahat
     }
   }
   return(sigmalist)
 }
 
+
+##' Projects the matrix to have eigenvalue between two values
+##' @param eval.min Minimum eigenvalue.
+##' @param eval.max Maximum eigenvalue.
+sigma_regularize <- function(sigma, eval.min, eval.max){
+
+  ## Temporary setup, for testing
+  ## sigma = cov(MASS::mvrnorm(100, mu=c(0,0,0), Sigma=diag(c(2,1,0.5))))
+  ## eval.min = 0.8
+  ## eval.max = 1.5
+  ## End of temporary setup
+
+  ## Obtain eigendecomposition
+  decomp = eigen(sigma)
+  eigvals = decomp$values
+
+  ## Replace the eigenvalues
+  eigvals[eigvals <= eval.min] = eval.min
+  eigvals[eigvals >= eval.max] = eval.max
+
+  ## Make the new matrix and return
+  newmat = decomp$vectors %*% diag(eigvals) %*% t(decomp$vectors)
+  return(newmat)
+}
 
 
 
@@ -281,7 +317,7 @@ Mstep_mu_jj <- function(Sigma, resp.list, jj, ntlist, TT, DD3.permuted=NULL, lam
     ## Fix a tt
     Sigmahat.ijt = lapply(1:nt, function(ii){
       solve(Sigma[tt,jj,,]) * resp.list[[tt]][ii,jj]})
-    inv.covariances[[tt]] = Reduce("+", Sigmahat.ijt)
+    inv.covariances[[tt]] = reduce("+", Sigmahat.ijt)
     Xit = lapply(1:nt, function(ii){ as.numeric(data[[tt]][ii,])})
     inv.covariances.times.X[[tt]] = Reduce("+",
                                            mapply(function(a,b){a%*%b},

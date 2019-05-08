@@ -23,7 +23,7 @@ init_mu <- function(data, numclust, TT, all.times.same=FALSE){
   mulist = lapply(1:TT, function(tt){
     mydata = data[[tt]]
     if(!all.times.same){isamp = sample(1:nrow(mydata), numclust)}
-    sampled.data = mydata[isamp,]
+    sampled.data = mydata[isamp,,drop=FALSE]
     rownames(sampled.data) = paste0("clust", 1:numclust)
     return(sampled.data)
   })
@@ -221,7 +221,8 @@ driftem <- function(data, mu=NULL, pie=NULL, niter=1000,
                     ## mu.all.times.same=FALSE
                     ## warmstart=FALSE,
                     warmstart = c("none", "seq", "v2"),
-                    verbose=FALSE
+                    verbose=FALSE,
+                    regularize=FALSE, eval.min=0, eval.max=Inf
                     ){
 
   ## Define a few things
@@ -232,12 +233,16 @@ driftem <- function(data, mu=NULL, pie=NULL, niter=1000,
   warmstart = match.arg(warmstart)
 
   ## If missing, generate initial values
-  if(is.null(pie)) pie = init_pi(numclust, TT)
   if(is.null(mu)){
     if(warmstart=="v2"){ mu = init_mu_warmstart_v2(data, numclust, TT, tol2, verbose) }
     if(warmstart=="seq"){ mu = init_mu_warmstart(data, numclust, TT, tol2, verbose) }
     if(warmstart=="none"){ mu = init_mu(data, numclust, TT) }
   }
+  if(nrow(mu[1,,])!=numclust){
+    warning(paste0("Input numclust of ", numclust, "is being replaced by", nrow(mu[1,,])))
+    numclust = nrow(mu[1,,])
+  }
+  if(is.null(pie)) pie = init_pi(numclust, TT)
   if(is.null(sigma)) sigma = init_sigma(data, numclust, TT, fac=sigma.fac)
 
   ## Initialize
@@ -267,15 +272,21 @@ driftem <- function(data, mu=NULL, pie=NULL, niter=1000,
 
       ## M step: calculate mu / sigma / pi.
       pielist[[iter]] = Mstep_pi(10000, resp.list, TT, pielist[[iter-1]], s, tol=tol1, lam.pi)$pie
-      mulist[[iter]] = Mstep_mu_exact(resp.list, numclust, sigmalist[[iter-1]], mulist[[iter-1]],
+
+      if(!fix.sigma){
+        sigmalist[[iter]] = Mstep_sigma(resp.list, data, numclust, mulist[[iter-1]], TT, dimdat,
+                                        regularize=regularize, eval.min=eval.min, eval.max=eval.max)
+      } else {
+        sigmalist[[iter]] = Mstep_sigma_constant(resp.list, data, numclust, mulist[[iter-1]], TT, dimdat,
+                                        regularize=regularize, eval.min=eval.min, eval.max=eval.max)
+      }
+
+
+      ## Recnet change: changed order so that mu is estimated from /updated/ $Sigma$.
+      mulist[[iter]] = Mstep_mu_exact(resp.list, numclust, sigmalist[[iter]], mulist[[iter-1]], ## the previous mu is actually not used.
                                       TT, dimdat, lam.mu, data, Xslist=Xslist, DD3.permuted=DD3.permuted,
                                       ntlist=ntlist)
 
-      if(!fix.sigma){
-        sigmalist[[iter]] = Mstep_sigma(resp.list, data, numclust, mulist[[iter]], TT, dimdat)
-      } else {
-        sigmalist[[iter]] = Mstep_sigma_constant(resp.list, data, numclust, mulist[[iter]], TT, dimdat)
-      }
       objectives[iter] = objective_overall(mulist[[iter]], pielist[[iter]], sigmalist[[iter]], data)
 
       if(check_converge_rel(objectives[iter - 1],
@@ -304,7 +315,12 @@ driftem <- function(data, mu=NULL, pie=NULL, niter=1000,
               lam.pi=lam.pi,
               lam.mu=lam.mu,
               sound=sound,
-              mu_init=mu_init))
+              mu_init=mu_init,
+              data=data,
+              dimdat=dimdat,
+              TT=TT,
+              numclust=numclust
+              ))
   ## Consider adding the data object and other configurations in here.
 }
 
