@@ -37,9 +37,8 @@ check_converge <- function(old, new, tol=1E-6){ return(abs(new-old) < tol)  }
 check_converge_rel <- function(old, new, tol=1E-6){ return(abs((old-new)/old) < tol )  }
 
 
-##' From applying k-means, ge tthe best cluster according to the gap statistic.
+##' From applying k-means, get the best cluster according to the gap statistic.
 get_best_kmean_numclust <- function(data){
-  ## data = iris[,1:3]
   gap_stat <- cluster::clusGap(data, FUN = kmeans, nstart = 25,
                       K.max = 10, B = 50, verbose=FALSE)##, method = "firstSEmax"
   with(gap_stat, cluster::maxSE(Tab[,"gap"],Tab[,"SE.sim"]))

@@ -84,12 +84,11 @@ Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
   ntlist = sapply(ylist, nrow)
   dimdat = ncol(ylist[[1]])
 
-  ## vars = lapply(1:numclust, function(iclust){
+  ## Set up empty residual matrix (to be reused)
   resid.rows = matrix(NA, nrow = sum(ntlist), ncol=dimdat)
   cs = c(0, cumsum(ntlist))
   vars = list()
   for(iclust in 1:numclust){
-    printprogress(iclust, numclust)
 
     ## ## Calculate all the residuals, and weight them.
     for(tt in 1:TT){
@@ -102,7 +101,6 @@ Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
     ## Calculate the covariance matrix
     resp.grandsum = sum(unlist(sapply(1:TT, function(tt){ resp[[tt]][,iclust] })))
     myvar = crossprod(resid.rows, resid.rows) / resp.grandsum
-    ## myvar = colSums(resid.rows * resid.rows) / resp.grandsum
     vars[[iclust]] = myvar
   }
 
@@ -184,6 +182,7 @@ Mstep_beta_faster_lasso <- function(resp, ylist, X, beta_lambda=0, sigma, numclu
   TT = length(ylist)
   numclust = ncol(resp[[1]])
   Xa = cbind(rep(1, nrow(X)), X)
+  dimdat = ncol(ylist[[1]])
 
   ## Setup
   resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
@@ -216,7 +215,7 @@ Mstep_beta_faster_lasso <- function(resp, ylist, X, beta_lambda=0, sigma, numclu
 
     ## Obtain the coef and fitted response
     b = as.numeric(coef(fit))[-1]
-    betahat = matrix(b, ncol=3)
+    betahat = matrix(b, ncol=dimdat)
     yhat = Xa %*% betahat
 
     return(list(betahat=betahat, yhat=yhat))

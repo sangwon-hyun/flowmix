@@ -5,9 +5,6 @@
 ##' @param X Matrix of size (T x p+1)
 ##' @param beta.list Each element is a (T x p+1 x 3 x K) array
 ##' @param alpha.list Each element is a T by p+1 array
-##' @param resp.list  Each element is the posterior probabilities  of the latent
-##'   variable $Z$ given the parameter estimates. Each element is a T by nt by k
-##'   lengthed vectors
 ##' @param pie.list (T by K)
 ##' @param beta_lambda lambda for lasso for the mean.
 ##' @param reg.lambda lambda for lasso for pie.
@@ -40,7 +37,7 @@ covarem <- function(ylist, X, numclust, niter=100, mn=NULL, reg.lambda=0,
   sigma = init_sigma(ylist, numclust, TT, fac=sigma.fac) ## (T x numclust x dimdat x dimdat)
 
   ## Initialize alpha and beta
-  beta.list = alpha.list = resp.list = sigma.list = pie.list = mn.list = list()
+  beta.list = alpha.list = sigma.list = pie.list = mn.list = list()
   objectives = rep(NA, niter)
   objectives[1] = -1E20 ## Fake
   beta.list[[1]] = beta
@@ -54,7 +51,7 @@ covarem <- function(ylist, X, numclust, niter=100, mn=NULL, reg.lambda=0,
     if(verbose) printprogress(iter, niter, "EM iterations.", start.time=start.time)
 
     ## Conduct E step
-    resp.list[[iter]] <- Estep_covar(mn.list[[iter-1]],
+    resp <- Estep_covar(mn.list[[iter-1]],
                                      sigma.list[[iter-1]],
                                      pie.list[[iter-1]],
                                      ylist,
@@ -63,7 +60,7 @@ covarem <- function(ylist, X, numclust, niter=100, mn=NULL, reg.lambda=0,
 
     ## Conduct M step
     ## 1. Alpha
-    res.alpha = Mstep_alpha(resp.list[[iter]],
+    res.alpha = Mstep_alpha(resp,
                             X, numclust, iter=iter,
                             lambda=reg.lambda,
                             alpha=reg.alpha)
@@ -71,22 +68,20 @@ covarem <- function(ylist, X, numclust, niter=100, mn=NULL, reg.lambda=0,
     pie.list[[iter]] = res.alpha$pie
 
     ## 2. Beta
-    res.beta = Mstep_beta_faster_lasso(resp.list[[iter]], ylist, X, beta_lambda=beta_lambda, sigma.list[[iter-1]])
+    res.beta = Mstep_beta_faster_lasso(resp, ylist, X, beta_lambda=beta_lambda, sigma.list[[iter-1]])
     beta.list[[iter]] = res.beta$beta
     mn.list[[iter]]    = res.beta$mns
 
     ## 3. Sigma
-    sigma.list[[iter]] <- Mstep_sigma_covar(resp.list[[iter]],
+    sigma.list[[iter]] <- Mstep_sigma_covar(resp,
                                             ylist,
                                             mn.list[[iter]],
                                             numclust)
 
     ## Calculate the objectives
-    print('objective end')
     objectives[iter] = objective_overall_cov(aperm(mn.list[[iter]], c(1,3,2)),
                                              pie.list[[iter]],
                                              sigma.list[[iter]], ylist)
-    print('objective end')
 
     ## Check convergence
     if(check_converge_rel(objectives[iter-1],
@@ -95,7 +90,6 @@ covarem <- function(ylist, X, numclust, niter=100, mn=NULL, reg.lambda=0,
 
   return(list(alpha.list=alpha.list[1:iter],
               beta.list=beta.list[1:iter],
-              resp.list=resp.list[1:iter],
               mn.list=mn.list[1:iter],
               sigma.list=sigma.list[1:iter],
               pie.list=pie.list[1:iter],

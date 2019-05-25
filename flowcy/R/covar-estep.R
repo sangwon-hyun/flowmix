@@ -4,10 +4,9 @@
 ##' @param pie matrix of component weights.
 ##' @param y data.
 ##' @return Responsibility matrix, containing the posterior probabilities of the
-##'   latent variable $Z$  given the paramter estimates. Dimension is  (T X nt x
-##'   K).
+##'   latent  variable $Z$  (memberships  to each  cluster)  given the  paramter
+##'   estimates. Dimension is (T X nt x K).
 Estep_covar <- function(mn, sigma, pie, ylist, numclust, ntlist){
-  ## This was y.. did that change anything? not that I can tell.
 
   TT = length(ylist)
   resp = list()
