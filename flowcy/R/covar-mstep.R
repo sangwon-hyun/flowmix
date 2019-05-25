@@ -16,7 +16,8 @@ Mstep_alpha <- function(resp, X, numclust, lambda=0, alpha=1, iter){
   stopifnot(dim(resp)==c(TT, numclust))
 
   ## Fit the model, possibly with some regularization
-  fit = glmnet(x=X, y=resp.sum, family="multinomial", lambda=lambda, alpha=alpha)
+  fit = glmnet::glmnet(x=X, y=resp.sum, family="multinomial",
+                       lambda=lambda, alpha=alpha)
 
   ## While you're at it, calculate the fitted values (\pi) as well:
   piehat = predict(fit, newx=X, type="response")[,,1]
@@ -31,10 +32,11 @@ Mstep_alpha <- function(resp, X, numclust, lambda=0, alpha=1, iter){
 }
 
 
-##' Essentially a regression
+##' Essentially a regression.
 Mstep_beta <- function(resp, ylist, X){
 
   Xa = cbind(rep(1,nrow(X)), X)
+  numclust = ncol(resp[[1]])
 
   resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
 
@@ -58,6 +60,7 @@ Mstep_beta <- function(resp, ylist, X){
           t(Xa) %*% wt.Y.list[[iclust]])
   })
   ## |numclust| length list containing matrices each of dimension (p+1 x dimdat)
+  ## Possibly think about regularization here.
 
   yhats = lapply(betahats, function(betahat){
     Xa %*%  betahat ## Double-check this.
@@ -78,24 +81,30 @@ Mstep_beta <- function(resp, ylist, X){
 ##' @param mn are the fitted means
 Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
   TT = length(ylist)
+  ntlist = sapply(ylist, nrow)
+  dimdat = ncol(ylist[[1]])
 
-  vars = lapply(1:numclust, function(iclust){
+  ## vars = lapply(1:numclust, function(iclust){
+  resid.rows = matrix(NA, nrow = sum(ntlist), ncol=dimdat)
+  cs = c(0, cumsum(ntlist))
+  vars = list()
+  for(iclust in 1:numclust){
+    printprogress(iclust, numclust)
 
-    ## Calculate all the residuals
-    wt.resids = lapply(1:TT, function(tt){
-      myresid = ylist[[tt]] - mn[tt,,iclust]
-      sqrt(resp[[tt]][,iclust]) * myresid
-    })
-
-    ## Stack them all as rows, and take the inner product
-    resid.rows = do.call(rbind, wt.resids)
+    ## ## Calculate all the residuals, and weight them.
+    for(tt in 1:TT){
+      irows = (cs[tt]+1):cs[tt+1]
+      myresid = sweep(ylist[[tt]], 2, rbind(mn[tt,,iclust]))
+      wt.resids = sqrt(resp[[tt]][,iclust]) * myresid
+      resid.rows[irows,] = wt.resids
+    }
 
     ## Calculate the covariance matrix
-    resp.grandsum = sum(sapply(1:TT, function(tt){ resp[[tt]][,iclust] }))
-    myvar = t(resid.rows) %*% resid.rows / resp.grandsum
-
-    return(myvar)
-  })
+    resp.grandsum = sum(unlist(sapply(1:TT, function(tt){ resp[[tt]][,iclust] })))
+    myvar = crossprod(resid.rows, resid.rows) / resp.grandsum
+    ## myvar = colSums(resid.rows * resid.rows) / resp.grandsum
+    vars[[iclust]] = myvar
+  }
 
   ## reformat
   sigma = abind::abind(lapply(1:TT, function(tt){
@@ -108,3 +117,163 @@ Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
 }
 
 
+
+
+##' Making it into a row-stacked setup, so that lasso can be applied (eventually
+##' combine it back into Mstep_beta as an option..
+Mstep_beta_lasso <- function(resp, ylist, X, beta_lambda=0){
+
+  TT = length(ylist)
+  numclust = ncol(resp[[1]])
+  ntlist = sapply(ylist, nrow)
+  Xa = cbind(rep(1,nrow(X)), X)
+
+  ## For each cluster, separately
+  results = lapply(1:numclust, function(iclust){
+    ## Stack and reweight covariates into regression form.
+    Xaa = do.call(rbind, lapply(1:TT, function(tt){
+      myresp = resp[[tt]][, iclust]
+      Xrep = matrix(rep(Xa[tt,],each=ntlist[tt]),nrow=ntlist[tt])
+      (sqrt(myresp)) * Xrep ## Make sure this applies to the /rows/.
+    }))
+
+    ## Now, stack y into a long row
+    wt.ylist = lapply(1:TT, function(tt){
+      myresp = resp[[tt]][, iclust]
+      (sqrt(myresp)) * ylist[[tt]]
+    })
+    yaa = do.call(rbind, wt.ylist)
+    assert_that(nrow(yaa) == sum(ntlist))
+
+    ## Then, do a regular regression
+    ## browser()
+    print(dim(yaa))
+    print(dim(Xaa))
+    fit = glmnet::glmnet(y=yaa, x=Xaa, lambda=beta_lambda,
+                         alpha=1, intercept=FALSE, family="mgaussian")
+
+    betahat = do.call(cbind, coef(fit))[-1,]
+    yhat = Xa %*%  betahat ## Double-check this.
+    return(list(betahat=betahat, yhat=yhat))
+  })
+  ## ## I could have also achieved using the weighted lasso with responsibilities
+  ## ## as weights. Check this.
+
+  ## Extract restuls
+  betahats = lapply(results, function(a){a$betahat})
+  yhats = lapply(results, function(a){as.matrix(a$yhat)})
+  yhats = abind::abind(yhats, along=0)
+  yhats = aperm(yhats, c(2,3,1)) ## This needs to by (T x dimdat x numclust)
+
+  ## Each are lists of length |numclust|.
+  return(list(beta=betahats,
+              mns=yhats))
+}
+
+## Only works for positive semidefinite matrices that are diagonalizable (no
+## normal Jordan forms, etc.)
+mtsqrt <- function(a){
+  a.eig <- eigen(a)
+  a.sqrt <- a.eig$vectors %*% diag(sqrt(a.eig$values)) %*% solve(a.eig$vectors)
+}
+
+##' The M step of the lasso is this.
+Mstep_beta_faster_lasso <- function(resp, ylist, X, beta_lambda=0, sigma, numclust){
+
+  ## Preliminaries
+  TT = length(ylist)
+  numclust = ncol(resp[[1]])
+  Xa = cbind(rep(1, nrow(X)), X)
+
+  ## Setup
+  resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
+  sigma.inv.halves = array(NA, dim=dim(sigma))
+  for(iclust in 1:numclust){
+    mymat = mtsqrt(solve(sigma[1,iclust,,]))
+    for(tt in 1:TT){ sigma.inv.halves[tt,iclust,,] = mymat }
+  }
+
+  ## Pre-calculate response and covariates to feed into lasso.
+  Ytilde = lapply(1:numclust, function(iclust){
+    wt.ylist = lapply(1:TT, function(tt){
+      resp[[tt]][, iclust]  * ylist[[tt]]
+    })
+    sapply(wt.ylist, colSums)
+  })
+  Xtilde = lapply(1:numclust, function(iclust){
+    sigma.inv.halves[1,iclust,,] %x% (sqrt(resp.sum[,iclust]) * Xa)
+  })
+
+  results = lapply(1:numclust, function(iclust){
+
+    ## Form y vector
+    yvec = (1/sqrt(resp.sum[,iclust]) * t(Ytilde[[iclust]])) %*% sigma.inv.halves[1,iclust,,]
+    yvec = as.vector(yvec)
+
+    ## Give the glmnet function some pre-calculated Y's and X's.
+    fit = glmnet::glmnet(x=Xtilde[[iclust]], y=yvec,
+                 lambda=beta_lambda, alpha=1, intercept=FALSE, family = "gaussian")
+
+    ## Obtain the coef and fitted response
+    b = as.numeric(coef(fit))[-1]
+    betahat = matrix(b, ncol=3)
+    yhat = Xa %*% betahat
+
+    return(list(betahat=betahat, yhat=yhat))
+  })
+
+  ## Copied over from plain lasso
+  TT = length(ylist)
+  numclust = ncol(resp[[1]])
+  ntlist = sapply(ylist, nrow)
+  Xa = cbind(rep(1,nrow(X)), X)
+
+  ## ## For each cluster, separately
+  ## results2 = lapply(1:numclust, function(iclust){
+  ##   ## Stack and reweight covariates into regression form.
+  ##   Xaa = do.call(rbind, lapply(1:TT, function(tt){
+  ##     myresp = resp[[tt]][, iclust]
+  ##     Xrep = matrix(rep(Xa[tt,],each=ntlist[tt]),nrow=ntlist[tt])
+  ##     (sqrt(myresp)) * Xrep ## Make sure this applies to the /rows/.
+  ##   }))
+
+  ##   ## Now, stack y into a long row
+  ##   wt.ylist = lapply(1:TT, function(tt){
+  ##     myresp = resp[[tt]][, iclust]
+  ##     (sqrt(myresp)) * ylist[[tt]]
+  ##   })
+  ##   yaa = do.call(rbind, wt.ylist)
+  ##   assert_that(nrow(yaa) == sum(ntlist))
+
+  ##   ## Then, do a regular regression (or lasso)
+  ##   fit = glmnet::glmnet(y=yaa, x=Xaa, lambda=beta_lambda,
+  ##                        alpha=1, intercept=FALSE, family="mgaussian")
+  ##   betahat = do.call(cbind, coef(fit))[-1,]
+  ##   yhat = Xa %*%  betahat ## Double-check this.
+  ##   return(list(betahat=betahat, yhat=yhat))
+  ## })
+  ## ## End copy
+
+  ## yhats = lapply(results, function(a){as.matrix(a$yhat)})
+  ## betahats = lapply(results, function(a){as.matrix(a$betahat)})
+
+  ## yhats2 = lapply(results2, function(a){as.matrix(a$yhat)})
+  ## betahats2 = lapply(results2, function(a){as.matrix(a$betahat)})
+
+  ## ## So close!!! similar..
+  ## matplot(betahats[[1]], type='l')
+  ## matlines(betahats2[[1]], type='l', lwd=2)
+  ## yhats
+  ## yhats2
+  ## ## End of close
+
+  ## Extract results
+  betahats = lapply(results, function(a){a$betahat})
+  yhats = lapply(results, function(a){as.matrix(a$yhat)})
+  yhats = abind::abind(yhats, along=0)
+  yhats = aperm(yhats, c(2,3,1)) ## This needs to by (T x dimdat x numclust)
+
+  ## Each are lists of length |numclust|.
+  return(list(beta=betahats,
+              mns=yhats))
+}

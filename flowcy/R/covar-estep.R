@@ -6,22 +6,36 @@
 ##' @return Responsibility matrix, containing the posterior probabilities of the
 ##'   latent variable $Z$  given the paramter estimates. Dimension is  (T X nt x
 ##'   K).
-Estep_covar <- function(mn, sigma, pie, y, numclust, ntlist, iter){
+Estep_covar <- function(mn, sigma, pie, ylist, numclust, ntlist){
+  ## This was y.. did that change anything? not that I can tell.
 
+  TT = length(ylist)
   resp = list()
   for(tt in 1:TT){
     y = ylist[[tt]]  ## These are nt rows of 3-variate measurements
     densmat = matrix(NA, nrow=ntlist[tt], ncol=numclust)
     for(kk in 1:numclust){
+
+      ## Gather the means
       mu = mn[tt,,kk] ## This is a single 3-variate mean.
-      sigm = sigma[[kk]]
-      densmat[,kk] = mvtnorm::dmvnorm(y, mean=mu, sigma=matrix(sigm), log=FALSE)
+      sigm = as.matrix(sigma[tt,kk,,])
+      densmat[,kk] = mvtnorm::dmvnorm(y, mean=mu, sigma=sigm, log=FALSE)##sigma=matrix(sigm)
+      if(any(is.nan(densmat[,kk]))) browser()
     }
     piemat = matrix(pie[tt,], nrow=ntlist[tt], ncol=ncol(pie), byrow=TRUE)
 
     stopifnot(dim(piemat)==dim(densmat))
+
     wt.densmat = piemat * densmat
-    wt.densmat = wt.densmat / rowSums(wt.densmat) ## make sure this is a row-wise operation
+    wt.densmat = wt.densmat / rowSums(wt.densmat)
+
+    if(any(is.nan(wt.densmat)))browser()
+    which(is.nan(wt.densmat))
+    which(is.nan(densmat*piemat))
+    which((rowSums(densmat*piemat))==0)
+    which((rowSums(densmat))==0)
+
+    ## make sure this is a row-wise operation
     resp[[tt]] = wt.densmat
   }
   return(resp)
