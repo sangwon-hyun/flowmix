@@ -172,7 +172,7 @@ Mstep_beta_lasso <- function(resp, ylist, X, beta_lambda=0){
 ## normal Jordan forms, etc.)
 mtsqrt <- function(a){
   a.eig <- eigen(a)
-  a.sqrt <- a.eig$vectors %*% diag(sqrt(a.eig$values)) %*% solve(a.eig$vectors)
+  a.sqrt <- a.eig$vectors %*% diag(sqrt(a.eig$values)) %*% t(a.eig$vectors)
 }
 
 ##' The M step of the lasso is this.
