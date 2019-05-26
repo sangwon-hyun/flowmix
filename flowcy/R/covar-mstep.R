@@ -170,9 +170,10 @@ Mstep_beta_lasso <- function(resp, ylist, X, beta_lambda=0){
 
 ## Only works for positive semidefinite matrices that are diagonalizable (no
 ## normal Jordan forms, etc.)
-mtsqrt <- function(a){
+##' Given a matrix positive definite matrix a, computes a^{-1/2}.
+mtsqrt_inv <- function(a){
   a.eig <- eigen(a)
-  a.sqrt <- a.eig$vectors %*% diag(sqrt(a.eig$values)) %*% t(a.eig$vectors)
+  a.sqrt <- a.eig$vectors %*% diag(1 / sqrt(a.eig$values)) %*% t(a.eig$vectors)
 }
 
 ##' The M step of the lasso is this.
@@ -188,7 +189,7 @@ Mstep_beta_faster_lasso <- function(resp, ylist, X, beta_lambda=0, sigma, numclu
   resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
   sigma.inv.halves = array(NA, dim=dim(sigma))
   for(iclust in 1:numclust){
-    mymat = mtsqrt(solve(sigma[1,iclust,,]))
+    mymat = mtsqrt_inv(sigma[1,iclust,,])
     for(tt in 1:TT){ sigma.inv.halves[tt,iclust,,] = mymat }
   }
 
