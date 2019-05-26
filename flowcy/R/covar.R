@@ -3,15 +3,13 @@
 ##'   3), which contains coordinates of  the 3-variate particles, organized over
 ##'   time (T) and with (nt) particles at every time.
 ##' @param X Matrix of size (T x p+1)
-##' @param beta.list Each element is a (T x p+1 x 3 x K) array
-##' @param alpha.list Each element is a T by p+1 array
 ##' @param pie.list (T by K)
-##' @param beta_lambda lambda for lasso for the mean.
-##' @param reg.lambda lambda for lasso for pie.
+##' @param mean_lambda lambda for lasso for the mean.
+##' @param pie_lambda lambda for lasso for pie.
 ##' @return  List containing  fitted parameters and  means and  mixture weights,
 ##'   across algorithm iterations.
-covarem <- function(ylist, X, numclust, niter=100, mn=NULL, reg.lambda=0,
-                    reg.alpha=1, beta_lambda=0, verbose=FALSE,
+covarem <- function(ylist, X, numclust, niter=100, mn=NULL, pie_lambda=0,
+                    mean_lambda=0, verbose=FALSE,
                     warmstart = c("none", "rough"), sigma.fac=1){
 
   ## Setup.
@@ -40,8 +38,8 @@ covarem <- function(ylist, X, numclust, niter=100, mn=NULL, reg.lambda=0,
   beta.list = alpha.list = sigma.list = pie.list = mn.list = list()
   objectives = rep(NA, niter)
   objectives[1] = -1E20 ## Fake
-  beta.list[[1]] = beta
-  alpha.list[[1]] = alpha
+  beta.list[[1]] = beta ## beta.list: Each element is a (T x p+1 x 3 x K) array
+  alpha.list[[1]] = alpha ## alpha.list: Each element is a T by p+1 array
   mn.list[[1]] = mn
   sigma.list[[1]] = sigma
   pie.list[[1]] = pie
@@ -52,23 +50,24 @@ covarem <- function(ylist, X, numclust, niter=100, mn=NULL, reg.lambda=0,
 
     ## Conduct E step
     resp <- Estep_covar(mn.list[[iter-1]],
-                                     sigma.list[[iter-1]],
-                                     pie.list[[iter-1]],
-                                     ylist,
-                                     numclust,
-                                     ntlist)  ## This should be (T x numclust x dimdat x dimdat)
+                        sigma.list[[iter-1]],
+                        pie.list[[iter-1]],
+                        ylist,
+                        numclust,
+                        ntlist)  ## This should be (T x numclust x dimdat x dimdat)
 
     ## Conduct M step
     ## 1. Alpha
     res.alpha = Mstep_alpha(resp,
                             X, numclust, iter=iter,
-                            lambda=reg.lambda,
-                            alpha=reg.alpha)
+                            lambda=pie_lambda)
     alpha.list[[iter]] = res.alpha$alpha
     pie.list[[iter]] = res.alpha$pie
 
     ## 2. Beta
-    res.beta = Mstep_beta_faster_lasso(resp, ylist, X, beta_lambda=beta_lambda, sigma.list[[iter-1]])
+    res.beta = Mstep_beta_faster_lasso(resp, ylist, X,
+                                       mean_lambda=mean_lambda,
+                                       sigma.list[[iter-1]])
     beta.list[[iter]] = res.beta$beta
     mn.list[[iter]]    = res.beta$mns
 
@@ -102,7 +101,9 @@ covarem <- function(ylist, X, numclust, niter=100, mn=NULL, reg.lambda=0,
               p=p,
               numclust=numclust,
               ylist=ylist,
-              X=X
+              X=X,
+              pie_lambda=pie_lambda,
+              mean_lambda=mean_lambda
               ))
 }
 

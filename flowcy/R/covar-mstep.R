@@ -1,6 +1,6 @@
 ##' Updates alpha in the covariate EM algorithm, using GLMnet as the workhorse.
-## (@param beta Is a (T x p+1 x 3) array. not needed)
-## (@param alpha Is a T by p+1 array. not needed)
+##' (@param beta Is a (T x p+1 x 3) array. not needed)
+##' (@param alpha Is a T by p+1 array. not needed)
 ##' @param resp Is an (T x nt x K) array.
 ##' @param X
 ##' @return The multinomial logit model coefficients. A matrix of dimension (K x
@@ -90,12 +90,23 @@ Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
   vars = list()
   for(iclust in 1:numclust){
 
+    ## ## Can we do it in one swipe? (will it help?)
+    ## subtract.row = rbind(1:3)
+    ## tt=1
+    ## for(tt in 1:TT){
+    ##   irows = (cs[tt]+1):cs[tt+1]
+    ##   resid.rows[irows,] = matrix(rep(subtract.row, ntlist[tt]), ncol=dimdat, byrow=TRUE)
+    ## }
+    ## resp[[tt]][,iclust]
+    ## ## End of fix (under construction)
+
     ## ## Calculate all the residuals, and weight them.
     for(tt in 1:TT){
       irows = (cs[tt]+1):cs[tt+1]
-      myresid = sweep(ylist[[tt]], 2, rbind(mn[tt,,iclust]))
-      wt.resids = sqrt(resp[[tt]][,iclust]) * myresid
-      resid.rows[irows,] = wt.resids
+      row.to.subtract = mn[tt,,iclust]
+      resid.rows[irows,] = sqrt(resp[[tt]][,iclust]) *
+        sweep(ylist[[tt]], 2, rbind(row.to.subtract))
+      rm(wt.resids)
     }
 
     ## Calculate the covariance matrix
@@ -103,6 +114,7 @@ Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
     myvar = crossprod(resid.rows, resid.rows) / resp.grandsum
     vars[[iclust]] = myvar
   }
+  rm(resid.rows)
 
   ## reformat
   sigma = abind::abind(lapply(1:TT, function(tt){
@@ -119,7 +131,7 @@ Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
 
 ##' Making it into a row-stacked setup, so that lasso can be applied (eventually
 ##' combine it back into Mstep_beta as an option..
-Mstep_beta_lasso <- function(resp, ylist, X, beta_lambda=0){
+Mstep_beta_lasso <- function(resp, ylist, X, mean_lambda=0){
 
   TT = length(ylist)
   numclust = ncol(resp[[1]])
@@ -147,7 +159,7 @@ Mstep_beta_lasso <- function(resp, ylist, X, beta_lambda=0){
     ## browser()
     print(dim(yaa))
     print(dim(Xaa))
-    fit = glmnet::glmnet(y=yaa, x=Xaa, lambda=beta_lambda,
+    fit = glmnet::glmnet(y=yaa, x=Xaa, lambda=mean_lambda,
                          alpha=1, intercept=FALSE, family="mgaussian")
 
     betahat = do.call(cbind, coef(fit))[-1,]
@@ -176,14 +188,15 @@ mtsqrt_inv <- function(a){
   a.sqrt <- a.eig$vectors %*% diag(1 / sqrt(a.eig$values)) %*% t(a.eig$vectors)
 }
 
-##' The M step of the lasso is this.
-Mstep_beta_faster_lasso <- function(resp, ylist, X, beta_lambda=0, sigma, numclust){
+##' The M step of beta using a faster lasso regression formulation.
+Mstep_beta_faster_lasso <- function(resp, ylist, X, mean_lambda=0, sigma, numclust){
 
   ## Preliminaries
   TT = length(ylist)
   numclust = ncol(resp[[1]])
   Xa = cbind(rep(1, nrow(X)), X)
   dimdat = ncol(ylist[[1]])
+  ntlist = sapply(ylist, nrow)
 
   ## Setup
   resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
@@ -194,12 +207,17 @@ Mstep_beta_faster_lasso <- function(resp, ylist, X, beta_lambda=0, sigma, numclu
   }
 
   ## Pre-calculate response and covariates to feed into lasso.
-  Ytilde = lapply(1:numclust, function(iclust){
-    wt.ylist = lapply(1:TT, function(tt){
-      resp[[tt]][, iclust]  * ylist[[tt]]
-    })
-    sapply(wt.ylist, colSums)
-  })
+  emptymat = matrix(NA, nrow=dimdat, ncol=TT)
+  Ytilde = list()
+  for(iclust in 1:numclust){
+    cs = c(0, cumsum(ntlist))
+    for(tt in 1:TT){
+      irows = (cs[tt]+1):cs[tt+1]
+      wt.y = resp[[tt]][, iclust]  * ylist[[tt]]
+      emptymat[,tt] = colSums(wt.y)
+    }
+    Ytilde[[iclust]] = emptymat
+  }
   Xtilde = lapply(1:numclust, function(iclust){
     sigma.inv.halves[1,iclust,,] %x% (sqrt(resp.sum[,iclust]) * Xa)
   })
@@ -212,7 +230,7 @@ Mstep_beta_faster_lasso <- function(resp, ylist, X, beta_lambda=0, sigma, numclu
 
     ## Give the glmnet function some pre-calculated Y's and X's.
     fit = glmnet::glmnet(x=Xtilde[[iclust]], y=yvec,
-                 lambda=beta_lambda, alpha=1, intercept=FALSE, family = "gaussian")
+                 lambda=mean_lambda, alpha=1, intercept=FALSE, family = "gaussian")
 
     ## Obtain the coef and fitted response
     b = as.numeric(coef(fit))[-1]
@@ -221,51 +239,6 @@ Mstep_beta_faster_lasso <- function(resp, ylist, X, beta_lambda=0, sigma, numclu
 
     return(list(betahat=betahat, yhat=yhat))
   })
-
-  ## Copied over from plain lasso
-  TT = length(ylist)
-  numclust = ncol(resp[[1]])
-  ntlist = sapply(ylist, nrow)
-  Xa = cbind(rep(1,nrow(X)), X)
-
-  ## ## For each cluster, separately
-  ## results2 = lapply(1:numclust, function(iclust){
-  ##   ## Stack and reweight covariates into regression form.
-  ##   Xaa = do.call(rbind, lapply(1:TT, function(tt){
-  ##     myresp = resp[[tt]][, iclust]
-  ##     Xrep = matrix(rep(Xa[tt,],each=ntlist[tt]),nrow=ntlist[tt])
-  ##     (sqrt(myresp)) * Xrep ## Make sure this applies to the /rows/.
-  ##   }))
-
-  ##   ## Now, stack y into a long row
-  ##   wt.ylist = lapply(1:TT, function(tt){
-  ##     myresp = resp[[tt]][, iclust]
-  ##     (sqrt(myresp)) * ylist[[tt]]
-  ##   })
-  ##   yaa = do.call(rbind, wt.ylist)
-  ##   assert_that(nrow(yaa) == sum(ntlist))
-
-  ##   ## Then, do a regular regression (or lasso)
-  ##   fit = glmnet::glmnet(y=yaa, x=Xaa, lambda=beta_lambda,
-  ##                        alpha=1, intercept=FALSE, family="mgaussian")
-  ##   betahat = do.call(cbind, coef(fit))[-1,]
-  ##   yhat = Xa %*%  betahat ## Double-check this.
-  ##   return(list(betahat=betahat, yhat=yhat))
-  ## })
-  ## ## End copy
-
-  ## yhats = lapply(results, function(a){as.matrix(a$yhat)})
-  ## betahats = lapply(results, function(a){as.matrix(a$betahat)})
-
-  ## yhats2 = lapply(results2, function(a){as.matrix(a$yhat)})
-  ## betahats2 = lapply(results2, function(a){as.matrix(a$betahat)})
-
-  ## ## So close!!! similar..
-  ## matplot(betahats[[1]], type='l')
-  ## matlines(betahats2[[1]], type='l', lwd=2)
-  ## yhats
-  ## yhats2
-  ## ## End of close
 
   ## Extract results
   betahats = lapply(results, function(a){a$betahat})
