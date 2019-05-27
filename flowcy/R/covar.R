@@ -87,7 +87,9 @@ covarem <- function(ylist, X, numclust, niter=100, mn=NULL, pie_lambda=0,
                           objectives[iter], tol=1E-6)) break
   }
 
+
   return(list(alpha.list=alpha.list[1:iter],
+              alpha.fit=res.alpha$fit,
               beta.list=beta.list[1:iter],
               mn.list=mn.list[1:iter],
               sigma.list=sigma.list[1:iter],
@@ -100,11 +102,12 @@ covarem <- function(ylist, X, numclust, niter=100, mn=NULL, pie_lambda=0,
               TT=TT,
               p=p,
               numclust=numclust,
-              ylist=ylist,
+              ## ylist=ylist,
               X=X,
               pie_lambda=pie_lambda,
               mean_lambda=mean_lambda
               ))
+
 }
 
 
@@ -137,6 +140,8 @@ objective_overall_cov <- function(mu, pie, sigma, data){
     loglikelihood_tt(data, tt, mu, sigma, pie)
   })
 
+  ## TODO: Form and add penalty term.
+
   -sum(unlist(loglikelihoods))
 }
 
@@ -161,4 +166,29 @@ warmstart_covar <- function(ylist, numclust){
 
   ## Repeat it TT times and return it
   return(centres)
+}
+
+
+##' Prediction: given  new X's,  generate a  set of means  and pies  (and return
+##' default Sigma)
+##' @param res object returned from covariate EM covarem().
+predict.covarem <- function(res, new.x){
+
+  ## ## Check the dimensions
+  ## stopifnot(ncol(new.x) == ncol(res$X))
+  ## newx = X[1,,drop=FALSE]
+
+  ## Predict the means (manually).
+  beta = res$beta[[res$final.iter]]
+  newmn = sapply(1:numclust, function(iclust){
+    t(beta[[iclust]])%*%c(1,newx)
+  })
+
+  ## Predict the pies
+  newpie = predict(res$alpha.fit, newx=newx)
+
+  ## Return all three things
+  return(list(newmn=newmn,
+              newpie=newpie,
+              sigma=res$sigma[[res$final.iter]]))
 }

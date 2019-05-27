@@ -1,6 +1,4 @@
 ##' Updates alpha in the covariate EM algorithm, using GLMnet as the workhorse.
-##' (@param beta Is a (T x p+1 x 3) array. not needed)
-##' (@param alpha Is a T by p+1 array. not needed)
 ##' @param resp Is an (T x nt x K) array.
 ##' @param X
 ##' @return The multinomial logit model coefficients. A matrix of dimension (K x
@@ -28,7 +26,7 @@ Mstep_alpha <- function(resp, X, numclust, lambda=0, alpha=1, iter){
   alphahat = do.call(rbind, lapply(coef(fit), t))
   stopifnot(all(dim(alphahat)==c(numclust, (p+1))))
 
-  return(list(pie=piehat, alpha=alphahat))
+  return(list(pie=piehat, alpha=alphahat, fit=fit))
 }
 
 
@@ -156,9 +154,6 @@ Mstep_beta_lasso <- function(resp, ylist, X, mean_lambda=0){
     assert_that(nrow(yaa) == sum(ntlist))
 
     ## Then, do a regular regression
-    ## browser()
-    print(dim(yaa))
-    print(dim(Xaa))
     fit = glmnet::glmnet(y=yaa, x=Xaa, lambda=mean_lambda,
                          alpha=1, intercept=FALSE, family="mgaussian")
 
