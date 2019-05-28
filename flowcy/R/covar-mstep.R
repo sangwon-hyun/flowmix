@@ -104,7 +104,6 @@ Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
       row.to.subtract = mn[tt,,iclust]
       resid.rows[irows,] = sqrt(resp[[tt]][,iclust]) *
         sweep(ylist[[tt]], 2, rbind(row.to.subtract))
-      rm(wt.resids)
     }
 
     ## Calculate the covariance matrix

@@ -80,7 +80,12 @@ covarem <- function(ylist, X, numclust, niter=100, mn=NULL, pie_lambda=0,
     ## Calculate the objectives
     objectives[iter] = objective_overall_cov(aperm(mn.list[[iter]], c(1,3,2)),
                                              pie.list[[iter]],
-                                             sigma.list[[iter]], ylist)
+                                             sigma.list[[iter]],
+                                             ylist,
+                                             pie_lambda=pie_lambda,
+                                             mean_lambda=mean_lambda,
+                                             alpha=res.alpha$alpha,
+                                             beta=res.beta$beta)
 
     ## Check convergence
     if(check_converge_rel(objectives[iter-1],
@@ -116,7 +121,10 @@ covarem <- function(ylist, X, numclust, niter=100, mn=NULL, pie_lambda=0,
 ##' @param mu array of dimension T by M by p.
 ##' @param data TT lengthed list of data
 ##' @param sigma array of dimension T by M by p by p.
-objective_overall_cov <- function(mu, pie, sigma, data){
+##' @param alpha linear coefficients for regression on (log ratio of) pie.
+##' @param beta linear coefficients for regression on mean.
+objective_overall_cov <- function(mu, pie, sigma, data, pie_lambda=0, mean_lambda=0, alpha=0,
+                                  beta=0){
   TT = length(data)
   numclust = dim(mu)[2] ## Temporary; there must be a better solution for this.
   loglikelihood_tt <- function(data, tt, mu, sigma, pie){
@@ -141,8 +149,8 @@ objective_overall_cov <- function(mu, pie, sigma, data){
   })
 
   ## TODO: Form and add penalty term.
-
-  -sum(unlist(loglikelihoods))
+  l1norm <- function(coef){ sum(abs(coef)) }
+  -sum(unlist(loglikelihoods)) + pie_lambda * l1norm(as.numeric(unlist(alpha))) + mean_lambda * l1norm(as.numeric(unlist(beta)))
 }
 
 
@@ -172,20 +180,32 @@ warmstart_covar <- function(ylist, numclust){
 ##' Prediction: given  new X's,  generate a  set of means  and pies  (and return
 ##' default Sigma)
 ##' @param res object returned from covariate EM covarem().
-predict.covarem <- function(res, new.x){
+predict.covarem <- function(res, newx=NULL){
 
   ## ## Check the dimensions
   ## stopifnot(ncol(new.x) == ncol(res$X))
   ## newx = X[1,,drop=FALSE]
+  if(is.null(newx)){
+    newx = res$X
+  }
+
+  ## Augment it with a dummy variable 1
+  if(nrow(newx)>1){
+    newx.a = cbind(rep(1, nrow(newx)), newx)
+  } else {
+    newx.a = c(1, newx)
+  }
 
   ## Predict the means (manually).
   beta = res$beta[[res$final.iter]]
-  newmn = sapply(1:numclust, function(iclust){
-    t(beta[[iclust]])%*%c(1,newx)
+  newmn = lapply(1:numclust, function(iclust){
+    newx.a  %*%  beta[[iclust]]
   })
+  newmn = abind::abind(newmn, along=0)
+  newmn = aperm(newmn, c(2,3,1)) ## This needs to by (T x dimdat x numclust)
 
-  ## Predict the pies
-  newpie = predict(res$alpha.fit, newx=newx)
+  ## Predict the pies.
+  newpie = predict(res$alpha.fit, newx=newx)[,,1]
 
   ## Return all three things
   return(list(newmn=newmn,
