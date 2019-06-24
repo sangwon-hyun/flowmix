@@ -1,9 +1,9 @@
-##' Updates alpha in the covariate EM algorithm, using GLMnet as the workhorse.
+
 ##' @param resp Is an (T x nt x K) array.
-##' @param X
+##' @param X Covariate matrix (T x dimdat).
 ##' @return The multinomial logit model coefficients. A matrix of dimension (K x
 ##'   (p+1)).
-Mstep_alpha <- function(resp, X, numclust, lambda=0, alpha=1, iter){
+Mstep_alpha <- function(resp, X, numclust, lambda=0, alpha=1){
 
   TT = nrow(X)
   p = ncol(X)
@@ -15,15 +15,17 @@ Mstep_alpha <- function(resp, X, numclust, lambda=0, alpha=1, iter){
 
   ## Fit the model, possibly with some regularization
   fit = glmnet::glmnet(x=X, y=resp.sum, family="multinomial",
-                       lambda=lambda, alpha=alpha)
+                       alpha=alpha, lambda=lambda)
 
   ## While you're at it, calculate the fitted values (\pi) as well:
   piehat = predict(fit, newx=X, type="response")[,,1]
   stopifnot(all(dim(piehat)==c(TT,numclust)))
+  stopifnot(all(piehat>=0))
   ## This should be dimension (T x K)
 
   ## The coefficients for the multinomial logit model are (K x (p+1))
   alphahat = do.call(rbind, lapply(coef(fit), t))
+  alphahat = as.matrix(alphahat)
   stopifnot(all(dim(alphahat)==c(numclust, (p+1))))
 
   return(list(pie=piehat, alpha=alphahat, fit=fit))
@@ -188,9 +190,10 @@ Mstep_beta_faster_lasso <- function(resp, ylist, X, mean_lambda=0, sigma, numclu
   ## Preliminaries
   TT = length(ylist)
   numclust = ncol(resp[[1]])
-  Xa = cbind(rep(1, nrow(X)), X)
   dimdat = ncol(ylist[[1]])
   ntlist = sapply(ylist, nrow)
+
+  Xa = cbind(rep(1, TT), X)
 
   ## Setup
   resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
@@ -216,6 +219,11 @@ Mstep_beta_faster_lasso <- function(resp, ylist, X, mean_lambda=0, sigma, numclu
     sigma.inv.halves[1,iclust,,] %x% (sqrt(resp.sum[,iclust]) * Xa)
   })
 
+  ## Intercepts are to be excluded.
+  ## penalty.factor = rep(1, ncol(Xa) * dimdat)
+  ## penalty.factor = penalty.factor[(0:(dimdat-1))*(ncol(Xa)) + 1]## = 0
+  exclude.from.penalty = (0:(dimdat-1))*(ncol(Xa)) + 1## = 0
+
   results = lapply(1:numclust, function(iclust){
 
     ## Form y vector
@@ -223,11 +231,15 @@ Mstep_beta_faster_lasso <- function(resp, ylist, X, mean_lambda=0, sigma, numclu
     yvec = as.vector(yvec)
 
     ## Give the glmnet function some pre-calculated Y's and X's.
-    fit = glmnet::glmnet(x=Xtilde[[iclust]], y=yvec,
-                 lambda=mean_lambda, alpha=1, intercept=FALSE, family = "gaussian")
+    ## fit = glmnet::glmnet(x=Xtilde[[iclust]], y=yvec,
+    ##                      exclude=exclude,
+    ##                      lambda=mean_lambda,
+    ##                      alpha=1, intercept=FALSE, family = "gaussian")
+    res = solve_lasso(X=Xtilde[[iclust]], y=yvec, lambda=mean_lambda,
+                      intercept=FALSE, exclude.from.penalty=exclude.from.penalty)
 
     ## Obtain the coef and fitted response
-    b = as.numeric(coef(fit))[-1]
+    b = res$b
     betahat = matrix(b, ncol=dimdat)
     yhat = Xa %*% betahat
 

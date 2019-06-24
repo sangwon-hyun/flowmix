@@ -1,4 +1,70 @@
-##' Make all CV indices.
+## Synopsis: contains the main CV wrapper, and all helper functions related to
+## cross-validations.
+
+##' CV wrapper for covarem().
+##' @param nsplit Number of CV splits. Defaults to 5.
+##' @param ... default arguments to covarem().
+##' @return List containing (1) the set of coefficients
+cv.covarem <- function(ylist=ylist, X=X, mean_lambdas, pie_lambdas,
+                       nsplit=5,
+                      ...){
+  ## Basic checks
+  stopifnot(length(mean_lambdas) == length(pie_lambdas))
+  gridsize = length(mean_lambdas)
+
+  ## Create CV split indices
+  mysplits = cvsplit(ylist, nsplit=5)
+
+  ## Empty containers
+  meanmat = sdmat = matrix(NA, ncol=gridsize, nrow=gridsize)
+  cvscoremat = array(NA, dim=c(gridsize,gridsize,5))
+
+  reslist = list()
+  for(ii in gridsize:1){
+    for(jj in gridsize:1){
+      print(c(ii,jj))
+
+      ## Set warm starts.
+      if(jj == gridsize){
+        if(ii == gridsize)  warmstart_mn = NULL
+        if(ii != gridsize)  warmstart_mn = reslist[[paste0(ii+1, "-", jj)]]$mn
+      } else {
+        warmstart_mn = reslist[[paste0(ii, "-", jj+1)]]$mn
+      }
+
+      ## Do CV to get score
+      cvres = get_cv_score(ylist, X, mysplits, nsplit,
+                           mean_lambda=mean_lambdas[ii],
+                           pie_lambda=pie_lambdas[jj],
+                           mn=warmstart_mn,
+                           ...)
+
+      ## Get the fitted results on the entire data
+      res = covarem(ylist=ylist, X=X,
+                    mean_lambda=mean_lambdas[ii],
+                    pie_lambda=pie_lambdas[jj],
+                    mn=warmstart_mn, ...)
+
+      ## Store the results
+      reslist[[paste0(ii, "-", jj)]] = res
+
+      ## Record CV score
+      meanmat[ii, jj] = cvres$mean
+      sdmat[ii, jj] = sd(cvres$all)
+      cvscoremat[ii,jj,]=cvres$all
+    }
+  }
+  return(list(reslist=reslist,
+              meanmat=meanmat,
+              sdmat=sdmat,
+              cvscoremat=cvscoremat))
+}
+
+
+##' Makes all CV indices.
+##' @param ylist ylist.
+##' @param nsplit Defaults to 5.
+##' @param return TT-length list of indices to use for CV.
 cvsplit<- function(ylist, nsplit=5){
   TT = length(ylist)
   all.cv.inds = lapply(1:TT, function(tt){
@@ -16,6 +82,7 @@ cvsplit<- function(ylist, nsplit=5){
 get_cv_score <- function(ylist, X, splits, nsplit,...){
   ## stopifnot(length(splits[[1]])!=nsplit) ## good check but only works if TT>1
 
+  ## Cycle through splits, and calculate CV scroe
   all.scores = sapply(1:nsplit, function(test.isplit){
     get_cv_score_onesplit(test.isplit, splits, ylist, X,...)
   })
@@ -47,10 +114,10 @@ get_cv_score_onesplit <- function(test.isplit, splits, ylist, X, pie_lambda, mea
   ## Run algorithm on train data, evaluate test data.
   res.train = covarem(ylist.train, X, pie_lambda=pie_lambda, mean_lambda=mean_lambda,
                       ...)
-  ## objective(ylist.test, res.train)
 
   ## Assign mn and pie
   pred = predict.covarem(res.train)
+  stopifnot(all(pred$newpie)>=0)
 
   ## Calculate objective (penalized likelihood)
   objective_overall_cov(aperm(pred$newmn, c(1,3,2)),
@@ -61,37 +128,17 @@ get_cv_score_onesplit <- function(test.isplit, splits, ylist, X, pie_lambda, mea
                         beta=res.train$betalist[[res.train$final.iter]])
 }
 
-##' CV wrapper for covarem().
-##' @param lambdas_means Regularilization parameter for mean.
-##' @param lambdas_pies Regularizization paraemter for pie.
-##' @param nsplit Number of CV splits. Defaults to 5.
-##' @param ... default arguments to covarem().
-cv.covarem <- function(ylist=ylist, X=X, mean_lambdas, pie_lambdas, nsplit=5, ...){
 
-  mysplits = cvsplit(ylist, nsplit=5)
-  meanmat = matrix(NA, ncol=length(mean_lambdas), nrow=length(pie_lambdas))
-  sdmat = matrix(NA, ncol=length(mean_lambdas), nrow=length(pie_lambdas))
-
-  ## Main CV double loop (nothing special)
-  for(imean in 1:length(mean_lambdas)){
-    for(ipie in 1:length(pie_lambdas)){
-
-      ## Assign mean and pie
-      mean_lambda = mean_lambdas[imean]
-      pie_lambda = pie_lambdas[ipie]
-      print(c(mean_lambda, pie_lambda))
-
-      ## Do CV.
-      res = get_cv_score(ylist, X, mysplits, nsplit,
-                   ## Other arguments to covarem go here.
-                   mean_lambda=mean_lambda,
-                   pie_lambda=pie_lambda,
-                   ...)
-
-
-      meanmat[imean, ipie] = res$mean
-      sdmat[imean, ipie] = sd(res$all)
-    }
-  }
-  return(list(meanmat=meanmat, sdmat=sdmat))
+##' Create a list containing the candidate regularization parameters for EM.
+make_lambdas <- function(ylist, X, numclust, cv.grid.size=5){
+  res0 = get_param0(ylist, numclust)
+  max_lambda_beta = lambda_beta_max(res0$alpha0, res0$beta0, res0$sigmalist0,
+                                    numclust, X, res0$resplist0, ylist)
+  lambdas_beta = c(0,exp(seq(from=0, to=log(max_lambda_beta),
+                             length=cv.grid.size)))
+  max_lambda_alpha = lambda_alpha_max(res0$alpha0, res0$beta0, res0$sigmalist0,
+                                      numclust, X, ylist)
+  lambdas_alpha = c(0,exp(seq(from=0, to=log(max_lambda_alpha), length=cv.grid.size)))
+  return(list(lambdas_beta=lambdas_beta,
+              lambdas_alpha=lambdas_alpha))
 }

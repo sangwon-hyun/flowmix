@@ -8,9 +8,9 @@
 ##' @param pie_lambda lambda for lasso for pie.
 ##' @return  List containing  fitted parameters and  means and  mixture weights,
 ##'   across algorithm iterations.
-covarem <- function(ylist, X, numclust, niter=100, mn=NULL, pie_lambda=0,
+covarem <- function(ylist, X=NULL, numclust, niter=100, mn=NULL, pie_lambda=0,
                     mean_lambda=0, verbose=FALSE,
-                    warmstart = c("none", "rough"), sigma.fac=1){
+                    warmstart = c("none", "rough"), sigma.fac=1, tol=1E-6){
 
   ## Setup.
   ntlist = sapply(ylist, nrow)
@@ -21,7 +21,7 @@ covarem <- function(ylist, X, numclust, niter=100, mn=NULL, pie_lambda=0,
 
   ## Initialize.
   beta = init_beta(TT, p, dimdat, numclust)
-  alpha = init_alpha(TT, p)
+  alpha = init_alpha(dimdat, p)
   if(is.null(mn)){
     if(warmstart=="rough"){
       mn = warmstart_covar(ylist, numclust)
@@ -59,7 +59,7 @@ covarem <- function(ylist, X, numclust, niter=100, mn=NULL, pie_lambda=0,
     ## Conduct M step
     ## 1. Alpha
     res.alpha = Mstep_alpha(resp,
-                            X, numclust, iter=iter,
+                            X, numclust,
                             lambda=pie_lambda)
     alpha.list[[iter]] = res.alpha$alpha
     pie.list[[iter]] = res.alpha$pie
@@ -89,16 +89,23 @@ covarem <- function(ylist, X, numclust, niter=100, mn=NULL, pie_lambda=0,
 
     ## Check convergence
     if(check_converge_rel(objectives[iter-1],
-                          objectives[iter], tol=1E-6)) break
+                          objectives[iter], tol=tol)) break
   }
 
+  ## Threshold (now that we're using CVXR for beta)
+  beta=beta.list[[iter]]
+  betathresh = 1E-3
+  beta = lapply(beta, function(a){
+    a[abs(a)<betathresh] = 0
+    a
+  })
 
-  return(list(alpha.list=alpha.list[1:iter],
+  return(list(alpha=alpha.list[[iter]],
               alpha.fit=res.alpha$fit,
-              beta.list=beta.list[1:iter],
-              mn.list=mn.list[1:iter],
-              sigma.list=sigma.list[1:iter],
-              pie.list=pie.list[1:iter],
+              beta=beta,
+              mn=mn.list[[iter]],
+              pie=pie.list[[iter]],
+              sigma=sigma.list[[iter]],
               objectives=objectives[1:iter],
               final.iter=iter,
               ## Above is output, below are data/algorithm settings.
@@ -107,78 +114,15 @@ covarem <- function(ylist, X, numclust, niter=100, mn=NULL, pie_lambda=0,
               TT=TT,
               p=p,
               numclust=numclust,
-              ## ylist=ylist,
               X=X,
               pie_lambda=pie_lambda,
               mean_lambda=mean_lambda
               ))
-
 }
 
 
-##' Objectives.
-##' @param pie matrix of mixture proportions, T by M.
-##' @param mu array of dimension T by M by p.
-##' @param data TT lengthed list of data
-##' @param sigma array of dimension T by M by p by p.
-##' @param alpha linear coefficients for regression on (log ratio of) pie.
-##' @param beta linear coefficients for regression on mean.
-objective_overall_cov <- function(mu, pie, sigma, data, pie_lambda=0, mean_lambda=0, alpha=0,
-                                  beta=0){
-  TT = length(data)
-  numclust = dim(mu)[2] ## Temporary; there must be a better solution for this.
-  loglikelihood_tt <- function(data, tt, mu, sigma, pie){
-    dat = data[[tt]]
-    ## One particle's log likelihood
-    log.lik.allclust = sapply(1:numclust, function(iclust){
-      mydat = dat
-      mypie = pie[tt,iclust]
-      mymu = mu[tt,iclust,]
-      mysigma = as.matrix(sigma[tt,iclust,,])
-      return(mypie * mvtnorm::dmvnorm(mydat,
-                                      mean=mymu,
-                                      sigma=mysigma,
-                                      log=TRUE))
-      })
-    return(log.lik.allclust)
-  }
-
-  ## Calculate the data likelilhood of one time point
-  loglikelihoods = sapply(1:TT, function(tt){
-    loglikelihood_tt(data, tt, mu, sigma, pie)
-  })
-
-  ## TODO: Form and add penalty term.
-  l1norm <- function(coef){ sum(abs(coef)) }
-  -sum(unlist(loglikelihoods)) + pie_lambda * l1norm(as.numeric(unlist(alpha))) + mean_lambda * l1norm(as.numeric(unlist(beta)))
-}
-
-
-
-##' Warmstarts for covariate EM.
-##' @param ylist list of data.
-##' @param numclust number of clusters desired.
-warmstart_covar <- function(ylist, numclust){
-
-  dimdat = ncol(ylist[[1]])
-
-  ## Collapse all the data
-  all.y = do.call(rbind, ylist)
-
-  ## Do a cheap k-means
-  obj = kmeans(all.y, numclust)
-  centres = array(NA, dim=c(TT, dimdat, numclust))
-  for(tt in 1:TT){
-    centres[tt,,] = t(obj$centers)
-  }
-
-  ## Repeat it TT times and return it
-  return(centres)
-}
-
-
-##' Prediction: given  new X's,  generate a  set of means  and pies  (and return
-##' default Sigma)
+##' Prediction: given  new X's,  generate a set of means and pies (and return
+##' the same Sigma)
 ##' @param res object returned from covariate EM covarem().
 predict.covarem <- function(res, newx=NULL){
 
@@ -197,18 +141,198 @@ predict.covarem <- function(res, newx=NULL){
   }
 
   ## Predict the means (manually).
-  beta = res$beta[[res$final.iter]]
   newmn = lapply(1:numclust, function(iclust){
-    newx.a  %*%  beta[[iclust]]
+    newx.a  %*%  res$beta[[iclust]]
   })
   newmn = abind::abind(newmn, along=0)
   newmn = aperm(newmn, c(2,3,1)) ## This needs to by (T x dimdat x numclust)
 
   ## Predict the pies.
-  newpie = predict(res$alpha.fit, newx=newx)[,,1]
+  newpie = predict(res$alpha.fit, newx=newx, type='response')[,,1]
 
   ## Return all three things
   return(list(newmn=newmn,
               newpie=newpie,
-              sigma=res$sigma[[res$final.iter]]))
+              sigma=res$sigma))
 }
+
+##' Plot results from covariate EM \code{covarem()}.
+plot.covarem <- function(res, newx=NULL){
+
+  ## Extract numclust  (eventually from somewhere else)
+  mns = res$mn.list[[plot.iter]]
+  numclust = res$numclust
+
+  ## Define range of date
+  xlim = range(do.call(rbind, res$ylist)[,1])
+  ylim = range(do.call(rbind, res$ylist)[,2])
+
+  ## General plot settings
+  cols = RColorBrewer::brewer.pal(numclust, "Set3")
+
+  ## Make /series/ of plots.
+  par(ask=TRUE)
+  par(mfrow=c(1,3))
+  for(tt in 1:res$TT){
+    main0 = paste0("time ", tt, " out of ", TT)
+    main = paste0("Iteration ", plot.iter)
+    plot(NA, ylim=ylim, xlim=xlim, cex=3, ylab="", xlab="", main=main0)
+
+    ## Add datapoints
+    points(res$ylist[[tt]], col='lightgrey', pch=16, cex=.5)
+
+    ## Add truth as well
+    if(!is.null(truths)){
+      numclust.truth = dim(truths$mns)[3]
+      for(kk in 1:numclust.truth){
+        points(x=truths$mns[tt,1,kk],
+               y=truths$mns[tt,2,kk],
+               col="black", pch=16, cex=truths$pies[[kk]][tt]*5)
+      }
+    }
+  }
+
+}
+
+## ##' Visualizes the  data and  results of  running mixture  EM. REQUIRES  a |res|
+## ##' object.
+## make_2d_plot <- function(figdir, plotname, res, plot.iter=NULL, truths=NULL, h=8){
+
+##   if(is.null(plot.iter)) plot.iter = res$final.iter
+##   ## pdf(file=file.path(figdir, plotname), width=15, height=8)
+##   pdf(file=file.path(figdir, plotname), width=3*h, height=h)
+
+##   ## Extract numclust  (eventually from somewhere else)
+##   mns = res$mn.list[[plot.iter]]
+##   numclust = res$numclust
+
+
+##   ## Define range of date
+##   xlim = range(do.call(rbind, res$ylist)[,1])
+##   ylim = range(do.call(rbind, res$ylist)[,2])
+
+##   ## General plot settings
+##   cols = RColorBrewer::brewer.pal(numclust, "Set3")
+
+##   ## Eventually extract TT some other way.
+##   par(mfrow=c(1,3))
+##   for(tt in 1:res$TT){
+##     main0 = paste0("time ", tt, " out of ", TT)
+##     main = paste0("Iteration ", plot.iter)
+##     plot(NA, ylim=ylim, xlim=xlim, cex=3, ylab="", xlab="", main=main0)
+
+##     ## Add datapoints
+##     points(res$ylist[[tt]], col='lightgrey', pch=16, cex=.5)
+
+##     ## Add truth as well
+##     if(!is.null(truths)){
+##       numclust.truth = dim(truths$mns)[3]
+##       for(kk in 1:numclust.truth){
+##         points(x=truths$mns[tt,1,kk],
+##                y=truths$mns[tt,2,kk],
+##                col="black", pch=16, cex=truths$pies[[kk]][tt]*5)
+##       }
+##     }
+
+##     ## Collect pies
+##     pies = lapply(1:numclust, function(iclust){
+##       res$pie.list[[plot.iter]][,iclust]
+##     })
+
+##     ## Add fitted means
+##     for(kk in 1:numclust){
+##       points(x=mns[tt,1,kk],
+##              y=mns[tt,2,kk],
+##              col='red', pch=16, cex=pies[[kk]][tt]*5)
+##     }
+
+##     ## Add legend
+##     legend("bottomright", col=c("black", "red"),
+##            pch=c(16,16), legend = c("truth", "fitted"))
+
+##     for(kk in 1:numclust){
+##     lines(ellipse::ellipse(x=res$sigma.list[[plot.iter]][tt,kk,,],
+##                            centre=mns[tt,,kk]
+##                            ), lwd=1/2, col='red')
+##     }
+##     ## lines(ellipse(rho), col="red")       # ellipse() from ellipse package
+##     ## lines(ellipse(rho, level = .99), col="green")
+##     ## lines(ellipse(rho, level = .90), col="blue")
+
+
+##     ## Plot pies
+##     plot(NA, xlim=c(0,TT), ylim=c(0,1.4), main=main,
+##          ylab = "Mixture probability", xlab="time, t=1,..,T")
+##     for(iclust in 1:numclust){
+##       lines(pies[[iclust]], col=cols[iclust], lwd=2, type='l')
+##     }
+##     abline(v=tt, col='green')
+
+
+##     plot(NA, xlim=c(0,TT), ylim=range(res$X)*1.5, main=main,
+##          ylab = "Environmental covariates", xlab="time, t=1,..,T")
+##     for(ii in 1:2){
+##       lines(res$X[,ii], col=ii, lwd=2, type='l')
+##     }
+##     abline(v=tt, col='green')
+
+##     ## if(plot.iter>1){
+##     ##   betas = res$beta.list[[plot.iter]]
+##     ##   betas = round(do.call(cbind, betas),2)
+##     ##   rownames(betas)[1] = "intp"
+##     ##   colnames(betas)= paste0("cluster ", c(1,1,2,2))
+##     ##   text(0.6,1, paste(capture.output(betas), collapse='\n'), pos=4)##, family="monospace")
+
+##     ##   alphas = as.matrix(t(res$alpha.list[[plot.iter]]))
+##     ##   rownames(alphas)[1] = "intp"
+##     ##   alphas = round(alphas,2)
+##     ##   colnames(alphas)= paste0("cluster ", c(1,2))
+##     ##   text(35,1, paste(capture.output(alphas), collapse='\n'), pos=4)##, family="monospace")
+##     ## }
+##   }
+##   graphics.off()
+## }
+
+
+
+## ##' Visualizes the  data only
+## make_2d_plot_of_data <- function(figdir, plotname, res, plot.iter=NULL, truths=NULL, h=8){
+
+##   if(is.null(plot.iter)) plot.iter = res$final.iter
+##   ## pdf(file=file.path(figdir, plotname), width=15, height=8)
+##   pdf(file=file.path(figdir, plotname), width=h, height=h)
+
+##   ## Extract numclust  (eventually from somewhere else)
+##   mns = res$mn.list[[plot.iter]]
+##   numclust = res$numclust
+
+
+##   ## Define range of date
+##   xlim = range(do.call(rbind, res$ylist)[,1])
+##   ylim = range(do.call(rbind, res$ylist)[,2])
+
+##   ## General plot settings
+##   cols = RColorBrewer::brewer.pal(numclust, "Set3")
+
+##   ## Eventually extract TT some other way.
+##   for(tt in 1:res$TT){
+##     main0 = paste0("time ", tt, " out of ", TT)
+##     main = paste0("Iteration ", plot.iter)
+##     plot(NA, ylim=ylim, xlim=xlim, cex=3, ylab="", xlab="", main=main0)
+
+##     ## Add datapoints
+##     points(res$ylist[[tt]], col='lightgrey', pch=16, cex=.5)
+
+##     ## Add truth as well
+##     if(!is.null(truths)){
+##       numclust.truth = dim(truths$mns)[3]
+##       for(kk in 1:numclust.truth){
+##         points(x=truths$mns[tt,1,kk],
+##                y=truths$mns[tt,2,kk],
+##                col="black", pch=16, cex=truths$pies[[kk]][tt]*5)
+##       }
+##     }
+
+##   }
+##   graphics.off()
+## }

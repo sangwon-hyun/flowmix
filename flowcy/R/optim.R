@@ -91,6 +91,49 @@ init_mu_warmstart_v2 <- function(data, numclust, TT, tol2, verbose=FALSE){
 }
 
 
+##' Initialize  the cluster  centers by  learning clusters  from each  image and
+##' aggregating..
+##'  @param data  A T-length list of (nt  by 3) datasets.  There should  be T of
+##'   such datasets. 3 is actually \code{mulen}.
+##' @param numclust Number of clusters (M).
+##' @param TT total number of (training) time points.
+##' @return An array of dimension (T by numclust by M).
+init_mu_warmstart_v3 <- function(data, numclust, TT, tol2, verbose=FALSE){
+  muhats = list()
+  muhat = init_mu(data, numclust, 1)
+  if(verbose){cat(fill=TRUE);cat("Warm start calculation in progress.");  cat(fill=TRUE)}
+
+
+  ## Collapse /all/ datapoints, and then make some rough centers to start with
+  for(tt in TT){
+    yt = ylist[[tt]]
+    sample(1:nrow(yt), nrow(yt)/TT)
+  }
+  ## ## Continue here
+  ## y.condensed =
+  ## y.collapsed = data
+  ## data[[1]]
+
+  ktlist = c()
+  centers = list()
+  for(tt in 1:TT){
+    if(verbose){cat(fill=TRUE); printprogress(tt, TT, "warm start time points");   cat(fill=TRUE)}
+
+    ## Obtain best number of clusters in each image
+    kt = get_best_kmean_numclust(data[[tt]])
+    obj = kmeans(data[[tt]], kt)
+    ktlist[tt] = kt
+    centers[[tt]] = obj$centers
+  }
+  ktmax = max(ktlist)
+  allcenters = do.call(rbind, centers)
+  final.centers = (kmeans(allcenters, ktmax))$centers
+  muhats = (lapply(1:TT, function(tt){final.centers}))
+  names(muhats) = 1:TT
+  muarray = abind::abind(muhats, along=0)
+  return(muarray)
+}
+
 
 ##' Initialize the covariances (naively).
 ##' @param data The (nt by 3) datasets. There should be T of them.
@@ -170,6 +213,7 @@ Estep <- function(data, TT, mu, sigma, pie, numclust){
 ##' @param sigma array of dimension T by M by p by p.
 objective_overall <- function(mu, pie, sigma, data){
   TT = length(data)
+  numclust = dim(mu)[2]
   loglikelihood <- function(data, tt, mu, sigma, pie){
     dat = data[[tt]]
     loglik.all.particles = sum(sapply(1:nrow(dat), function(irow){
@@ -211,7 +255,7 @@ objective_overall <- function(mu, pie, sigma, data){
 ##' @param s Step size.
 ##' @param numclust number of clusters.
 ##' @param sigma.fac Size of marginal variance in the initial sigmas.
-##' Wparam warmstart
+##' @param warmstart
 ##' @return List containing the list of mus, pies, and objective values.
 driftem <- function(data, mu=NULL, pie=NULL, niter=1000,
                     sigma=NULL, tol1 = 1E-10, tol2 = 1E-4, lam.pi=0, lam.mu=0,

@@ -28,12 +28,6 @@ Estep_covar <- function(mn, sigma, pie, ylist, numclust, ntlist){
     wt.densmat = piemat * densmat
     wt.densmat = wt.densmat / rowSums(wt.densmat)
 
-    if(any(is.nan(wt.densmat)))browser()
-    which(is.nan(wt.densmat))
-    which(is.nan(densmat*piemat))
-    which((rowSums(densmat*piemat))==0)
-    which((rowSums(densmat))==0)
-
     ## make sure this is a row-wise operation
     resp[[tt]] = wt.densmat
   }

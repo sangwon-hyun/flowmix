@@ -6,9 +6,9 @@ init_beta <- function(TT, p, dimdat, numclust){
 
 
 ##' Initialization of alpha.
-##' @return An T by p+1 array
-init_alpha <- function(TT, p){
-  return(matrix(0, ncol=(p+1), nrow=TT))
+##' @return A dimdat by p+1 array
+init_alpha <- function(dimdat, p){
+  return(matrix(0, ncol=(p+1), nrow=dimdat))
 }
 
 

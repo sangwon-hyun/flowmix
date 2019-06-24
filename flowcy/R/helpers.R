@@ -6,7 +6,6 @@
 ##' @param lapsetimeunit "second".
 ##' @param start.time start time.
 ##' @param fill Whether or not to fill the line.
-##' @param beep Whether to beep when done.
 printprogress <- function(isim, nsim, type="simulation", lapsetime=NULL,
                           lapsetimeunit="seconds", start.time=NULL,
                           fill=FALSE){
@@ -25,7 +24,6 @@ printprogress <- function(isim, nsim, type="simulation", lapsetime=NULL,
         cat("\r", type, " ", isim, "out of", nsim, "with lapsed time",
             lapsetime, lapsetimeunit, "and remaining time", remainingtime,
             lapsetimeunit, "and will finish at", strftime(endtime))
-        ## if(beep & isim==nsim){beepr::beep()}
     }
     if(fill) cat(fill=TRUE)
 }
