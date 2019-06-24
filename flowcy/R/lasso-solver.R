@@ -1,12 +1,12 @@
-## Synopsis: these are the specific, scale-consisten lasso solvers used in this
-## package.
+## Synopsis: these are the specific, scale-consistent lasso solvers used
+## internally in this package.
 
 ##' Solving the  no-intercept Lasso problem using  CVXR.  \deqn{\min_{\beta} 1/2n
 ##' \|y - X\beta\|^2 + \lambda \|\beta\|_1}
 ##' @param X Covariate matrix.
 ##' @param y Response vector.
 ##' @param lambda regularization problem.
-cvx_lasso <- function(y, X, lambda, exclude.from.penalty=NULL, thresh=1E-12){
+cvxr_lasso <- function(y, X, lambda, exclude.from.penalty=NULL, thresh=1E-12){
   n = nrow(X)
   p = ncol(X)
   beta <- Variable(p)
@@ -21,71 +21,37 @@ cvx_lasso <- function(y, X, lambda, exclude.from.penalty=NULL, thresh=1E-12){
   }
 
   ## Perform elastic-net regression
-  obj <- sum_squares(y - X %*% beta) / (2 * n) + lambda * p_norm(beta[v], 1)
+  obj <- sum_squares(y - X %*% beta) / (2 * n) + lambda * sum(abs(beta[v]))
   prob <- Problem(Minimize(obj))
   result <- solve(prob, FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
-  as.numeric(result$getValue(beta))
+  return(as.numeric(result$getValue(beta)))
 }
 
-
-##' Same as cvx_lasso().  Results should match exactly.  Solving the
-##' no-intercept Lasso problem using CVXR.  \deqn{\min_{\beta} 1/2n \|y -
-##' X\beta\|^2 + \lambda \|\beta\|_1}
-glmnet_lasso <- function(y, X, lambda, exclude.from.penalty=NULL){
-  lambdascaled = sqrt(sum(y*y)) * lambda
-  Xscaled = X * sqrt(sum(y*y))
-  penalty.factor = rep(1, ncol(X))
-  assert_that(all(exclude.from.penalty %in% (1:p)))
-  if(!is.null(exclude.from.penalty)) penalty.factor[exclude.from.penalty] = 0
-  fit = glmnet::glmnet(x=Xscaled, y=y, lambda=lambdascaled, alpha=1,
-                       intercept=FALSE, standardize=FALSE,
-                       penalty.factor=penalty.factor)
-  b = coef(fit)[-1,]
-  b = b * sqrt(sum(y*y))
-  return(as.numeric(b))
-}
-
-
-##' This solves the lasso  problem: \deqn{\min_{\beta_0, \beta} 1/2\|y-1\beta_0-
+##' This solves the lasso problem: \deqn{\min_{\beta_0, \beta} 1/2\|y-1\beta_0-
 ##' X\beta\|^2 + \lambda \|\beta\|_1}. This is the interface function; all other
 ##' helpers are not meant to be used by end-user.
-##' @param y Response vector.
-##' @param X Covariate matrix. Assumed to be standardized.
+##' @param y Response vector (n vector).
+##' @param X Covariate matrix (n by p). Not assumed to be standardized.
 ##' @param intercept TRUE if intercept is desired. Defaults to TRUE.
-##' @return list that contains coefficients, fitted values, and glmnet object.
-solve_lasso <- function(y, X, lambda, intercept=TRUE, exclude.from.penalty=NULL){
+##' @return list that contains linear coefficients (length p), intercept
+##'   (scalar, or NULL if intercept=TRUE), and fitted values (length n).
+solve_lasso <- function(y, x, lambda, intercept=TRUE, exclude.from.penalty=NULL){
 
   ## Setup
-  n = nrow(X)
-  p = ncol(X)
+  n = nrow(x)
+  p = ncol(x)
 
-  ## Basic Checks
-  mncheck = apply(X, 2, function(mycol){
-    mean(mycol)==0
-  })
-  sdcheck = apply(X, 2, function(mycol){
-    sd(mycol)==1
-  })
-
+  ## Solve lasso problem with or without intercept.
   if(intercept){
-
-    ## Solve the Lasso problem with intercept.
-    Xcentered = X - colMeans(X)
-    ycentered = y - mean(y)
-    ## b = glmnet_lasso(ycentered, Xcentered, lambda, exclude.from.penalty)
-    b = cvx_lasso(Xcentered, ycentered, lambda, exclude.from.penalty)
-    b0 = mean(y) - colMeans(X) %*% b
-    yhat = rep(b0, n) + X %*% b
-
+    res = glmnet(y=y, x=x, lambda=lambda, intercept=TRUE, standardize=FALSE)
+    b = as.numeric(coef(res))[2:(p+1)]
+    b0 = as.numeric(coef(res))[1]
   } else {
-
-    ## Solve the Lasso problem /without/ intercept.
-    ## b = glmnet_lasso(y, X, lambda, exclude.from.penalty)
-    b = cvx_lasso(y, X, lambda, exclude.from.penalty)
+    res = glmnet(y=y, x=x, lambda=lambda, intercept=FALSE, standardize=FALSE)
     b0 = NULL
-    yhat = X %*% b
-
+    b = as.numeric(coef(res))[2:(p+1)]
   }
+  yhat = predict(res, newx=x)
   return(list(b=b, b0=b0, yhat=yhat))
 }
 
