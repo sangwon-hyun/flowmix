@@ -75,7 +75,7 @@ plot2d.covarem <- function(obj, ylist, ask=FALSE, show.fewer=NULL){
 
   if(ask)par(ask=TRUE)
   par(mfrow=c(1,3))
-  for(tt in 1:TTrange){
+  for(tt in TTrange){
     main0 = paste0("time ", tt, " out of ", TT)
     plot(NA, ylim=ylim, xlim=xlim, cex=3, ylab="", xlab="", main=main0)
 
