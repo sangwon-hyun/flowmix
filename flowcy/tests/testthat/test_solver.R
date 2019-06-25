@@ -3,6 +3,24 @@ context("Test internal sparse regression solvers.")
 ## Test for lasso and cvx lasso
 test_that("Lasso solver helpers work as expected.", {
 
+  ## Lasso objective function
+  lasso_objective <- function(beta, x, y, lambda, exclude.from.penalty=NULL) {
+
+    n <- nrow(x)
+    p <- ncol(x)
+    if(is.null(exclude.from.penalty)){
+      v = 1:p
+    } else {
+      assert_that(all(exclude.from.penalty %in% (1:p)))
+      v = (1:p)[-exclude.from.penalty]
+    }
+    sumsq = function(a){sum(a*a)}
+    obj <- sumsq(y - x %*% beta) / (2 * n) + lambda * sum(abs(beta[v]))
+    return(obj)
+  }
+
+
+
   ## Check match between our internal solver (glmnet_lasso) and cvx_lasso,
   ## which are solving the no-intercept problem free of any scale problems.
 
@@ -10,6 +28,9 @@ test_that("Lasso solver helpers work as expected.", {
   p <- 20
   for(seed in c(1,2,3)){
     for(lambda in c(0.01, 0.02, 0.03)){
+
+      seed=1
+      lambda=0.01
 
       ## Generate data
       set.seed(seed)
@@ -19,7 +40,7 @@ test_that("Lasso solver helpers work as expected.", {
 
       ## No-intercept version is in agreement with CVX.
       res1 = cvxr_lasso(y, x, lambda)
-      res2 = glmnet(y=y, x=x, lambda=lambda, intercept=FALSE, standardize=FALSE)
+      res2 = glmnet::glmnet(y=y, x=x, lambda=lambda, intercept=FALSE, standardize=FALSE)
       res3 = solve_lasso(y=y, x=x, lambda=lambda, intercept=FALSE)
       mat = cbind(cvx=res1, glmnet=as.numeric(coef(res2)[-1]),
                   wrapper=c(res3$b0, res3$b))
@@ -29,7 +50,7 @@ test_that("Lasso solver helpers work as expected.", {
 
       ## Intercept version is in overall agreement with CVX.
       res1 = cvxr_lasso(y, xa, lambda, exclude.from.penalty=1)
-      res2 = glmnet(y=y, x=x, lambda=lambda, intercept=TRUE, standardize=FALSE)
+      res2 = glmnet::glmnet(y=y, x=x, lambda=lambda, intercept=TRUE, standardize=FALSE)
       res3 = solve_lasso(y=y, x=x, lambda=lambda, intercept=TRUE)
       mat = cbind(cvxr=res1, glmnet=as.numeric(coef(res2)), wrapper=c(res3$b0, res3$b))
       ## print(round(mat,4))
@@ -45,8 +66,8 @@ test_that("Lasso solver helpers work as expected.", {
                   wrapper=c(res2$b))
       ## print(round(mat,4))
       testthat::expect_true(max(abs(mat[,1] - mat[,2])) < 1E-2)
-      obj1 = objective(mat[,1], x, y, lambda, exclude.from.penalty=ex)
-      obj2 = objective(mat[,2], x, y, lambda, exclude.from.penalty=ex)
+      obj1 = lasso_objective(mat[,1], x, y, lambda, exclude.from.penalty=ex)
+      obj2 = lasso_objective(mat[,2], x, y, lambda, exclude.from.penalty=ex)
       stopifnot(abs(obj1 - obj2) < 1E-4)
     }
   }
@@ -72,24 +93,25 @@ test_that("Lasso solver helpers work as expected.", {
     res1 = cvxr_lasso(y, x, lambda, ex)
     lam = lambda / pen[2]
     res2 = solve_lasso(y, x, lambda, FALSE, ex)
-    ## res2 = glmnet(y=y, x=x, lambda=lam, intercept=FALSE,
+    ## res2 = glmnet::glmnet(y=y, x=x, lambda=lam, intercept=FALSE,
     ##               penalty.factor=pen, thresh=1E-30)
-    ## res3 = glmnet(y=y, x=x, lambda=lambda, intercept=FALSE, penalty.factor=pen, thresh=1E-30)
+    ## res3 = glmnet::glmnet(y=y, x=x, lambda=lambda, intercept=FALSE, penalty.factor=pen, thresh=1E-30)
 
     mat = cbind(cvx=as.numeric(res1),
                 wrapper=res2$b)
               ##   glmnet=as.numeric(coef(res2)[-1]),
               ## glmnet2=as.numeric(coef(res3)[-1]))
 
-    obj1 = objective(mat[,1], x, y, lambda, exclude.from.penalty=ex)
-    obj2 = objective(mat[,2], x, y, lambda, exclude.from.penalty=ex)
-    ## obj3 = objective(mat[,3], x, y, lambda, exclude.from.penalty=ex)
+    obj1 = lasso_objective(mat[,1], x, y, lambda, exclude.from.penalty=ex)
+    obj2 = lasso_objective(mat[,2], x, y, lambda, exclude.from.penalty=ex)
+    ## obj3 = lasso_objective(mat[,3], x, y, lambda, exclude.from.penalty=ex)
 
     matlist[[ii]] = mat
     objlist[[ii]] = c(obj1, obj2)##, obj3)
   }
 
   ## Objectives should match very well
+  objmat = do.call(rbind, objlist)
   expect_true(max(abs(objmat[,2]-objmat[,1]))<1E-4)
 
   ## Fitted values should also match very well
@@ -108,7 +130,7 @@ test_that("Lasso solver helpers work as expected.", {
 test_that("Sparse multinomial solver helper work as expected.", {
 
   ## Calculates the objective value
-  objective <- function(alpha, x, y, lambda, exclude.from.penalty=NULL) {
+  multinom_objective <- function(alpha, x, y, lambda, exclude.from.penalty=NULL) {
 
     n <- nrow(x)
     p <- ncol(x)
@@ -151,8 +173,8 @@ test_that("Sparse multinomial solver helper work as expected.", {
   expect_true(max(res2 - res1[-1,]) < 1E-2)
 
   ## Compare objective values.
-  expect_true(max(objective(res1[-1,], X, y, lambda) -
-                  objective(res2, X, y, lambda) ) < 1E-5)
+  expect_true(max(multinom_objective(res1[-1,], X, y, lambda) -
+                  multinom_objective(res2, X, y, lambda) ) < 1E-5)
 
   ## With intercept:
 
@@ -164,6 +186,6 @@ test_that("Sparse multinomial solver helper work as expected.", {
   expect_true(max(res2 - res1) < 1E-2)
 
   ## Compare objective values.
-  expect_true(max(objective(res1[-1,], X, y, lambda) -
-                  objective(res2[-1,], X, y, lambda)) < 1E-5)
+  expect_true(max(multinom_objective(res1[-1,], X, y, lambda) -
+                  multinom_objective(res2[-1,], X, y, lambda)) < 1E-5)
 })

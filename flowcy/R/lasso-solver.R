@@ -46,16 +46,17 @@ solve_lasso <- function(y, x, lambda, intercept=TRUE, exclude.from.penalty=NULL)
     if(!is.null(exclude.from.penalty)){
       stop("Doesn't support exclude.from.penalty option when intercept exists!")
     }
-    res = glmnet(y=y, x=x, lambda=lambda, intercept=TRUE, standardize=FALSE)
+    res = glmnet::glmnet(y=y, x=x, lambda=lambda, intercept=TRUE, standardize=FALSE)
     b = as.numeric(coef(res))[2:(p+1)]
     b0 = as.numeric(coef(res))[1]
   } else {
     pen = rep(1, p)
+    lam = lambda
     if(!is.null(exclude.from.penalty)){ pen[exclude.from.penalty] = 0
       pen = pen / sum(pen) * (p)
       lam = lambda / unique(pen[which(pen!=0)])
     }
-    res = glmnet(y=y, x=x, lambda=lam, intercept=FALSE, standardize=FALSE,
+    res = glmnet::glmnet(y=y, x=x, lambda=lam, intercept=FALSE, standardize=FALSE,
                  penalty.factor=pen)
     b0 = NULL
     b = as.numeric(coef(res))[2:(p+1)]
@@ -77,7 +78,7 @@ solve_lasso <- function(y, x, lambda, intercept=TRUE, exclude.from.penalty=NULL)
 ##'   not regularized.
 ##' @return A (p+1) by (numclust) matrix.
 solve_multinom <- function(y, X, lambda, intercept){
-    fit <- glmnet(x=X,
+    fit <- glmnet::glmnet(x=X,
                   y=y,
                   lambda=lambda,
                   family="multinomial",
@@ -92,6 +93,7 @@ solve_multinom <- function(y, X, lambda, intercept){
 cvxr_multinom <- function(y, X, lambda, exclude.from.penalty=NULL){
   ## Setup
   numclust = ncol(y)
+  TT = nrow(X)
   p = ncol(X)
   v = 1:p
   if(!is.null(exclude.from.penalty)){
