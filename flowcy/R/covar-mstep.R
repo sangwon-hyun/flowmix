@@ -14,21 +14,26 @@ Mstep_alpha <- function(resp, X, numclust, lambda=0, alpha=1){
   stopifnot(dim(resp)==c(TT, numclust))
 
   ## Fit the model, possibly with some regularization
-  fit = glmnet::glmnet(x=X, y=resp.sum, family="multinomial",
-                       alpha=alpha, lambda=lambda)
+  ## fit = glmnet::glmnet(x=X, y=resp.sum, family="multinomial",
+  ##                      alpha=alpha, lambda=lambda)
+  alphahat = solve_multinom(X=X, y=resp.sum, lambda=lambda,
+                            intercept=TRUE)
+
+  ## The coefficients for the multinomial logit model are (K x (p+1))
+  ## alphahat = do.call(rbind, lapply(coef(fit), t))
+  alphahat = t(as.matrix(alphahat))
+  stopifnot(all(dim(alphahat)==c(numclust, (p+1))))
 
   ## While you're at it, calculate the fitted values (\pi) as well:
-  piehat = predict(fit, newx=X, type="response")[,,1]
+  piehatmat = exp(cbind(1,X) %*% t(alphahat))
+  piehat = piehatmat / rowSums(piehatmat)
+  ## predict(fit, newx=X, type="response")[,,1]
+
   stopifnot(all(dim(piehat)==c(TT,numclust)))
   stopifnot(all(piehat>=0))
   ## This should be dimension (T x K)
 
-  ## The coefficients for the multinomial logit model are (K x (p+1))
-  alphahat = do.call(rbind, lapply(coef(fit), t))
-  alphahat = as.matrix(alphahat)
-  stopifnot(all(dim(alphahat)==c(numclust, (p+1))))
-
-  return(list(pie=piehat, alpha=alphahat, fit=fit))
+  return(list(pie=piehat, alpha=alphahat))##, fit=fit))
 }
 
 
@@ -235,7 +240,7 @@ Mstep_beta_faster_lasso <- function(resp, ylist, X, mean_lambda=0, sigma, numclu
     ##                      exclude=exclude,
     ##                      lambda=mean_lambda,
     ##                      alpha=1, intercept=FALSE, family = "gaussian")
-    res = solve_lasso(X=Xtilde[[iclust]], y=yvec, lambda=mean_lambda,
+    res = solve_lasso(x=Xtilde[[iclust]], y=yvec, lambda=mean_lambda,
                       intercept=FALSE, exclude.from.penalty=exclude.from.penalty)
 
     ## Obtain the coef and fitted response

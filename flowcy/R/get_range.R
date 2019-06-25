@@ -156,3 +156,34 @@ Mstep_beta_faster_lasso_getrange <- function(resp, ylist, X, mean_lambda=0, sigm
   })
   return(max_lambdas_by_clust)
 }
+
+
+
+##' Estimate maximum lambda values.
+##' @param ylist List of responses.
+##' @param X Covariates.
+##' @param numclust Number of clusters.
+##' @return list containing the two maximum values to use.
+get_max_lambda <- function(ylist, X, numclust){
+
+  ## Get range of regularization parameters.
+  res0 = covarem_getrange(ylist=ylist, X=X, numclust=numclust, niter=2)
+
+  fac = 2
+  while(fac <= 32){
+
+    ## Checking the maximum lambda value
+    max_lambda_beta = max(unlist(res0$max_lambda_beta)) * fac
+    max_lambda_alpha = max(res0$max_lambda_alpha) * fac
+
+    ## Checking that the max actually zeros out.
+    res = covarem(ylist=ylist, X=X, numclust=numclust,
+                  mean_lambda=max_lambda_beta,
+                  pie_lambda=max_lambda_alpha)
+    alpha.checks.out = all(res$alpha[,-1]==0)
+    beta.checks.out = all(sapply(res$beta, function(cf){ all(cf[-1,]==0) }))
+    if(alpha.checks.out & beta.checks.out) break
+    fac = fac * 2
+  }
+  return(list(beta=max_lambda_beta, alpha=max_lambda_alpha))
+}

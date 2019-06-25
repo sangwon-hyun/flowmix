@@ -5,12 +5,23 @@
 ##' @param nsplit Number of CV splits. Defaults to 5.
 ##' @param ... default arguments to covarem().
 ##' @return List containing (1) the set of coefficients
-cv.covarem <- function(ylist=ylist, X=X, mean_lambdas, pie_lambdas,
+cv.covarem <- function(ylist=ylist, X=X, mean_lambdas=NULL,
+                       pie_lambdas=NULL,
+                       max_mean_lambda=NULL,
+                       max_pie_lambda=NULL,
+                       gridsize=5,
                        nsplit=5,
-                      ...){
+                       verbose=FALSE,
+                       ...){
   ## Basic checks
   stopifnot(length(mean_lambdas) == length(pie_lambdas))
-  gridsize = length(mean_lambdas)
+  ## gridsize = length(mean_lambdas)
+  if(is.null(mean_lambdas)){
+    mean_lambdas = c(exp(seq(from=-8, to=log(max_mean_lambda), length=gridsize)))
+  }
+  if(is.null(pie_lambdas)){
+    pie_lambdas = c(exp(seq(from=-8, to=log(max_pie_lambda), length=gridsize)))
+  }
 
   ## Create CV split indices
   mysplits = cvsplit(ylist, nsplit=5)
@@ -20,9 +31,14 @@ cv.covarem <- function(ylist=ylist, X=X, mean_lambdas, pie_lambdas,
   cvscoremat = array(NA, dim=c(gridsize,gridsize,5))
 
   reslist = list()
+  start.time=Sys.time()
   for(ii in gridsize:1){
     for(jj in gridsize:1){
-      print(c(ii,jj))
+      if(verbose){
+        print(c(ii,jj))
+        print(Sys.time() - start.time)
+        print("progressed")
+      }
 
       ## Set warm starts.
       if(jj == gridsize){

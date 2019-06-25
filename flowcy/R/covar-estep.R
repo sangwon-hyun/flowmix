@@ -6,9 +6,10 @@
 ##' @return Responsibility matrix, containing the posterior probabilities of the
 ##'   latent  variable $Z$  (memberships  to each  cluster)  given the  paramter
 ##'   estimates. Dimension is (T X nt x K).
-Estep_covar <- function(mn, sigma, pie, ylist, numclust, ntlist){
+Estep_covar <- function(mn, sigma, pie, ylist, numclust){
 
   TT = length(ylist)
+  ntlist = sapply(ylist, nrow)
   resp = list()
   for(tt in 1:TT){
     y = ylist[[tt]]  ## These are nt rows of 3-variate measurements
