@@ -43,11 +43,20 @@ solve_lasso <- function(y, x, lambda, intercept=TRUE, exclude.from.penalty=NULL)
 
   ## Solve lasso problem with or without intercept.
   if(intercept){
+    if(!is.null(exclude.from.penalty)){
+      stop("Doesn't support exclude.from.penalty option when intercept exists!")
+    }
     res = glmnet(y=y, x=x, lambda=lambda, intercept=TRUE, standardize=FALSE)
     b = as.numeric(coef(res))[2:(p+1)]
     b0 = as.numeric(coef(res))[1]
   } else {
-    res = glmnet(y=y, x=x, lambda=lambda, intercept=FALSE, standardize=FALSE)
+    pen = rep(1, p)
+    if(!is.null(exclude.from.penalty)){ pen[exclude.from.penalty] = 0
+      pen = pen / sum(pen) * (p)
+      lam = lambda / unique(pen[which(pen!=0)])
+    }
+    res = glmnet(y=y, x=x, lambda=lam, intercept=FALSE, standardize=FALSE,
+                 penalty.factor=pen)
     b0 = NULL
     b = as.numeric(coef(res))[2:(p+1)]
   }
