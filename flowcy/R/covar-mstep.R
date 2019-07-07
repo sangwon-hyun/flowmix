@@ -3,7 +3,11 @@
 ##' @param X Covariate matrix (T x dimdat).
 ##' @return The multinomial logit model coefficients. A matrix of dimension (K x
 ##'   (p+1)).
-Mstep_alpha <- function(resp, X, numclust, lambda=0, alpha=1){
+Mstep_alpha <- function(resp, X, numclust, lambda=0, alpha=1,
+                        refit=FALSE,
+                        sel_coef=NULL
+                        ## coef_limit=NULL ## Experimental feature
+                        ){
 
   TT = nrow(X)
   p = ncol(X)
@@ -14,20 +18,28 @@ Mstep_alpha <- function(resp, X, numclust, lambda=0, alpha=1){
   stopifnot(dim(resp)==c(TT, numclust))
 
   ## Fit the model, possibly with some regularization
-  ## fit = glmnet::glmnet(x=X, y=resp.sum, family="multinomial",
-  ##                      alpha=alpha, lambda=lambda)
-  alphahat = solve_multinom(X=X, y=resp.sum, lambda=lambda,
-                            intercept=TRUE)
+  if(!refit){
+    fit = glmnet::glmnet(x=X, y=resp.sum, family="multinomial",
+                         alpha=alpha, lambda=lambda)
+    ## The coefficients for the multinomial logit model are (K x (p+1))
+    alphahat = do.call(rbind, lapply(coef(fit), t))
+    stopifnot(all(dim(alphahat)==c(numclust, (p+1))))
 
-  ## The coefficients for the multinomial logit model are (K x (p+1))
-  ## alphahat = do.call(rbind, lapply(coef(fit), t))
-  alphahat = t(as.matrix(alphahat))
-  stopifnot(all(dim(alphahat)==c(numclust, (p+1))))
+  } else {
+    ## Temporary, for the sel_coef feature
+    Xa = cbind(1, X)
+    alphahat = cvxr_multinom_new(X=Xa, y=resp.sum, lambda=lambda,
+                                 sel.coef=sel_coef$alpha,
+                                 exclude=1)
+    alphahat[which(abs(alphahat) < 1E-8, arr.ind=TRUE)] = 0
+    alphahat = t(as.matrix(alphahat))
+    stopifnot(all(dim(alphahat)==c(numclust, (p+1))))
+    ## End of temporary
+  }
 
   ## While you're at it, calculate the fitted values (\pi) as well:
-  piehatmat = exp(cbind(1,X) %*% t(alphahat))
+  piehatmat = as.matrix(exp(cbind(1,X) %*% t(alphahat)))
   piehat = piehatmat / rowSums(piehatmat)
-  ## predict(fit, newx=X, type="response")[,,1]
 
   stopifnot(all(dim(piehat)==c(TT,numclust)))
   stopifnot(all(piehat>=0))
@@ -190,7 +202,11 @@ mtsqrt_inv <- function(a){
 }
 
 ##' The M step of beta using a faster lasso regression formulation.
-Mstep_beta_faster_lasso <- function(resp, ylist, X, mean_lambda=0, sigma, numclust){
+Mstep_beta_faster_lasso <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
+                                    ## coef_limit=NULL## Experimental feature
+                                    refit=NULL,
+                                    sel_coef=NULL
+                                    ){
 
   ## Preliminaries
   TT = length(ylist)
@@ -240,11 +256,18 @@ Mstep_beta_faster_lasso <- function(resp, ylist, X, mean_lambda=0, sigma, numclu
     ##                      exclude=exclude,
     ##                      lambda=mean_lambda,
     ##                      alpha=1, intercept=FALSE, family = "gaussian")
-    res = solve_lasso(x=Xtilde[[iclust]], y=yvec, lambda=mean_lambda,
-                      intercept=FALSE, exclude.from.penalty=exclude.from.penalty)
+    ## if(!is.null(coef_limit)){
+    ##   res = cvxr_lasso(yvec, Xtilde[[iclust]], mean_lambda,
+    ##                    exclude.from.penalty=exclude.from.penalty,
+    ##                    coef_limit=coef_limit) ## Experimental feature
+    ##   b=res
+    ## } else {
+      res = solve_lasso(x=Xtilde[[iclust]], y=yvec, lambda=mean_lambda,
+                        intercept=FALSE, exclude.from.penalty=exclude.from.penalty)
+    b = res$b
+    ## }
 
     ## Obtain the coef and fitted response
-    b = res$b
     betahat = matrix(b, ncol=dimdat)
     yhat = Xa %*% betahat
 

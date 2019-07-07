@@ -2,8 +2,8 @@
 ##' @param obj An object of class "covarem"
 ##' @return Nothing.
 print.covarem <- function(obj){
-  betas = do.call(cbind, lapply(res$beta, function(beta)beta[-1,]))
-  alpha =res$alpha[ ,-1]
+  betas = do.call(cbind, lapply(obj$beta, function(beta)beta[-1,]))
+  alpha =obj$alpha[ ,-1]
   print(paste0(sum(betas==0), " out of ", length(betas),
                " regression coefficients for the cluster centers, are zero."))
   print(paste0(sum(obj$alpha==0), " out of ", length(obj$alpha),

@@ -36,7 +36,7 @@ plot2d <- function (x, ...) {
 ##' @param obj Result of running covarem().
 ##' @param ylist List of responses.
 ##' @return Nothing
-plot2d.covarem <- function(obj, ylist, ask=FALSE, show.fewer=NULL){
+plot2d.covarem <- function(obj, ylist, ask=TRUE, show.fewer=NULL){
 
   ## Basic checks
   assert_that(obj$dimdat==2)
@@ -62,6 +62,7 @@ plot2d.covarem <- function(obj, ylist, ask=FALSE, show.fewer=NULL){
   mns = obj$mn
   numclust = obj$numclust
   TT =obj$TT
+  p = ncol(obj$X)
 
   ## General plot settings
   cols = RColorBrewer::brewer.pal(numclust, "Set3")
@@ -91,7 +92,12 @@ plot2d.covarem <- function(obj, ylist, ask=FALSE, show.fewer=NULL){
     for(kk in 1:numclust){
       points(x=mns[tt,1,kk],
              y=mns[tt,2,kk],
-             col='red', pch=16, cex=pies[[kk]][tt]*5)
+             col='red', pch=1, cex=pies[[kk]][tt]*10)
+
+      text(x=mns[tt,1,kk],
+           y=mns[tt,2,kk],
+           labels=kk,
+           col='red', pch=16, cex=pies[[kk]][tt]*5)
     }
 
     ## Add legend
@@ -112,31 +118,33 @@ plot2d.covarem <- function(obj, ylist, ask=FALSE, show.fewer=NULL){
     plot(NA, xlim=c(0,TT), ylim=c(0,1.4), main=main0,
          ylab = "Mixture probability", xlab="time, t=1,..,T")
     for(iclust in 1:numclust){
-      lines(pies[[iclust]], col=cols[iclust], lwd=2, type='l')
+      lines(pies[[iclust]], col=cols[iclust], lwd=2, type='o', pch=toString(iclust))
     }
     abline(v=tt, col='green')
 
 
-    plot(NA, xlim=c(0,TT), ylim=range(obj$X)*1.5, main="Covariates",
+    ## Plot covariates
+    ylim.cov=range(obj$X)*1.5
+    plot(NA, xlim=c(0,TT), ylim=ylim.cov, main="Covariates",
          ylab = "Environmental covariates", xlab="time, t=1,..,T")
-    for(ii in 1:2){
+    for(ii in p:1){
       lines(obj$X[,ii], col=ii, lwd=2, type='l')
     }
     abline(v=tt, col='green')
 
     ## if(plot.iter>1){
-    ##   betas = obj$beta.list[[plot.iter]]
-    ##   betas = round(do.call(cbind, betas),2)
-    ##   rownames(betas)[1] = "intp"
-    ##   colnames(betas)= paste0("cluster ", c(1,1,2,2))
-    ##   text(0.6,1, paste(capture.output(betas), collapse='\n'), pos=4)##, family="monospace")
+      ## betas = obj$beta.list[[plot.iter]]
+      ## betas = do.call(cbind, lapply(obj$beta, function(beta)beta[-1,]))
+      betas = round(do.call(cbind, obj$beta),2)
+      rownames(betas) = paste("beta:", c("intrcpt", paste0("coef", 1:5)))
+      colnames(betas)= paste0("clust-", c(1,1,2,2,3,3,4,4))
+      text(0.6,max(ylim.cov)/1.5, paste(capture.output(betas), collapse='\n'), pos=4)##, family="monospace")
 
-    ##   alphas = as.matrix(t(obj$alpha.list[[plot.iter]]))
-    ##   rownames(alphas)[1] = "intp"
-    ##   alphas = round(alphas,2)
-    ##   colnames(alphas)= paste0("cluster ", c(1,2))
-    ##   text(35,1, paste(capture.output(alphas), collapse='\n'), pos=4)##, family="monospace")
-    ## }
+      alphas = as.matrix(t(obj$alpha))
+      rownames(alphas) = paste("alpha:", c("intrcpt", paste0("coef", 1:5)))
+      alphas = round(alphas,2)
+      colnames(alphas)= paste0("cluster ", c(1:4))
+      text(25,min(ylim)/1.5, paste(capture.output(alphas), collapse='\n'), pos=4)##, family="monospace")
   }
   par(ask=FALSE)
 }

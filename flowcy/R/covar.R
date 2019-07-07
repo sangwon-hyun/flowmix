@@ -1,12 +1,16 @@
-##' Main function for covariate EM. Does covariate EM with 5 restarts.
+##' Main function for covariate EM. Does covariate EM with |nrep| restarts (5 by
+##' default).
 ##' @param ... Arguments for \code{covarem_once()}.
-covarem <- function(...){
+##' @param nrep Number of restarts.
+##' @return The |covarem| class object that had the best likelihood.
+covarem <- function(..., nrep=5){
   reslist = list()
-  for(itrial in 1:5){
-    print(itrial)
-    cat(fill=TRUE)
-    reslist[[itrial]] = covarem(...)
+  for(itrial in 1:nrep){
+    reslist[[itrial]] = covarem_once(...)
   }
+
+  ## Pick the best one and return
+  objlist = lapply(reslist, function(res){ res$obj[-1]})
   ii = which.min(sapply(objlist, min))
   return(reslist[[ii]])
 }
@@ -19,11 +23,21 @@ covarem <- function(...){
 ##' @param pie.list (T by K)
 ##' @param mean_lambda lambda for lasso for the mean.
 ##' @param pie_lambda lambda for lasso for pie.
+##' @param refit (experimental), defaults to FALSE. If TRUE, then the refitted
+##'   non-regularized solutions (with only a user-specified set of active
+##'   coefficients, coded in the argument \code{sel_coef}) are calculated.
+##' @param sel_coef (Experimental feature) Boolean matrices of the same
+##'   structure as beta and alpha, whose TRUE entries are the active
+##'   coefficients to be refitted in a nonregularized way.
 ##' @return List containing fitted parameters and means and mixture weights,
 ##'   across algorithm iterations.
 covarem_once <- function(ylist, X=NULL, numclust, niter=100, mn=NULL, pie_lambda=0,
                     mean_lambda=0, verbose=FALSE,
-                    warmstart = c("none", "rough"), sigma.fac=1, tol=1E-6){
+                    warmstart = c("none", "rough"), sigma.fac=1, tol=1E-6,
+                    refit=FALSE, ## EXPERIMENTAL FEATURE.
+                    sel_coef=NULL
+                    ## coef_limit=NULL ## Experimental feature
+                    ){
 
   ## Setup.
   dimdat = ncol(ylist[[1]])
@@ -71,14 +85,22 @@ covarem_once <- function(ylist, X=NULL, numclust, niter=100, mn=NULL, pie_lambda
     ## 1. Alpha
     res.alpha = Mstep_alpha(resp,
                             X, numclust,
-                            lambda=pie_lambda)
+                            lambda=pie_lambda,
+                            ## coef_limit=coef_limit, ## Experimental feature
+                            refit=refit,
+                            sel_coef=sel_coef
+                            )
     alpha.list[[iter]] = res.alpha$alpha
     pie.list[[iter]] = res.alpha$pie
 
     ## 2. Beta
     res.beta = Mstep_beta_faster_lasso(resp, ylist, X,
                                        mean_lambda=mean_lambda,
-                                       sigma.list[[iter-1]])
+                                       sigma.list[[iter-1]],
+                                       ## coef_limit=coef_limit ## Experimental feature
+                                       refit=refit,
+                                       sel_coef=sel_coef
+                                       )
     beta.list[[iter]] = res.beta$beta
     mn.list[[iter]]    = res.beta$mns
 
@@ -159,7 +181,13 @@ predict.covarem <- function(res, newx=NULL){
   newmn = aperm(newmn, c(2,3,1)) ## This needs to by (T x dimdat x numclust)
 
   ## Predict the pies.
-  newpie = predict(res$alpha.fit, newx=newx, type='response')[,,1]
+  ## newpie = predict(res$alpha.fit, newx=newx, type='response')[,,1]
+
+  piehatmat = exp(cbind(1,newx) %*% t(res$alpha))
+  newpie = piehatmat / rowSums(piehatmat)
+  ## predict(fit, newx=X, type="response")[,,1]
+  stopifnot(all(dim(newpie)==c(TT,numclust)))
+  stopifnot(all(newpie>=0))
 
   ## Return all three things
   return(list(newmn=newmn,
@@ -167,40 +195,3 @@ predict.covarem <- function(res, newx=NULL){
               sigma=res$sigma))
 }
 
-## ##' Plot results from covariate EM \code{covarem()}.
-## plot.covarem <- function(res, newx=NULL){
-
-##   ## Extract numclust  (eventually from somewhere else)
-##   mns = res$mn.list[[plot.iter]]
-##   numclust = res$numclust
-
-##   ## Define range of date
-##   xlim = range(do.call(rbind, res$ylist)[,1])
-##   ylim = range(do.call(rbind, res$ylist)[,2])
-
-##   ## General plot settings
-##   cols = RColorBrewer::brewer.pal(numclust, "Set3")
-
-##   ## Make /series/ of plots.
-##   par(ask=TRUE)
-##   par(mfrow=c(1,3))
-##   for(tt in 1:res$TT){
-##     main0 = paste0("time ", tt, " out of ", TT)
-##     main = paste0("Iteration ", plot.iter)
-##     plot(NA, ylim=ylim, xlim=xlim, cex=3, ylab="", xlab="", main=main0)
-
-##     ## Add datapoints
-##     points(res$ylist[[tt]], col='lightgrey', pch=16, cex=.5)
-
-##     ## Add truth as well
-##     if(!is.null(truths)){
-##       numclust.truth = dim(truths$mns)[3]
-##       for(kk in 1:numclust.truth){
-##         points(x=truths$mns[tt,1,kk],
-##                y=truths$mns[tt,2,kk],
-##                col="black", pch=16, cex=truths$pies[[kk]][tt]*5)
-##       }
-##     }
-##   }
-
-## }

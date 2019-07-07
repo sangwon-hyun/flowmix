@@ -54,8 +54,7 @@ covarem_getrange <- function(ylist, X=NULL, numclust, niter=100, mn=NULL, pie_la
                         sigma.list[[iter-1]],
                         pie.list[[iter-1]],
                         ylist,
-                        numclust,
-                        ntlist)  ## This should be (T x numclust x dimdat x dimdat)
+                        numclust)  ## This should be (T x numclust x dimdat x dimdat)
 
     ## Conduct M step
     ## 1. Alpha
@@ -163,8 +162,11 @@ Mstep_beta_faster_lasso_getrange <- function(resp, ylist, X, mean_lambda=0, sigm
 ##' @param ylist List of responses.
 ##' @param X Covariates.
 ##' @param numclust Number of clusters.
+##' @param ... Other arguments to \code{covarem_once()}.
 ##' @return list containing the two maximum values to use.
-get_max_lambda <- function(ylist, X, numclust){
+get_max_lambda <- function(ylist, X, numclust, ...){
+                           ## coef_limit=NULL## Experimental feature
+                           ## ){
 
   ## Get range of regularization parameters.
   res0 = covarem_getrange(ylist=ylist, X=X, numclust=numclust, niter=2)
@@ -177,9 +179,12 @@ get_max_lambda <- function(ylist, X, numclust){
     max_lambda_alpha = max(res0$max_lambda_alpha) * fac
 
     ## Checking that the max actually zeros out.
-    res = covarem(ylist=ylist, X=X, numclust=numclust,
-                  mean_lambda=max_lambda_beta,
-                  pie_lambda=max_lambda_alpha)
+    res = covarem_once(ylist=ylist, X=X, numclust=numclust,
+                       mean_lambda=max_lambda_beta,
+                       pie_lambda=max_lambda_alpha,
+                       ## coef_limit=coef_limit ## Experimental feature
+                       ...
+                       )
     alpha.checks.out = all(res$alpha[,-1]==0)
     beta.checks.out = all(sapply(res$beta, function(cf){ all(cf[-1,]==0) }))
     if(alpha.checks.out & beta.checks.out) break

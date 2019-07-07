@@ -12,6 +12,7 @@ cv.covarem <- function(ylist=ylist, X=X, mean_lambdas=NULL,
                        gridsize=5,
                        nsplit=5,
                        verbose=FALSE,
+                       ## coef_limit=coef_limit, ## Experimental feature
                        ...){
   ## Basic checks
   stopifnot(length(mean_lambdas) == length(pie_lambdas))
@@ -53,13 +54,27 @@ cv.covarem <- function(ylist=ylist, X=X, mean_lambdas=NULL,
                            mean_lambda=mean_lambdas[ii],
                            pie_lambda=pie_lambdas[jj],
                            mn=warmstart_mn,
+                           ## coef_limit=coef_limit, ## Experimental feature
                            ...)
 
-      ## Get the fitted results on the entire data
-      res = covarem(ylist=ylist, X=X,
-                    mean_lambda=mean_lambdas[ii],
-                    pie_lambda=pie_lambdas[jj],
-                    mn=warmstart_mn, ...)
+
+      ## ## Calculate the sparsity pattern and redo CV by refitting unregularized
+      ## ## model.
+      ## if(refit){
+      ##   sel_coef = get_sparsity_pattern(res)
+      ##   cvres = get_cv_score(ylist, X, mysplits, nsplit,
+      ##                        refit=TRUE,
+      ##                        sel_coef=sel_coef,
+      ##                        mn=warmstart_mn,
+      ##                        ...)
+      ## } else {
+        ## Get the fitted results on the entire data
+        res = covarem(ylist=ylist, X=X,
+                      mean_lambda=mean_lambdas[ii],
+                      pie_lambda=pie_lambdas[jj],
+                      ## coef_limit=coef_limit, ## Experimental feature
+                      mn=warmstart_mn, ...)
+      ## }
 
       ## Store the results
       reslist[[paste0(ii, "-", jj)]] = res
@@ -93,14 +108,20 @@ cvsplit<- function(ylist, nsplit=5){
 ##' Getting cross-validated test likelihood, averaged over train/test splits.
 ##' @param splits TT-lengthed list of indices.
 ##' @param ylist List of responses.
-##' @param ... arguments to covarem
-##' @return Cross validated test likelihood, scalar valued.
-get_cv_score <- function(ylist, X, splits, nsplit,...){
+##' @param ... arguments to covarem.
+##' @return Cross validated test likelihood, scalar-valued.
+get_cv_score <- function(ylist, X, splits, nsplit,
+                         ## refit=FALSE,
+                         ## sel_coef=NULL,
+                         ## coef_limit=coef_limit, ## Experimental feature
+                         ...){
   ## stopifnot(length(splits[[1]])!=nsplit) ## good check but only works if TT>1
 
   ## Cycle through splits, and calculate CV scroe
   all.scores = sapply(1:nsplit, function(test.isplit){
-    get_cv_score_onesplit(test.isplit, splits, ylist, X,...)
+  browser()
+    get_cv_score_onesplit(test.isplit, splits, ylist, X,## , refit, sel_coef,
+                         ...)
   })
   return(list(mean=mean(all.scores), all=all.scores))
 }
@@ -111,9 +132,13 @@ get_cv_score <- function(ylist, X, splits, nsplit,...){
 ##' @param splits TT-lengthed list of indices.
 ##' @param test.split The split (out of 1:nsplit) to use for test.
 ##' @param ylist List of responses.
+##' @param refit (experimental), defaults to FALSE. If TRUE, then the refitted
+##'   non-regularized solutions (with only a user-specified set of active
+##'   coefficients) are calculated.
 ##' @param ... arguments to covarem
 ##' @return One split's test likelihood.
-get_cv_score_onesplit <- function(test.isplit, splits, ylist, X, pie_lambda, mean_lambda,...){
+get_cv_score_onesplit <- function(test.isplit, splits, ylist, X, pie_lambda,
+                                    mean_lambda){##, refit=FALSE,...){
 
   TT = length(ylist)
 
@@ -128,12 +153,13 @@ get_cv_score_onesplit <- function(test.isplit, splits, ylist, X, pie_lambda, mea
   })
 
   ## Run algorithm on train data, evaluate test data.
-  res.train = covarem(ylist.train, X, pie_lambda=pie_lambda, mean_lambda=mean_lambda,
-                      ...)
+  res.train = covarem(ylist.train, X, pie_lambda=pie_lambda,
+                      ## coef_limit=coef_limit, ## Experimental feature
+                      mean_lambda=mean_lambda, ...)
 
   ## Assign mn and pie
   pred = predict.covarem(res.train)
-  stopifnot(all(pred$newpie)>=0)
+  stopifnot(all(pred$newpie>=0))
 
   ## Calculate objective (penalized likelihood)
   objective_overall_cov(aperm(pred$newmn, c(1,3,2)),
@@ -157,4 +183,14 @@ make_lambdas <- function(ylist, X, numclust, cv.grid.size=5){
   lambdas_alpha = c(0,exp(seq(from=0, to=log(max_lambda_alpha), length=cv.grid.size)))
   return(list(lambdas_beta=lambdas_beta,
               lambdas_alpha=lambdas_alpha))
+}
+
+
+##' Helper to get sparsity pattern of fitted coefficients.
+##' @param res covarem class object.
+##' @return list containing two objects (alpha and beta) that are the same
+##'   structure as \code{res$alpha} and \code{beta}, but are boolean matrices.
+get_sparsity_pattern <- function(res){
+  list(beta = lapply(res$beta, function(onebeta){as.matrix(onebeta!=0)}),
+       alpha = as.matrix((res$alpha!=0)))
 }
