@@ -35,7 +35,8 @@ covarem_once <- function(ylist, X=NULL, numclust, niter=100, mn=NULL, pie_lambda
                     mean_lambda=0, verbose=FALSE,
                     warmstart = c("none", "rough"), sigma.fac=1, tol=1E-6,
                     refit=FALSE, ## EXPERIMENTAL FEATURE.
-                    sel_coef=NULL
+                    sel_coef=NULL,
+                    lambda_coef=NULL ## yet another experimental feature
                     ## coef_limit=NULL ## Experimental feature
                     ){
 
@@ -99,7 +100,8 @@ covarem_once <- function(ylist, X=NULL, numclust, niter=100, mn=NULL, pie_lambda
                                        sigma.list[[iter-1]],
                                        ## coef_limit=coef_limit ## Experimental feature
                                        refit=refit,
-                                       sel_coef=sel_coef
+                                       sel_coef=sel_coef,
+                                       lambda_coef=lambda_coef
                                        )
     beta.list[[iter]] = res.beta$beta
     mn.list[[iter]]    = res.beta$mns

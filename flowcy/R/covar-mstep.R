@@ -37,6 +37,7 @@ Mstep_alpha <- function(resp, X, numclust, lambda=0, alpha=1,
     ## End of temporary
   }
 
+
   ## While you're at it, calculate the fitted values (\pi) as well:
   piehatmat = as.matrix(exp(cbind(1,X) %*% t(alphahat)))
   piehat = piehatmat / rowSums(piehatmat)
@@ -205,7 +206,8 @@ mtsqrt_inv <- function(a){
 Mstep_beta_faster_lasso <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
                                     ## coef_limit=NULL## Experimental feature
                                     refit=NULL,
-                                    sel_coef=NULL
+                                    sel_coef=NULL,
+                                    lambda_coef=NULL ## Temporary
                                     ){
 
   ## Preliminaries
@@ -266,6 +268,17 @@ Mstep_beta_faster_lasso <- function(resp, ylist, X, mean_lambda=0, sigma, numclu
                         intercept=FALSE, exclude.from.penalty=exclude.from.penalty)
     b = res$b
     ## }
+
+
+
+    ## Trying out something
+    if(!is.null(lambda_coef)){
+      b = cvxr_lasso_new(X=Xtilde[[iclust]], y=yvec, lambda=mean_lambda,
+                         exclude.from.penalty=exclude.from.penalty,
+                         lambda_coef=lambda_coef)
+      b[which(abs(b) < 1E-8)] = 0
+    }
+    ## End of tryout
 
     ## Obtain the coef and fitted response
     betahat = matrix(b, ncol=dimdat)

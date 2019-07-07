@@ -19,6 +19,8 @@ cvxr_lasso <- function(y, X, lambda, exclude.from.penalty=NULL, thresh=1E-12
     v = 1:p
   } else {
     assert_that(all(exclude.from.penalty %in% (1:p)))
+
+
     v = (1:p)[-exclude.from.penalty]
   }
 
@@ -77,4 +79,40 @@ solve_lasso <- function(y, x, lambda, intercept=TRUE, exclude.from.penalty=NULL)
   }
   yhat = predict(res, newx=x)
   return(list(b=b, b0=b0, yhat=yhat))
+}
+
+
+
+##' Solving the  no-intercept Lasso problem using  CVXR.  \deqn{\min_{\beta} 1/2n
+##' \|y - X\beta\|^2 + \lambda \|\beta\|_1}
+##' @param X Covariate matrix.
+##' @param y Response vector.
+##' @param lambda regularization problem.
+cvxr_lasso_new <- function(y, X, lambda, exclude.from.penalty=NULL, thresh=1E-12,
+                           lambda_coef=NULL ##TEmporary feature
+                           ## coef_limit=NULL
+                           ){
+  n = nrow(X)
+  p = ncol(X)
+  beta <- Variable(p)
+  loss <- sum((y - X %*% beta)^2) / (2 * n)
+
+  ## Set up exclusion from penalty, if applicable.
+  if(is.null(exclude.from.penalty)){
+    v = 1:p
+  } else {
+    assert_that(all(exclude.from.penalty %in% (1:p)))
+    v = (1:p)[-exclude.from.penalty]
+  }
+
+  constraints = list()
+
+  ## Perform elastic-net regression
+  obj <- sum_squares(y - X %*% beta) / (2 * n) + lambda * sum(abs(beta[v]))
+  if(!is.null(lambda_coef)){
+    obj = obj + lambda_coef * sum_squares(X[,v] %*% beta[v]) ## Temporary feature
+  }
+  prob <- Problem(Minimize(obj), constraints)
+  result <- solve(prob, FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
+  return(as.numeric(result$getValue(beta)))
 }
