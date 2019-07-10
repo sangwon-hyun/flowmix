@@ -6,7 +6,7 @@ print.covarem <- function(obj){
   alpha =obj$alpha[ ,-1]
   print(paste0(sum(betas==0), " out of ", length(betas),
                " regression coefficients for the cluster centers, are zero."))
-  print(paste0(sum(obj$alpha==0), " out of ", length(obj$alpha),
+  print(paste0(sum(alpha==0), " out of ", length(alpha),
                " regression coefficients for the cluster probabilities, are zero."))
   if(obj$niter == obj$final.iter){
     print(paste0("The algorithm has NOT converged in ", obj$niter,

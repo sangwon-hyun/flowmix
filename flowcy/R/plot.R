@@ -36,7 +36,11 @@ plot2d <- function (x, ...) {
 ##' @param obj Result of running covarem().
 ##' @param ylist List of responses.
 ##' @return Nothing
-plot2d.covarem <- function(obj, ylist, ask=TRUE, show.fewer=NULL){
+plot2d.covarem <- function(obj, ylist, ask=TRUE, show.fewer=NULL,
+                           obj.shrunken=NULL,## Temporary addition.
+                           show.xb.constraint=FALSE,
+                           maxdev=maxdev## Temporary addition.
+                           ){
 
   ## Basic checks
   assert_that(obj$dimdat==2)
@@ -57,7 +61,6 @@ plot2d.covarem <- function(obj, ylist, ask=TRUE, show.fewer=NULL){
   ##   points(mn[1,]~mn[2,],
   ##        cex=wt*10, pch=16, col='red')
   ## }
-
   ## Extract numclust  (eventually from somewhere else)
   mns = obj$mn
   numclust = obj$numclust
@@ -81,12 +84,38 @@ plot2d.covarem <- function(obj, ylist, ask=TRUE, show.fewer=NULL){
     plot(NA, ylim=ylim, xlim=xlim, cex=3, ylab="", xlab="", main=main0)
 
     ## Add datapoints
-    points(ylist[[tt]], col='lightgrey', pch=16, cex=.5)
+    points(ylist[[tt]], col='grey90', pch=16, cex=.5)
+
+
+
+    ## Begin temporary
+    if(show.xb.constraint){
+
+      ## (Temporary addition) Plot together all the centers.
+      for(kk in 1:numclust){
+        points(x=mns[1:TT,1,kk],
+               y=mns[1:TT,2,kk], col='grey60', pch=16, cex=0.5)
+      }
+
+      ## Also add circle around beta0kwhose radius to maxdev.
+      for(kk in 1:numclust){
+        ## points(x=obj.shrunken$mn[tt,1,kk],
+        ##        y=obj.shrunken$mn[tt,2,kk], col='grey40', pch=7)
+        beta0list = lapply(obj$beta, function(betamat){
+          betamat[1,]
+        })
+        points(x=beta0list[[kk]][1],
+                y=beta0list[[kk]][2], col="blue", pch=16)
+        plotrix::draw.circle(x=beta0list[[kk]][1],
+                             y=beta0list[[kk]][2],
+                             radius=maxdev,
+                             border="blue", lwd=2)
+      }
+    }
+    ## End of temporary
 
     ## Collect pies
-    pies = lapply(1:numclust, function(iclust){
-      obj$pie[,iclust]
-    })
+    pies = lapply(1:numclust, function(iclust){  obj$pie[,iclust] })
 
     ## Add fitted means
     for(kk in 1:numclust){
@@ -101,13 +130,15 @@ plot2d.covarem <- function(obj, ylist, ask=TRUE, show.fewer=NULL){
     }
 
     ## Add legend
-    legend("bottomright", col=c("black", "red"),
-           pch=c(16,16), legend = c("truth", "fitted"))
+    legend("bottomright",
+           col=c("black", "red", "blue", "grey40"),
+           pch=c(16,16,16, 16),
+           legend = c("truth", "fitted", "intercept", "other fitted"))
 
     for(kk in 1:numclust){
     lines(ellipse::ellipse(x=obj$sigma[tt,kk,,],
                            centre=mns[tt,,kk]
-                           ), lwd=1/2, col='red')
+                           ), lwd=1/2, col='red', lty=2)
     }
     ## lines(ellipse(rho), col="red")       # ellipse() from ellipse package
     ## lines(ellipse(rho, level = .99), col="green")

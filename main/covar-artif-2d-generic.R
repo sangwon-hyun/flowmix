@@ -46,6 +46,8 @@ fac = 1 ## 0.3  ## 0.6   ## 1
 
 ## Generate covariates.
 X = matrix(rnorm(TT*p), ncol=p, nrow=TT)
+X[,1] = sin((1:TT)/TT * 4 * pi)
+X[,2] = c(rep(0, TT/2), rep(1, TT/2))
 Xa = cbind(rep(1,TT), X)
 
 ## Generate coefficients. ## this should be (dimdat x p) = (2d x 2)
@@ -64,6 +66,7 @@ beta1 = rbind(beta1, matrix(0, nrow=p-2, ncol=2))
 beta2 = rbind(beta2, matrix(0, nrow=p-2, ncol=2))
 beta3 = rbind(beta3, matrix(0, nrow=p-2, ncol=2))
 beta4 = rbind(beta4, matrix(0, nrow=p-2, ncol=2))
+betalist=list(beta1, beta2, beta3, beta4)
 
 ## Generate the five response /components/.
 sigma = diag(rep(fac, 2))
@@ -120,3 +123,4 @@ ylist = lapply(datapoints, cbind)
 ## Just defining these in case it is useful.
 xlim = range(do.call(rbind,ylist)[,1])
 ylim = range(do.call(rbind,ylist)[,2])
+

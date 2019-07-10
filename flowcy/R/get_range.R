@@ -59,13 +59,13 @@ covarem_getrange <- function(ylist, X=NULL, numclust, niter=100, mn=NULL, pie_la
     ## Conduct M step
     ## 1. Alpha
     max_lambda_alpha = Mstep_alpha_getrange(resp,
-                            X, numclust,
-                            lambda=pie_lambda)
+                                            X, numclust,
+                                            lambda=pie_lambda)
 
     ## 2. Beta
-    max_lambda_beta = Mstep_beta_faster_lasso_getrange(resp, ylist, X,
-                                       mean_lambda=mean_lambda,
-                                       sigma.list[[iter-1]])
+    max_lambda_beta = Mstep_beta_getrange(resp, ylist, X,
+                                          mean_lambda=mean_lambda,
+                                          sigma.list[[iter-1]])
 
   }
   return(list(max_lambda_beta=max_lambda_beta,
@@ -101,7 +101,7 @@ Mstep_alpha_getrange <- function(resp, X, numclust, lambda=0, alpha=1){
 
 ##' Getting the range of lambda values from the first M step of beta using a faster
 ##' lasso regression formulation.
-Mstep_beta_faster_lasso_getrange <- function(resp, ylist, X, mean_lambda=0, sigma, numclust){
+Mstep_beta_getrange <- function(resp, ylist, X, mean_lambda=0, sigma, numclust){
 
   ## Preliminaries
   TT = length(ylist)
@@ -112,44 +112,19 @@ Mstep_beta_faster_lasso_getrange <- function(resp, ylist, X, mean_lambda=0, sigm
   Xa = cbind(rep(1, TT), X)
 
   ## Setup
-  resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
-  sigma.inv.halves = array(NA, dim=dim(sigma))
-  for(iclust in 1:numclust){
-    mymat = mtsqrt_inv(sigma[1,iclust,,])
-    for(tt in 1:TT){ sigma.inv.halves[tt,iclust,,] = mymat }
-  }
-
-  ## Pre-calculate response and covariates to feed into lasso.
-  emptymat = matrix(NA, nrow=dimdat, ncol=TT)
-  Ytilde = list()
-  for(iclust in 1:numclust){
-    cs = c(0, cumsum(ntlist))
-    for(tt in 1:TT){
-      irows = (cs[tt]+1):cs[tt+1]
-      wt.y = resp[[tt]][, iclust]  * ylist[[tt]]
-      emptymat[,tt] = colSums(wt.y)
-    }
-    Ytilde[[iclust]] = emptymat
-  }
-  Xtilde = lapply(1:numclust, function(iclust){
-    sigma.inv.halves[1,iclust,,] %x% (sqrt(resp.sum[,iclust]) * Xa)
-  })
+  manip_obj = manip(ylist, X, resp, sigma, numclust)
+  Xtildes = manip_obj$Xtildes
+  yvecs = manip_obj$yvecs
 
   ## Intercepts are to be excluded.
-  penalty.factor = rep(1, ncol(Xa) * dimdat)
-  exclude.from.penalty = penalty.factor[(0:(dimdat-1))*(ncol(Xa)) + 1]## = 0
+  exclude.from.penalty = (0:(dimdat-1))*(ncol(Xa)) + 1
 
+  ## Give the glmnet function pre-calculated Y's and X's.
   max_lambdas_by_clust = lapply(1:numclust, function(iclust){
 
-    ## Form y vector
-    yvec = (1/sqrt(resp.sum[,iclust]) * t(Ytilde[[iclust]])) %*% sigma.inv.halves[1,iclust,,]
-    yvec = as.vector(yvec)
-
-    ## Give the glmnet function some pre-calculated Y's and X's.
-    fit = glmnet::glmnet(x=Xtilde[[iclust]], y=yvec,
-                         alpha=1, intercept=FALSE, family = "gaussian")
-    ## res = solve_lasso(X=Xtilde[[iclust]], y=yvec, lambda=mean_lambda,
-    ##                   intercept=FALSE, exclude.from.penalty=exclude.from.penalty)
+    ## Give the glmnet function pre-calculated Y's and X's.
+    fit = glmnet::glmnet(x=Xtildes[[iclust]], y = yvecs[[iclust]],
+                         alpha=1, intercept = FALSE, family = "gaussian")
     max_lambda = max(fit$lambda)
     return(max_lambda)
   })

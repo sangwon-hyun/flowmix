@@ -67,10 +67,10 @@ cvxr_multinom <- function(y, X, lambda, exclude.from.penalty=NULL){
 
 
 
-##' (NEW and TEMPORARY VERSION!!) Solves, using CVXR, the l1-penalized multinom problem:
-##' \deqn{ \frac{1}{n} \sum_{i=1}^n \sum_{k=1}^K y_{ik} ( x_i^T \alpha_k) -
-##' \log \left( \sum_{l=1}^K \exp ( x^T \alpha_l) \right)
-##' - \lambda \sum_{l=1}^K \left(\| \alpha_l \|_1 \right)}
+##' (NEW and TEMPORARY VERSION!! Intended only for the refitting) Solves, using
+##' CVXR, the l1-penalized multinom problem: \deqn{ \frac{1}{n} \sum_{i=1}^n
+##' \sum_{k=1}^K y_{ik} ( x_i^T \alpha_k) - \log \left( \sum_{l=1}^K \exp ( x^T
+##' \alpha_l) \right) - \lambda \sum_{l=1}^K \left(\| \alpha_l \|_1 \right)}
 cvxr_multinom_new <- function(y, X, lambda, exclude.from.penalty=NULL, sel.coef=NULL){
 
   ## Setup
@@ -93,14 +93,13 @@ cvxr_multinom_new <- function(y, X, lambda, exclude.from.penalty=NULL, sel.coef=
   ## Sum them
   obj <- (obj1  - obj2)  / TT - lambda * sum(abs(alphamat[v,]))
 
-
-  ## Should it just be that
+  ## For refitting without regularization; this could easily be
   if(!is.null(sel.coef)){
+    assert_that(lambda==0)
     constraints <- list(alphamat[!t(sel.coef)] == 0)
   } else {
     constraints = list()
   }
-  ## all(alphamat * sel.coef == 0 ) or someting like this.
 
   ## Solve the problem
   prob <- Problem(Maximize(obj), constraints)

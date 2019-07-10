@@ -83,13 +83,18 @@ solve_lasso <- function(y, x, lambda, intercept=TRUE, exclude.from.penalty=NULL)
 
 
 
+
+
 ##' Solving the  no-intercept Lasso problem using  CVXR.  \deqn{\min_{\beta} 1/2n
 ##' \|y - X\beta\|^2 + \lambda \|\beta\|_1}
 ##' @param X Covariate matrix.
 ##' @param y Response vector.
 ##' @param lambda regularization problem.
 cvxr_lasso_new <- function(y, X, lambda, exclude.from.penalty=NULL, thresh=1E-12,
-                           lambda_coef=NULL ##TEmporary feature
+                           lambda_coef=NULL, ##TEmporary feature
+                           maxdev=NULL,
+                           dimdat=NULL,
+                           numclust=NULL
                            ## coef_limit=NULL
                            ){
   n = nrow(X)
@@ -111,8 +116,103 @@ cvxr_lasso_new <- function(y, X, lambda, exclude.from.penalty=NULL, thresh=1E-12
   obj <- sum_squares(y - X %*% beta) / (2 * n) + lambda * sum(abs(beta[v]))
   if(!is.null(lambda_coef)){
     obj = obj + lambda_coef * sum_squares(X[,v] %*% beta[v]) ## Temporary feature
+    ## Shouldn't the 1/T factor be there?
   }
+
+  ## The alternative way
+  if(!is.null(lambda_coef) & !is.null(maxdev)) stop("Pick only one way to regularize Xb_k!")
+  if(!is.null(maxdev)){
+    ## maxdevrep = rep(maxdev, length(v))
+    mymat = lapply(1:(n/dimdat), function(tt){
+      vec = rep(0, n)
+      vec[(tt-1)*dimdat + (1:dimdat)] = 1
+      return(vec)
+    })
+    mymat = do.call(rbind, mymat)
+
+    constraints = c(constraints,
+                   ## (1/n) * sum((X[,v]%*%beta[v])^2) <= maxdev)
+                   (mymat %*% square(X[,v] %*% beta[v])) <= maxdev)
+
+
+
+  ## Add all the constraints
+  TT = (n/dimdat)
+  pp = p/dimdat
+  inds.clust = lapply(1:numclust, function(kk){
+    1:pp + (1-numclust) * pp
+  })
+  for(ind.clust in inds.clust){
+    X.thisdim = X[, v[ind.clust]]
+    for(ii in 1:TT){
+    constraints = c(constraints,
+                    sum(square(X.thisdim[c(ii, TT+ii),] %*% beta[v[ind.clust]])) <= maxdev)
+    }
+  }
+  }
+
+
   prob <- Problem(Minimize(obj), constraints)
   result <- solve(prob, FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
   return(as.numeric(result$getValue(beta)))
+}
+
+
+##' (New version) Solving the  no-intercept Lasso problem using  CVXR.  \deqn{\min_{\beta} 1/2n
+##' \|y - X\beta\|^2 + \lambda \|\beta\|_1}
+##' @param X Covariate matrix.
+##' @param y Response vector.
+##' @param lambda regularization problem.
+##' @return Fitted beta.
+cvxr_lasso_newer <- function(y, X, Xorig, lambda, exclude.from.penalty=NULL, thresh=1E-12,
+                           maxdev=NULL,
+                           dimdat=NULL,
+                           numclust=NULL,
+                           refit=FALSE,
+                           sel_coef=NULL
+                           ){
+
+  ## Define dimensions
+  n = nrow(X)
+  p = ncol(X)
+  TT = (n/dimdat)
+  pp = p/dimdat - 1 ## The minus 1 is for the intercept
+
+  ## Define the parameter
+  betamat <- Variable(rows=pp+1,
+                   cols=dimdat)
+
+  ## Define the squared loss (the main part)
+  loss <- sum((y - X %*% vec(betamat))^2) / (2 * n)
+
+  ## Set up exclusion from penalty, if applicable.
+  if(is.null(exclude.from.penalty)){
+    v = 1:p
+  } else {
+    assert_that(all(exclude.from.penalty %in% (1:p)))
+    v = (1:p)[-exclude.from.penalty]
+  }
+
+  ## Perform elastic-net regression.
+  obj = sum_squares(y - X %*% vec(betamat)) / (2 * n)
+  if(!refit) obj = obj + lambda * sum(abs(vec(betamat)[v]))
+
+  ## Setup the Xbeta penalty.
+  constraints = list()
+  if(!is.null(maxdev)){
+    ## mymat = cbind(rep(1,dimdat))
+    ## constraints = list(square(Xorig %*% betamat[-1,]) %*% mymat <= rep(maxdev^2,TT))
+    constraints = list(sum_entries(square(Xorig %*% betamat[-1,]), 1) <= rep(maxdev^2,TT))
+  }
+
+  if(refit){
+    sel_coef = !(sel_coef) * 1
+    constraints = c(constraints,
+                    vec(betamat[-1,] * sel_coef[-1,]) == rep(0, pp*dimdat))
+  }
+
+  ## Solve the problem.
+  prob <- Problem(Minimize(obj), constraints)
+  result <- solve(prob, FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
+  return(result$getValue(betamat))
 }

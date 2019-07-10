@@ -31,13 +31,12 @@ covarem <- function(..., nrep=5){
 ##'   coefficients to be refitted in a nonregularized way.
 ##' @return List containing fitted parameters and means and mixture weights,
 ##'   across algorithm iterations.
-covarem_once <- function(ylist, X=NULL, numclust, niter=100, mn=NULL, pie_lambda=0,
-                    mean_lambda=0, verbose=FALSE,
-                    warmstart = c("none", "rough"), sigma.fac=1, tol=1E-6,
-                    refit=FALSE, ## EXPERIMENTAL FEATURE.
-                    sel_coef=NULL,
-                    lambda_coef=NULL ## yet another experimental feature
-                    ## coef_limit=NULL ## Experimental feature
+covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_lambda = 0,
+                    mean_lambda = 0, verbose = FALSE,
+                    warmstart  =  c("none", "rough"), sigma.fac = 1, tol = 1E-6,
+                    refit = FALSE, ## EXPERIMENTAL FEATURE.
+                    sel_coef = NULL,
+                    maxdev = NULL
                     ){
 
   ## Setup.
@@ -50,9 +49,9 @@ covarem_once <- function(ylist, X=NULL, numclust, niter=100, mn=NULL, pie_lambda
   beta = init_beta(TT, p, dimdat, numclust)
   alpha = init_alpha(dimdat, p)
   if(is.null(mn)){
-    if(warmstart=="rough"){
+    if(warmstart == "rough"){
       mn = warmstart_covar(ylist, numclust)
-    } else if (warmstart=="none"){
+    } else if (warmstart == "none"){
       mn = aperm(init_mu(lapply(ylist, cbind), numclust, TT), c(1,3,2))
     } else {
       stop("warmstart option not recognized")
@@ -71,9 +70,9 @@ covarem_once <- function(ylist, X=NULL, numclust, niter=100, mn=NULL, pie_lambda
   sigma.list[[1]] = sigma
   pie.list[[1]] = pie
 
-  start.time=Sys.time()
+  start.time = Sys.time()
   for(iter in 2:niter){
-    if(verbose) printprogress(iter, niter, "EM iterations.", start.time=start.time)
+    if(verbose) printprogress(iter, niter, "EM iterations.", start.time = start.time)
 
     ## Conduct E step
     resp <- Estep_covar(mn.list[[iter-1]],
@@ -86,23 +85,16 @@ covarem_once <- function(ylist, X=NULL, numclust, niter=100, mn=NULL, pie_lambda
     ## 1. Alpha
     res.alpha = Mstep_alpha(resp,
                             X, numclust,
-                            lambda=pie_lambda,
-                            ## coef_limit=coef_limit, ## Experimental feature
-                            refit=refit,
-                            sel_coef=sel_coef
-                            )
+                            lambda = pie_lambda,
+                            refit = refit,
+                            sel_coef = sel_coef)
     alpha.list[[iter]] = res.alpha$alpha
     pie.list[[iter]] = res.alpha$pie
 
     ## 2. Beta
-    res.beta = Mstep_beta_faster_lasso(resp, ylist, X,
-                                       mean_lambda=mean_lambda,
-                                       sigma.list[[iter-1]],
-                                       ## coef_limit=coef_limit ## Experimental feature
-                                       refit=refit,
-                                       sel_coef=sel_coef,
-                                       lambda_coef=lambda_coef
-                                       )
+    res.beta = Mstep_beta(resp, ylist, X, mean_lambda = mean_lambda,
+                          sigma.list[[iter-1]], refit = refit,
+                          sel_coef = sel_coef, maxdev = maxdev)
     beta.list[[iter]] = res.beta$beta
     mn.list[[iter]]    = res.beta$mns
 
@@ -117,49 +109,49 @@ covarem_once <- function(ylist, X=NULL, numclust, niter=100, mn=NULL, pie_lambda
                                              pie.list[[iter]],
                                              sigma.list[[iter]],
                                              ylist,
-                                             pie_lambda=pie_lambda,
-                                             mean_lambda=mean_lambda,
-                                             alpha=res.alpha$alpha,
-                                             beta=res.beta$beta)
+                                             pie_lambda = pie_lambda,
+                                             mean_lambda = mean_lambda,
+                                             alpha = res.alpha$alpha,
+                                             beta = res.beta$beta)
 
     ## Check convergence
     if(check_converge_rel(objectives[iter-1],
-                          objectives[iter], tol=tol)) break
+                          objectives[iter], tol = tol)) break
   }
 
   ## Threshold (now that we're using CVXR for beta)
-  beta=beta.list[[iter]]
+  beta = beta.list[[iter]]
   betathresh = 1E-3
   beta = lapply(beta, function(a){
     a[abs(a)<betathresh] = 0
     a
   })
 
-  return(structure(list(alpha=alpha.list[[iter]],
-              ## alpha.fit=res.alpha$fit,
-              beta=beta,
-              mn=mn.list[[iter]],
-              pie=pie.list[[iter]],
-              sigma=sigma.list[[iter]],
-              objectives=objectives[1:iter],
-              final.iter=iter,
-              ## Above is output, below are data/algorithm settings.
-              dimdat=dimdat,
-              TT=TT,
-              p=p,
-              numclust=numclust,
-              X=X,
-              pie_lambda=pie_lambda,
-              mean_lambda=mean_lambda,
-              niter=niter
-              ), class="covarem"))
+  return(structure(list(alpha = alpha.list[[iter]],
+                        ## alpha.fit=res.alpha$fit,
+                        beta = beta,
+                        mn = mn.list[[iter]],
+                        pie = pie.list[[iter]],
+                        sigma = sigma.list[[iter]],
+                        objectives = objectives[1:iter],
+                        final.iter = iter,
+                        ## Above is output, below are data/algorithm settings.
+                        dimdat = dimdat,
+                        TT = TT,
+                        p = p,
+                        numclust = numclust,
+                        X = X,
+                        pie_lambda = pie_lambda,
+                        mean_lambda = mean_lambda,
+                        niter = niter
+                        ), class = "covarem"))
 }
 
 
 ##' Prediction: given  new X's,  generate a set of means and pies (and return
 ##' the same Sigma)
 ##' @param res object returned from covariate EM covarem().
-predict.covarem <- function(res, newx=NULL){
+predict.covarem <- function(res, newx = NULL){
 
   ## ## Check the dimensions
   ## stopifnot(ncol(new.x) == ncol(res$X))
@@ -185,15 +177,15 @@ predict.covarem <- function(res, newx=NULL){
   ## Predict the pies.
   ## newpie = predict(res$alpha.fit, newx=newx, type='response')[,,1]
 
-  piehatmat = exp(cbind(1,newx) %*% t(res$alpha))
+  piehatmat = as.matrix(exp(cbind(1,newx) %*% t(res$alpha)))
   newpie = piehatmat / rowSums(piehatmat)
   ## predict(fit, newx=X, type="response")[,,1]
-  stopifnot(all(dim(newpie)==c(TT,numclust)))
-  stopifnot(all(newpie>=0))
+  stopifnot(all(dim(newpie) == c(TT,numclust)))
+  stopifnot(all(newpie >= 0))
 
   ## Return all three things
-  return(list(newmn=newmn,
-              newpie=newpie,
-              sigma=res$sigma))
+  return(list(newmn = newmn,
+              newpie = newpie,
+              sigma = res$sigma))
 }
 
