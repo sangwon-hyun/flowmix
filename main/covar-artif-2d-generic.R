@@ -38,9 +38,9 @@ get_2d_mixture_at_timepoint <- function(tt, nt, mnlist, pilist, sigma=NULL, sigm
 }
 
 
-TT = 50
+## TT = 50
 ## nt = 40
-fac = 1 ## 0.3  ## 0.6   ## 1
+## fac = 1
 
 ## Here, p=2, T=50, nt = 10, dimdat = 2.
 

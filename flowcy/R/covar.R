@@ -143,6 +143,8 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
                         X = X,
                         pie_lambda = pie_lambda,
                         mean_lambda = mean_lambda,
+                        maxdev=maxdev,
+                        refit=refit,
                         niter = niter
                         ), class = "covarem"))
 }
