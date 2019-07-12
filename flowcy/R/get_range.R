@@ -140,8 +140,6 @@ Mstep_beta_getrange <- function(resp, ylist, X, mean_lambda=0, sigma, numclust){
 ##' @param ... Other arguments to \code{covarem_once()}.
 ##' @return list containing the two maximum values to use.
 get_max_lambda <- function(ylist, X, numclust, ...){
-                           ## coef_limit=NULL## Experimental feature
-                           ## ){
 
   ## Get range of regularization parameters.
   res0 = covarem_getrange(ylist=ylist, X=X, numclust=numclust, niter=2)

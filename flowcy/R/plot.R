@@ -37,9 +37,8 @@ plot2d <- function (x, ...) {
 ##' @param ylist List of responses.
 ##' @return Nothing
 plot2d.covarem <- function(obj, ylist, ask=TRUE, show.fewer=NULL,
-                           obj.shrunken=NULL,## Temporary addition.
-                           show.xb.constraint=FALSE,
-                           maxdev=maxdev## Temporary addition.
+                           show.xb.constraint=FALSE
+                           ## maxdev=NULL## Temporary addition.
                            ){
 
   ## Basic checks
@@ -99,16 +98,15 @@ plot2d.covarem <- function(obj, ylist, ask=TRUE, show.fewer=NULL,
 
       ## Also add circle around beta0kwhose radius to maxdev.
       for(kk in 1:numclust){
-        ## points(x=obj.shrunken$mn[tt,1,kk],
-        ##        y=obj.shrunken$mn[tt,2,kk], col='grey40', pch=7)
         beta0list = lapply(obj$beta, function(betamat){
           betamat[1,]
         })
         points(x=beta0list[[kk]][1],
                 y=beta0list[[kk]][2], col="blue", pch=16)
+        print(obj$maxdev)
         plotrix::draw.circle(x=beta0list[[kk]][1],
                              y=beta0list[[kk]][2],
-                             radius=maxdev,
+                             radius=obj$maxdev,
                              border="blue", lwd=2)
       }
     }
