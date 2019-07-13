@@ -15,8 +15,7 @@ parallel_cv.covarem <- function(ylist=ylist, X=X,
                                 numfork=3,
                                 verbose=FALSE,
                                 refit=FALSE,
-                                destin="~", ## Destination folder for saving
-                                           ## results. Absolute path.
+                                destin="~",
                                 ...){
 
   ## Printing some information about the parallelism

@@ -125,14 +125,13 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
   results = lapply(1:numclust, function(iclust){
 
     ## Give the glmnet function pre-calculated Y's and X's.
-    if(is.null(maxdev)){
-      if(refit) stop("NOT WRITTEN YET") ## Remove when done writing this
+    if(is.null(maxdev) & !refit){
+      ## if(refit) stop("NOT WRITTEN YET") ## Remove when done writing this
       res =  solve_lasso(x=Xtildes[[iclust]], y=yvecs[[iclust]], lambda=mean_lambda,
                          intercept=FALSE,
                          exclude.from.penalty=exclude.from.penalty)
       ## Unravel to obtain the coef and fitted response
       betahat = matrix(res$b, ncol=dimdat)
-
     } else {
       ## If applicable, restrict the fitted means to be close to \beta0k.
       betahat = cvxr_lasso_newer(X = Xtildes[[iclust]],
