@@ -4,6 +4,12 @@
 ##' @param nrep Number of restarts.
 ##' @return The |covarem| class object that had the best likelihood.
 covarem <- function(..., nrep=5){
+
+  ## Don't do many replicates if warmstartable mean exists
+  dots <- list(...)
+  if(!is.null(dots$mn)) nrep = 1
+
+  ## Do |nrep| replicates.
   reslist = list()
   for(itrial in 1:nrep){
     reslist[[itrial]] = covarem_once(...)

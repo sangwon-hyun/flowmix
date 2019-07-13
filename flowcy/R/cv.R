@@ -13,6 +13,7 @@ cv.covarem <- function(ylist=ylist, X=X, mean_lambdas=NULL,
                        nsplit=5,
                        verbose=FALSE,
                        refit=FALSE,
+                       multiscore.cv=FALSE,
                        ...){
   ## Basic checks
   stopifnot(length(mean_lambdas) == length(pie_lambdas))
@@ -57,6 +58,7 @@ cv.covarem <- function(ylist=ylist, X=X, mean_lambdas=NULL,
                            pie_lambda=pie_lambdas[jj],
                            mn=warmstart_mn,
                            refit=refit,
+                           multicore.cv=multicore.cv,
                            ...)
 
       ## Get the fitted results on the entire data
@@ -120,15 +122,22 @@ cvsplit<- function(ylist, nsplit=5){
 ##' @param ylist List of responses.
 ##' @param ... arguments to covarem.
 ##' @return Cross validated test likelihood, scalar-valued.
-get_cv_score <- function(ylist, X, splits, nsplit,refit,
+get_cv_score <- function(ylist, X, splits, nsplit, refit,
+                         multicore.cv=FALSE,
                          ...){
   ## stopifnot(length(splits[[1]])!=nsplit) ## good check but only works if TT>1
+  if(multicore.cv){
+    mc.cores=nsplit
+  } else {
+    mc.cores=1
+  }
 
   ## Cycle through splits, and calculate CV scroe
-  all.scores = sapply(1:nsplit, function(test.isplit){
+  all.scores = mclapply(1:nsplit, function(test.isplit){
     get_cv_score_onesplit(test.isplit, splits, ylist, X, refit,## , refit, sel_coef,
                          ...)
-  })
+  }, mc.cores=mc.cores)
+  all.scores = do.call(c, all.scores)
   return(list(mean=mean(all.scores), all=all.scores))
 }
 

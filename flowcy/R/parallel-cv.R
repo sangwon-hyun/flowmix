@@ -1,0 +1,153 @@
+## Synopsis: contains the parallelized main CV wrapper, and all helper functions
+## related to cross-validations.
+
+##' CV wrapper for covarem().
+##' @param nsplit Number of CV splits. Defaults to 5.
+##' @param ... default arguments to covarem().
+##' @return List containing (1) the set of coefficients
+parallel_cv.covarem <- function(ylist=ylist, X=X,
+                                mean_lambdas=NULL,
+                                pie_lambdas=NULL,
+                                max_mean_lambda=NULL,
+                                max_pie_lambda=NULL,
+                                gridsize=9,
+                                nsplit=5,
+                                numfork=3,
+                                verbose=FALSE,
+                                refit=FALSE,
+                                destin="~", ## Destination folder for saving
+                                           ## results. Absolute path.
+                                ...){
+
+  ## Printing some information about the parallelism
+  if(verbose==TRUE){
+    cat("At most ", numfork * nsplit, " cores will be used.", fill=TRUE)
+  }
+  ## TODO: Sangwon: make it so that the warm starts are done by /any/ adjacent
+  ## existing point in the grid i.e. code in a search of (+-1, +-1) in the grid.
+
+  ## Basic checks
+  stopifnot(length(mean_lambdas) == length(pie_lambdas))
+  assert_that(!is.null(max_mean_lambda) | !is.null(mean_lambdas) )
+  assert_that(!is.null(max_pie_lambda) | !is.null(pie_lambdas) )
+  if(is.null(mean_lambdas)){
+    mean_lambdas = c(exp(seq(from=-8, to=log(max_mean_lambda), length=gridsize)))
+  }
+  if(is.null(pie_lambdas)){
+    pie_lambdas = c(exp(seq(from=-8, to=log(max_pie_lambda), length=gridsize)))
+  }
+
+  ## Create CV split indices
+  assert_that(nsplit >= 2)
+  mysplits = cvsplit(ylist, nsplit=nsplit)
+
+  ## Run the CV
+  reslist = list()
+  start.time=Sys.time()
+
+  ## Define clumps of row numbers (Rows are alpha, columns are beta.)
+  ialpha.clumps =
+    Map(function(a,b)a:b,
+        pmin(seq(from=numfork, to=gridsize+numfork-1, by=numfork), gridsize),
+        seq(from=1, to=gridsize, by=numfork))
+
+  for(iclump in 1:length(ialpha.clumps)){
+
+    ## Fill in right edge first
+    ialphas = ialpha.clumps[[iclump]]
+    ibeta = gridsize
+    move_to_up(ialphas, ibeta,
+               pie_lambdas, mean_lambdas,
+               gridsize,
+               NULL, destin, ylist, X, mysplits, nsplit, refit, ...)
+
+    ## Traverse from right->left, from the right edge
+    new.reslists = mclapply(ialphas, function(ialpha){
+      warmstart = loadres(ialpha, gridsize, destin)
+      move_to_left(ialpha, (gridsize-1):1,
+                   pie_lambdas, mean_lambdas,
+                   gridsize,
+                   warmstart, destin, ylist, X, mysplits,
+                   nsplit, refit, ...)
+    }, mc.cores=numfork)
+  }
+}
+
+
+## Should be the same as move_to_left() but with different direction.
+move_to_up <- function(ialphas, ibeta,
+                       alpha_lambdas, beta_lambdas,
+                       gridsize,
+                       warmstart, destin,
+                       ylist, X, splits, nsplit, refit, ...){
+    beginning = TRUE
+    assert_that(ibeta==gridsize)
+    assert_that(all(diff(ialphas) < 0)) ## Check descending order
+    for(ialpha in ialphas){
+    ## cat("(", ialpha, ibeta, ")", fill=TRUE)
+      mywarmstart = (if(beginning){warmstart} else {loadres(ialpha+1, ibeta, destin)})
+
+      res = get_cv_score(ylist, X, splits, nsplit, refit,
+                         ## Additional arguments for covarem
+                         mean_lambda=beta_lambdas[ibeta],
+                         pie_lambda=alpha_lambdas[ialpha],
+                         mn=mywarmstart$mn,
+                         ...)
+      saveres(res = res, ialpha = ialpha, ibeta = ibeta, destin = destin,
+              beta_lambdas = beta_lambdas,
+              alpha_lambdas = alpha_lambdas)
+      beginning = FALSE
+    }
+}
+
+
+## Move to the left in a row (fix ialpha)
+move_to_left <- function(ialpha, ibetas,
+                         alpha_lambdas, beta_lambdas,
+                         gridsize,
+                         warmstart, destin,
+                         ylist, X, splits, nsplit, refit, ...){
+  beginning = TRUE
+  stopifnot(all(diff(ibetas) < 0)) ## Check descending order
+  for(ibeta in ibetas){
+    ## cat("(", ialpha, ibeta, ")", fill=TRUE)
+      mywarmstart = (if(beginning){warmstart} else {loadres(ialpha, ibeta+1, destin)})
+      ## mywarmstart =NULL
+      cvres = get_cv_score(ylist, X, splits, nsplit, refit,
+                           ## Additional arguments for covarem
+                           mean_lambda=beta_lambdas[ibeta],
+                           pie_lambda=alpha_lambdas[ialpha],
+                           mn=mywarmstart$mn,
+                           ...)
+
+      ## Get the fitted results on the entire data
+      res = covarem(ylist=ylist, X=X,
+                    mean_lambda=beta_lambdas[ibeta],
+                    pie_lambda=alpha_lambdas[ialpha],
+                    mn=warmstart$mn, ...)
+
+    saveres(res = res, cvres = cvres, ialpha = ialpha, ibeta = ibeta, destin = destin,
+            alpha_lambdas = alpha_lambdas,
+            beta_lambdas = beta_lambdas)
+    beginning = FALSE
+  }
+}
+
+
+## ialpha = 3
+## ibeta = 9
+##   filename = paste0(ibeta, "-", ialpha, ".Rdata")
+##   load(file=file.path(destin, filename))
+
+## Load results
+loadres <- function(ialpha, ibeta, destin){
+  filename = paste0(ibeta, "-", ialpha, ".Rdata")
+  load(file=file.path(destin, filename))
+  return(res)
+}
+
+## Save results
+saveres <- function(res, cvres, ialpha, ibeta, destin, alpha_lambdas, beta_lambdas){
+  filename = paste0(ibeta, "-", ialpha, ".Rdata")
+  save(res, cvres, alpha_lambdas, beta_lambdas, file=file.path(destin, filename))
+}
