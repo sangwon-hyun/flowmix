@@ -83,16 +83,26 @@ move_to_up <- function(ialphas, ibeta,
     assert_that(ibeta==gridsize)
     assert_that(all(diff(ialphas) < 0)) ## Check descending order
     for(ialpha in ialphas){
-    ## cat("(", ialpha, ibeta, ")", fill=TRUE)
+      cat("(", ialpha, ibeta, ")", fill=TRUE)
       mywarmstart = (if(beginning){warmstart} else {loadres(ialpha+1, ibeta, destin)})
 
-      res = get_cv_score(ylist, X, splits, nsplit, refit,
+      ## Change to cvres!!
+      cvres = get_cv_score(ylist, X, splits, nsplit, refit,
                          ## Additional arguments for covarem
                          mean_lambda=beta_lambdas[ibeta],
                          pie_lambda=alpha_lambdas[ialpha],
                          mn=mywarmstart$mn,
                          ...)
-      saveres(res = res, ialpha = ialpha, ibeta = ibeta, destin = destin,
+
+      ## Get the fitted results on the entire data
+      res = covarem(ylist=ylist, X=X,
+                    mean_lambda=beta_lambdas[ibeta],
+                    pie_lambda=alpha_lambdas[ialpha],
+                    mn=warmstart$mn, ...)
+
+      saveres(res = res,
+              cvres = cvres,
+              ialpha = ialpha, ibeta = ibeta, destin = destin,
               beta_lambdas = beta_lambdas,
               alpha_lambdas = alpha_lambdas)
       beginning = FALSE
@@ -138,15 +148,72 @@ move_to_left <- function(ialpha, ibetas,
 ##   filename = paste0(ibeta, "-", ialpha, ".Rdata")
 ##   load(file=file.path(destin, filename))
 
-## Load results
+##' Helper to load parallelized CV results, saved in |destin|.
 loadres <- function(ialpha, ibeta, destin){
   filename = paste0(ibeta, "-", ialpha, ".Rdata")
   load(file=file.path(destin, filename))
   return(res)
 }
 
-## Save results
+##' Helper to save parallelized CV results, saved in |destin|.
 saveres <- function(res, cvres, ialpha, ibeta, destin, alpha_lambdas, beta_lambdas){
   filename = paste0(ibeta, "-", ialpha, ".Rdata")
   save(res, cvres, alpha_lambdas, beta_lambdas, file=file.path(destin, filename))
 }
+
+
+##' Helper to AGGREGATE parallelized CV results, saved in |destin|.
+aggregateres <- function(gridsize, destin){
+
+  cvscoremat = matrix(NA, gridsize, gridsize)
+  for(ialpha in 1:gridsize){
+    for(ibeta in 1:gridsize){
+      ## filename = paste0(ibeta, "-", ialpha, ".Rdata")
+      filename = paste0(ialpha, "-", ibeta, ".Rdata")
+      ## Check that results exist
+      cat("(", ialpha, ibeta, ")", fill=TRUE)
+      assert_that(file.exists(file = file.path(destin, filename)))
+      ## Load CV score and insert in matrix
+      load(file = file.path(destin, filename))
+      cvscoremat[ialpha, ibeta] = cvres$mean
+    }
+  }
+  return(cvscoremat)
+}
+
+
+## ## Temporary aggregation
+## aggregateres_temp <- function(gridsize, destin, numfork=3){
+
+##   cvscoremat = matrix(NA, gridsize, gridsize)
+
+##   ## Define clumps of row numbers (Rows are alpha, columns are beta.)
+##   ialpha.clumps =
+##     Map(function(a,b)a:b,
+##         pmin(seq(from=numfork, to=gridsize+numfork-1, by=numfork), gridsize),
+##         seq(from=1, to=gridsize, by=numfork))
+
+##   for(iclump in 1:length(ialpha.clumps)){
+
+##     ## Fill in right edge first
+##     ialphas = ialpha.clumps[[iclump]]
+##     ibeta = gridsize
+##     for(ialpha in ialphas){
+##       filename = paste0(ialpha, "-", ibeta, ".Rdata")
+##       cat("(", ialpha, ibeta, ")", fill=TRUE)
+##       load(file = file.path(destin, filename))
+##       cvscoremat[ialpha, ibeta] = res$mean
+##     }
+
+##     ## Traverse from right->left, from the right edge
+##     for(ialpha in ialphas){
+##       for(ibeta in (gridsize-1):1){
+##         cat("(", ialpha, ibeta, ")", fill=TRUE)
+##         filename = paste0(ialpha, "-", ibeta, ".Rdata")
+##         load(file = file.path(destin, filename))
+##         cvscoremat[ialpha, ibeta] = cvres$mean
+##       }
+##     }
+##   }
+##   return(cvscoremat)
+## }
