@@ -13,7 +13,7 @@ cv.covarem <- function(ylist=ylist, X=X, mean_lambdas=NULL,
                        nsplit=5,
                        verbose=FALSE,
                        refit=FALSE,
-                       multiscore.cv=FALSE,
+                       multicore.cv=FALSE,
                        ...){
   ## Basic checks
   stopifnot(length(mean_lambdas) == length(pie_lambdas))
@@ -175,7 +175,7 @@ get_cv_score_onesplit <- function(test.isplit, splits, ylist, X, refit,...){##, 
     res.train = covarem(ylist.train, X,  refit=TRUE,
                         sel_coef=sel_coef, ...)
   } else {
-    sel.coef=NULL
+    sel.coef = NULL
   }
 
   ## Assign mn and pie
