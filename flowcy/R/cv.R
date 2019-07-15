@@ -108,7 +108,7 @@ cvsplit2 <- function(ylist, nsplit=5){
 ##' @return \code{TT}-lengthed list, each containing 5 groups of indices split
 ##'   \code{nsplit}-ways -- these are the folds to be used during cross
 ##'   validation.
-cvsplit<- function(ylist, nsplit=5){
+cvsplit<- function(ylist, nsplit = 5){
   TT = length(ylist)
   all.cv.inds = lapply(1:TT, function(tt){
     flds <- caret::createFolds(ylist[[tt]][,1], k = nsplit, list = TRUE, returnTrain = FALSE)
@@ -123,13 +123,13 @@ cvsplit<- function(ylist, nsplit=5){
 ##' @param ... arguments to covarem.
 ##' @return Cross validated test likelihood, scalar-valued.
 get_cv_score <- function(ylist, X, splits, nsplit, refit,
-                         multicore.cv=FALSE,
+                         multicore.cv = FALSE,
                          ...){
   ## stopifnot(length(splits[[1]])!=nsplit) ## good check but only works if TT>1
   if(multicore.cv){
-    mc.cores=nsplit
+    mc.cores = nsplit
   } else {
-    mc.cores=1
+    mc.cores = 1
   }
 
   ## Cycle through splits, and calculate CV scroe

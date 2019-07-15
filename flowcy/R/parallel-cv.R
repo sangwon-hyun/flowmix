@@ -5,23 +5,23 @@
 ##' @param nsplit Number of CV splits. Defaults to 5.
 ##' @param ... default arguments to covarem().
 ##' @return List containing (1) the set of coefficients
-parallel_cv.covarem <- function(ylist=ylist, X=X,
-                                mean_lambdas=NULL,
-                                pie_lambdas=NULL,
-                                max_mean_lambda=NULL,
-                                max_pie_lambda=NULL,
-                                gridsize=9,
-                                nsplit=5,
-                                numfork=3,
-                                verbose=FALSE,
-                                refit=FALSE,
-                                destin="~",
-                                multicore.cv=FALSE,
+parallel_cv.covarem <- function(ylist = ylist, X = X,
+                                mean_lambdas = NULL,
+                                pie_lambdas = NULL,
+                                max_mean_lambda = NULL,
+                                max_pie_lambda = NULL,
+                                gridsize = 9,
+                                nsplit = 5,
+                                numfork = 3,
+                                verbose = FALSE,
+                                refit = FALSE,
+                                destin = "~",
+                                multicore.cv = FALSE,
                                 ...){
 
   ## Printing some information about the parallelism
   if(verbose==TRUE){
-    cat("At most ", numfork * nsplit, " cores will be used.", fill=TRUE)
+    cat("At most ", numfork * nsplit, " cores will be used.", fill = TRUE)
   }
   ## TODO: Sangwon: make it so that the warm starts are done by /any/ adjacent
   ## existing point in the grid i.e. code in a search of (+-1, +-1) in the grid.
@@ -31,37 +31,37 @@ parallel_cv.covarem <- function(ylist=ylist, X=X,
   assert_that(!is.null(max_mean_lambda) | !is.null(mean_lambdas) )
   assert_that(!is.null(max_pie_lambda) | !is.null(pie_lambdas) )
   if(is.null(mean_lambdas)){
-    mean_lambdas = c(exp(seq(from=-8, to=log(max_mean_lambda), length=gridsize)))
+    mean_lambdas = c(exp(seq(from = -8, to = log(max_mean_lambda), length = gridsize)))
   }
   if(is.null(pie_lambdas)){
-    pie_lambdas = c(exp(seq(from=-8, to=log(max_pie_lambda), length=gridsize)))
+    pie_lambdas = c(exp(seq(from = -8, to = log(max_pie_lambda), length = gridsize)))
   }
 
   ## Create CV split indices
   assert_that(nsplit >= 2)
-  mysplits = cvsplit(ylist, nsplit=nsplit)
+  mysplits = cvsplit(ylist, nsplit = nsplit)
 
   ## Run the CV
   reslist = list()
-  start.time=Sys.time()
+  start.time = Sys.time()
 
   ## Define clumps of row numbers (Rows are alpha, columns are beta.)
   ialpha.clumps =
     Map(function(a,b)a:b,
-        pmin(seq(from=numfork, to=gridsize+numfork-1, by=numfork), gridsize),
-        seq(from=1, to=gridsize, by=numfork))
+        pmin(seq(from = numfork, to = gridsize+numfork-1, by = numfork), gridsize),
+        seq(from = 1, to = gridsize, by = numfork))
 
-  for(iclump in 1:length(ialpha.clumps)){
+  ## Do all of the right edge first.
+  ibeta = gridsize
+  ialphas = gridsize:1
+  move_to_up(ialphas, ibeta,
+             pie_lambdas, mean_lambdas,
+             gridsize,
+             NULL, destin, ylist, X, mysplits, nsplit, refit,
+             multicore.cv = multicore.cv,
+             ...)
 
-    ## Fill in right edge first
-    ialphas = ialpha.clumps[[iclump]]
-    ibeta = gridsize
-    move_to_up(ialphas, ibeta,
-               pie_lambdas, mean_lambdas,
-               gridsize,
-               NULL, destin, ylist, X, mysplits, nsplit, refit,
-               multicore.cv=FALSE,
-               ...)
+  for(iclump in length(ialpha.clumps):1){
 
     ## Traverse from right->left, from the right edge
     new.reslists = mclapply(ialphas, function(ialpha){
@@ -71,9 +71,9 @@ parallel_cv.covarem <- function(ylist=ylist, X=X,
                    gridsize,
                    warmstart, destin, ylist, X, mysplits,
                    nsplit, refit,
-                   multicore.cv=FALSE,
+                   multicore.cv = multicore.cv,
                    ...)
-    }, mc.cores=numfork)
+    }, mc.cores = numfork)
   }
 }
 
@@ -84,29 +84,29 @@ move_to_up <- function(ialphas, ibeta,
                        gridsize,
                        warmstart, destin,
                        ylist, X, splits, nsplit, refit,
-                       multicore.cv=FALSE,
+                       multicore.cv = FALSE,
                        ...){
     beginning = TRUE
-    assert_that(ibeta==gridsize)
+    assert_that(ibeta == gridsize)
     assert_that(all(diff(ialphas) < 0)) ## Check descending order
     for(ialpha in ialphas){
-      cat("(", ialpha, ibeta, ")", fill=TRUE)
+      cat("(", ialpha, ibeta, ")", fill = TRUE)
       mywarmstart = (if(beginning){warmstart} else {loadres(ialpha+1, ibeta, destin)})
 
       ## Change to cvres!!
       cvres = get_cv_score(ylist, X, splits, nsplit, refit,
                          ## Additional arguments for covarem
-                         mean_lambda=beta_lambdas[ibeta],
-                         pie_lambda=alpha_lambdas[ialpha],
-                         mn=mywarmstart$mn,
-                         multicore.cv=multicore.cv,
+                         mean_lambda = beta_lambdas[ibeta],
+                         pie_lambda = alpha_lambdas[ialpha],
+                         mn = mywarmstart$mn,
+                         multicore.cv = multicore.cv,
                          ...)
 
       ## Get the fitted results on the entire data
-      res = covarem(ylist=ylist, X=X,
-                    mean_lambda=beta_lambdas[ibeta],
-                    pie_lambda=alpha_lambdas[ialpha],
-                    mn=warmstart$mn, ...)
+      res = covarem(ylist = ylist, X = X,
+                    mean_lambda = beta_lambdas[ibeta],
+                    pie_lambda = alpha_lambdas[ialpha],
+                    mn = warmstart$mn, ...)
 
       saveres(res = res,
               cvres = cvres,
@@ -124,12 +124,12 @@ move_to_left <- function(ialpha, ibetas,
                          gridsize,
                          warmstart, destin,
                          ylist, X, splits, nsplit, refit,
-                         multicore.cv=FALSE,
+                         multicore.cv = FALSE,
                          ...){
   beginning = TRUE
   stopifnot(all(diff(ibetas) < 0)) ## Check descending order
   for(ibeta in ibetas){
-    cat("(", ialpha, ibeta, ")", fill=TRUE)
+    cat("(", ialpha, ibeta, ")", fill = TRUE)
       mywarmstart = (if(beginning){warmstart} else {loadres(ialpha, ibeta+1, destin)})
       ## mywarmstart =NULL
       cvres = get_cv_score(ylist, X, splits, nsplit, refit,
