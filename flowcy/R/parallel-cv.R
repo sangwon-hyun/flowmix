@@ -16,6 +16,7 @@ parallel_cv.covarem <- function(ylist=ylist, X=X,
                                 verbose=FALSE,
                                 refit=FALSE,
                                 destin="~",
+                                multicore.cv=FALSE,
                                 ...){
 
   ## Printing some information about the parallelism
@@ -58,7 +59,9 @@ parallel_cv.covarem <- function(ylist=ylist, X=X,
     move_to_up(ialphas, ibeta,
                pie_lambdas, mean_lambdas,
                gridsize,
-               NULL, destin, ylist, X, mysplits, nsplit, refit, ...)
+               NULL, destin, ylist, X, mysplits, nsplit, refit,
+               multicore.cv=FALSE,
+               ...)
 
     ## Traverse from right->left, from the right edge
     new.reslists = mclapply(ialphas, function(ialpha){
@@ -67,7 +70,9 @@ parallel_cv.covarem <- function(ylist=ylist, X=X,
                    pie_lambdas, mean_lambdas,
                    gridsize,
                    warmstart, destin, ylist, X, mysplits,
-                   nsplit, refit, ...)
+                   nsplit, refit,
+                   multicore.cv=FALSE,
+                   ...)
     }, mc.cores=numfork)
   }
 }
@@ -78,12 +83,14 @@ move_to_up <- function(ialphas, ibeta,
                        alpha_lambdas, beta_lambdas,
                        gridsize,
                        warmstart, destin,
-                       ylist, X, splits, nsplit, refit, ...){
+                       ylist, X, splits, nsplit, refit,
+                       multicore.cv=FALSE,
+                       ...){
     beginning = TRUE
     assert_that(ibeta==gridsize)
     assert_that(all(diff(ialphas) < 0)) ## Check descending order
     for(ialpha in ialphas){
-      cat("(", ialpha, ibeta, ")", fill=TRUE)
+    cat("(", ialpha, ibeta, ")", fill=TRUE)
       mywarmstart = (if(beginning){warmstart} else {loadres(ialpha+1, ibeta, destin)})
 
       ## Change to cvres!!
@@ -92,6 +99,7 @@ move_to_up <- function(ialphas, ibeta,
                          mean_lambda=beta_lambdas[ibeta],
                          pie_lambda=alpha_lambdas[ialpha],
                          mn=mywarmstart$mn,
+                         multicore.cv=multicore.cv,
                          ...)
 
       ## Get the fitted results on the entire data
@@ -115,11 +123,13 @@ move_to_left <- function(ialpha, ibetas,
                          alpha_lambdas, beta_lambdas,
                          gridsize,
                          warmstart, destin,
-                         ylist, X, splits, nsplit, refit, ...){
+                         ylist, X, splits, nsplit, refit,
+                         multicore.cv=FALSE,
+                         ...){
   beginning = TRUE
   stopifnot(all(diff(ibetas) < 0)) ## Check descending order
   for(ibeta in ibetas){
-    ## cat("(", ialpha, ibeta, ")", fill=TRUE)
+    cat("(", ialpha, ibeta, ")", fill=TRUE)
       mywarmstart = (if(beginning){warmstart} else {loadres(ialpha, ibeta+1, destin)})
       ## mywarmstart =NULL
       cvres = get_cv_score(ylist, X, splits, nsplit, refit,
@@ -127,6 +137,7 @@ move_to_left <- function(ialpha, ibetas,
                            mean_lambda=beta_lambdas[ibeta],
                            pie_lambda=alpha_lambdas[ialpha],
                            mn=mywarmstart$mn,
+                           multicore.cv=multicore.cv,
                            ...)
 
       ## Get the fitted results on the entire data
