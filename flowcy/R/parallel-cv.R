@@ -90,7 +90,7 @@ move_to_up <- function(ialphas, ibeta,
     assert_that(ibeta==gridsize)
     assert_that(all(diff(ialphas) < 0)) ## Check descending order
     for(ialpha in ialphas){
-    cat("(", ialpha, ibeta, ")", fill=TRUE)
+      cat("(", ialpha, ibeta, ")", fill=TRUE)
       mywarmstart = (if(beginning){warmstart} else {loadres(ialpha+1, ibeta, destin)})
 
       ## Change to cvres!!
@@ -161,14 +161,14 @@ move_to_left <- function(ialpha, ibetas,
 
 ##' Helper to load parallelized CV results, saved in |destin|.
 loadres <- function(ialpha, ibeta, destin){
-  filename = paste0(ibeta, "-", ialpha, ".Rdata")
+  filename = paste0(ialpha, "-", ibeta, ".Rdata")
   load(file=file.path(destin, filename))
   return(res)
 }
 
 ##' Helper to save parallelized CV results, saved in |destin|.
 saveres <- function(res, cvres, ialpha, ibeta, destin, alpha_lambdas, beta_lambdas){
-  filename = paste0(ibeta, "-", ialpha, ".Rdata")
+  filename = paste0(ialpha, "-", ibeta, ".Rdata")
   save(res, cvres, alpha_lambdas, beta_lambdas, file=file.path(destin, filename))
 }
 
@@ -179,7 +179,6 @@ aggregateres <- function(gridsize, destin){
   cvscoremat = matrix(NA, gridsize, gridsize)
   for(ialpha in 1:gridsize){
     for(ibeta in 1:gridsize){
-      ## filename = paste0(ibeta, "-", ialpha, ".Rdata")
       filename = paste0(ialpha, "-", ibeta, ".Rdata")
       ## Check that results exist
       cat("(", ialpha, ibeta, ")", fill=TRUE)
