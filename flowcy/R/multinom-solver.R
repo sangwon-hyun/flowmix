@@ -94,13 +94,13 @@ cvxr_multinom_new <- function(y, X, lambda, exclude.from.penalty=NULL, sel.coef=
   obj <- (obj1  - obj2)  / TT - lambda * sum(abs(alphamat[v,]))
 
   ## For refitting without regularization; this could easily be
+  constraints = list()
   if(!is.null(sel.coef)){
     assert_that(lambda==0)
-    constraints <- list(alphamat[!t(sel.coef)] == 0)
-  } else {
-    constraints = list()
+    if(!all(sel.coef==1)){
+      constraints = list(alphamat[!t(sel.coef)] == 0)
+    }
   }
-
   ## Solve the problem
   prob <- Problem(Maximize(obj), constraints)
   result <- solve(prob)

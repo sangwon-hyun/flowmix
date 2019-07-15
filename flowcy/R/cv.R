@@ -167,15 +167,15 @@ get_cv_score_onesplit <- function(test.isplit, splits, ylist, X, refit,...){##, 
   })
 
   ## Run algorithm on train data, evaluate test data.
-  res.train = covarem(ylist.train, X,  ...)
+  res.train = covarem(ylist.train, X,  refit=FALSE, ...) ## This is done with refit=FALSE anyway.
 
   ## If applicable, unregularized refit on the sparsity pattern
   if(refit){
-    sel.coef = get_sparsity_pattern(res.train)
+    sel_coef = get_sparsity_pattern(res.train)
     res.train = covarem(ylist.train, X,  refit=TRUE,
                         sel_coef=sel_coef, ...)
   } else {
-    sel.coef = NULL
+    sel_coef = NULL
   }
 
   ## Assign mn and pie
