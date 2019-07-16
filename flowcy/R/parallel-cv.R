@@ -106,7 +106,7 @@ move_to_up <- function(ialphas, ibeta,
       res = covarem(ylist = ylist, X = X,
                     mean_lambda = beta_lambdas[ibeta],
                     pie_lambda = alpha_lambdas[ialpha],
-                    mn = warmstart$mn, ...)
+                    mn = mywarmstart$mn, ...)
 
       saveres(res = res,
               cvres = cvres,
