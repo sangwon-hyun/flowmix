@@ -137,27 +137,24 @@ Mstep_beta_getrange <- function(resp, ylist, X, mean_lambda=0, sigma, numclust){
 ##' @param ylist List of responses.
 ##' @param X Covariates.
 ##' @param numclust Number of clusters.
+##' @param maxfac Defaults to 32.
 ##' @param ... Other arguments to \code{covarem_once()}.
 ##' @return list containing the two maximum values to use.
-get_max_lambda <- function(ylist, X, numclust, ...){
+get_max_lambda <- function(ylist, X, numclust, maxfac=32, ...){
 
   ## Get range of regularization parameters.
   res0 = covarem_getrange(ylist=ylist, X=X, numclust=numclust, niter=2)
 
   fac = 2
-  while(fac <= 32){
+  while(fac <= maxfac){
 
     ## Checking the maximum lambda value
     max_lambda_beta = max(unlist(res0$max_lambda_beta)) * fac
     max_lambda_alpha = max(res0$max_lambda_alpha) * fac
 
     ## Checking that the max actually zeros out.
-    res = covarem_once(ylist=ylist, X=X, numclust=numclust,
-                       mean_lambda=max_lambda_beta,
-                       pie_lambda=max_lambda_alpha,
-                       ## coef_limit=coef_limit ## Experimental feature
-                       ...
-                       )
+    res = covarem(ylist=ylist, X=X, numclust=numclust,
+                  mean_lambda=max_lambda_beta, pie_lambda=max_lambda_alpha, ...)
     alpha.checks.out = all(res$alpha[,-1]==0)
     beta.checks.out = all(sapply(res$beta, function(cf){ all(cf[-1,]==0) }))
     if(alpha.checks.out & beta.checks.out) break
