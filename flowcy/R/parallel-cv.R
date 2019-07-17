@@ -22,6 +22,7 @@ parallel_cv.covarem <- function(ylist = ylist, X = X,
   ## Printing some information about the parallelism
   if(verbose==TRUE){
     cat("At most ", numfork * nsplit, " cores will be used.", fill = TRUE)
+    cat("Output saved to ", destin, fill = TRUE)
   }
   ## TODO: Sangwon: make it so that the warm starts are done by /any/ adjacent
   ## existing point in the grid i.e. code in a search of (+-1, +-1) in the grid.
@@ -63,9 +64,13 @@ parallel_cv.covarem <- function(ylist = ylist, X = X,
 
   for(iclump in length(ialpha.clumps):1){
 
+    ialphas = ialpha.clumps[[iclump]]
+    cat("clump", iclump, "consists of rows:", ialphas, fill=TRUE)
+
     ## Traverse from right->left, from the right edge
     new.reslists = mclapply(ialphas, function(ialpha){
       warmstart = loadres(ialpha, gridsize, destin)
+      ## cat("Warmstart from (", ialpha, gridsize, ")", fill = TRUE)
       move_to_left(ialpha, (gridsize-1):1,
                    pie_lambdas, mean_lambdas,
                    gridsize,
@@ -74,6 +79,7 @@ parallel_cv.covarem <- function(ylist = ylist, X = X,
                    multicore.cv = multicore.cv,
                    ...)
     }, mc.cores = numfork)
+    cat(fill=TRUE)
   }
 }
 
@@ -90,8 +96,11 @@ move_to_up <- function(ialphas, ibeta,
     assert_that(ibeta == gridsize)
     assert_that(all(diff(ialphas) < 0)) ## Check descending order
     for(ialpha in ialphas){
-      cat("(", ialpha, ibeta, ")", fill = TRUE)
-      mywarmstart = (if(beginning){warmstart} else {loadres(ialpha+1, ibeta, destin)})
+      cat("(", ialpha, ibeta, ")")
+      mywarmstart = (if(beginning){warmstart} else {
+                                              ## cat("Warmstart from (", ialpha + 1, ibeta, ")", fill = TRUE)
+                                              loadres(ialpha+1, ibeta, destin)
+                                            })
 
       ## Change to cvres!!
       cvres = get_cv_score(ylist, X, splits, nsplit, refit,
@@ -115,6 +124,7 @@ move_to_up <- function(ialphas, ibeta,
               alpha_lambdas = alpha_lambdas)
       beginning = FALSE
     }
+    cat(fill=TRUE)
 }
 
 
@@ -129,8 +139,11 @@ move_to_left <- function(ialpha, ibetas,
   beginning = TRUE
   stopifnot(all(diff(ibetas) < 0)) ## Check descending order
   for(ibeta in ibetas){
-    cat("(", ialpha, ibeta, ")", fill = TRUE)
-      mywarmstart = (if(beginning){warmstart} else {loadres(ialpha, ibeta+1, destin)})
+    cat("(", ialpha, ibeta, ")")
+    mywarmstart = (if(beginning){warmstart} else {
+                                            ## cat("Warmstart from (", ialpha, ibeta+1, ")", fill = TRUE)
+                                            loadres(ialpha, ibeta+1, destin)
+                                          })
       ## mywarmstart =NULL
       cvres = get_cv_score(ylist, X, splits, nsplit, refit,
                            ## Additional arguments for covarem
@@ -174,18 +187,38 @@ saveres <- function(res, cvres, ialpha, ibeta, destin, alpha_lambdas, beta_lambd
 
 
 ##' Helper to AGGREGATE parallelized CV results, saved in |destin|.
-aggregateres <- function(gridsize, destin){
+aggregateres <- function(gridsize, destin, type=c("mean", "sd")){
 
   cvscoremat = matrix(NA, gridsize, gridsize)
   for(ialpha in 1:gridsize){
     for(ibeta in 1:gridsize){
-      filename = paste0(ialpha, "-", ibeta, ".Rdata")
+
       ## Check that results exist
-      cat("(", ialpha, ibeta, ")", fill=TRUE)
+      filename = paste0(ialpha, "-", ibeta, ".Rdata")
       assert_that(file.exists(file = file.path(destin, filename)))
+
       ## Load CV score and insert in matrix
       load(file = file.path(destin, filename))
-      cvscoremat[ialpha, ibeta] = cvres$mean
+      cvscoremat[ialpha, ibeta] = cvres[["mean"]]
+    }
+  }
+  return(cvscoremat)
+}
+
+##' Helper to AGGREGATE parallelized CV results, saved in |destin|.
+aggregateres_sd <- function(gridsize, destin){
+
+  cvscoremat = matrix(NA, gridsize, gridsize)
+  for(ialpha in 1:gridsize){
+    for(ibeta in 1:gridsize){
+
+      ## Check that results exist
+      filename = paste0(ialpha, "-", ibeta, ".Rdata")
+      assert_that(file.exists(file = file.path(destin, filename)))
+
+      ## Load CV score and insert in matrix
+      load(file = file.path(destin, filename))
+      cvscoremat[ialpha, ibeta] = sd(cvres[["all"]])
     }
   }
   return(cvscoremat)
