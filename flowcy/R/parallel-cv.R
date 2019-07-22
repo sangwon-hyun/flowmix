@@ -187,38 +187,18 @@ saveres <- function(res, cvres, ialpha, ibeta, destin, alpha_lambdas, beta_lambd
 
 
 ##' Helper to AGGREGATE parallelized CV results, saved in |destin|.
-aggregateres <- function(gridsize, destin, type=c("mean", "sd")){
+aggregateres <- function(gridsize, destin){
 
   cvscoremat = matrix(NA, gridsize, gridsize)
   for(ialpha in 1:gridsize){
     for(ibeta in 1:gridsize){
-
-      ## Check that results exist
       filename = paste0(ialpha, "-", ibeta, ".Rdata")
+      ## Check that results exist
+      ## cat("(", ialpha, ibeta, ")", fill=TRUE)
       assert_that(file.exists(file = file.path(destin, filename)))
-
       ## Load CV score and insert in matrix
       load(file = file.path(destin, filename))
-      cvscoremat[ialpha, ibeta] = cvres[["mean"]]
-    }
-  }
-  return(cvscoremat)
-}
-
-##' Helper to AGGREGATE parallelized CV results, saved in |destin|.
-aggregateres_sd <- function(gridsize, destin){
-
-  cvscoremat = matrix(NA, gridsize, gridsize)
-  for(ialpha in 1:gridsize){
-    for(ibeta in 1:gridsize){
-
-      ## Check that results exist
-      filename = paste0(ialpha, "-", ibeta, ".Rdata")
-      assert_that(file.exists(file = file.path(destin, filename)))
-
-      ## Load CV score and insert in matrix
-      load(file = file.path(destin, filename))
-      cvscoremat[ialpha, ibeta] = sd(cvres[["all"]])
+      cvscoremat[ialpha, ibeta] = cvres$mean
     }
   }
   return(cvscoremat)

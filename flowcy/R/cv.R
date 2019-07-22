@@ -135,7 +135,7 @@ get_cv_score <- function(ylist, X, splits, nsplit, refit,
   ## Cycle through splits, and calculate CV scroe
   all.scores = mclapply(1:nsplit, function(test.isplit){
     get_cv_score_onesplit(test.isplit, splits, ylist, X, refit,## , refit, sel_coef,
-                         ...)
+                          ...)
   }, mc.cores=mc.cores)
   all.scores = do.call(c, all.scores)
   return(list(mean=mean(all.scores), all=all.scores))
@@ -167,28 +167,28 @@ get_cv_score_onesplit <- function(test.isplit, splits, ylist, X, refit,...){##, 
   })
 
   ## Run algorithm on train data, evaluate test data.
-  res.train = covarem(ylist.train, X,  refit=FALSE, ...) ## This is done with refit=FALSE anyway.
+  res.train = covarem(ylist.train, X,  refit = FALSE, ...)
 
   ## If applicable, unregularized refit on the sparsity pattern
   if(refit){
     sel_coef = get_sparsity_pattern(res.train)
-    res.train = covarem(ylist.train, X,  refit=TRUE,
-                        sel_coef=sel_coef, ...)
+    res.train = covarem(ylist.train, X,  refit = TRUE,
+                        sel_coef = sel_coef, ...)
   } else {
     sel_coef = NULL
   }
 
   ## Assign mn and pie
   pred = predict.covarem(res.train)
-  stopifnot(all(pred$newpie>=0))
+  stopifnot(all(pred$newpie >= 0))
 
   ## Calculate objective (penalized likelihood)
   objective_overall_cov(aperm(pred$newmn, c(1,3,2)),
                         pred$newpie, pred$sigma, ylist.test,
-                        pie_lambda=0,
-                        mean_lambda=0,
-                        alpha=res.train$alphalist[[res.train$final.iter]],
-                        beta=res.train$betalist[[res.train$final.iter]])
+                        pie_lambda = 0,
+                        mean_lambda = 0,
+                        alpha = res.train$alpha,
+                        beta = res.train$beta)
 }
 
 
@@ -213,7 +213,9 @@ make_lambdas <- function(ylist, X, numclust, cv.grid.size=5){
 ##'   structure as \code{res$alpha} and \code{beta}, but are boolean
 ##'   matrices. Entries are TRUE if they are to be selected, and FALSE they are
 ##'   zero.
-get_sparsity_pattern <- function(res){
-  list(beta = lapply(res$beta, function(onebeta){as.matrix(onebeta!=0)}),
-       alpha = as.matrix((res$alpha!=0)))
+get_sparsity_pattern <- function(res, thresh=1E-8){
+
+  list(beta = lapply(res$beta, function(onebeta){as.matrix(abs(onebeta) <= thresh)}),
+       alpha = as.matrix(abs(res$alpha) <= thresh))
 }
+

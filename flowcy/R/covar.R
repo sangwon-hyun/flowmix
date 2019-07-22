@@ -175,6 +175,9 @@ predict.covarem <- function(res, newx = NULL){
     newx.a = c(1, newx)
   }
 
+  TT = length(ylist)
+  numclust = res$numclust
+
   ## Predict the means (manually).
   newmn = lapply(1:numclust, function(iclust){
     newx.a  %*%  res$beta[[iclust]]

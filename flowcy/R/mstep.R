@@ -110,11 +110,12 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
   numclust = ncol(resp[[1]])
   dimdat = ncol(ylist[[1]])
   ntlist = sapply(ylist, nrow)
+  p = ncol(X)
 
-  Xa = cbind(rep(1, TT), X)
+  Xa = cbind(1, X)
 
   ## Setup
-  manip_obj = manip(ylist, X, resp, sigma, numclust)
+  manip_obj = manip(ylist, Xa, resp, sigma, numclust)
   Xtildes = manip_obj$Xtildes
   yvecs = manip_obj$yvecs
 
@@ -127,9 +128,9 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
     ## Give the glmnet function pre-calculated Y's and X's.
     if(is.null(maxdev) & !refit){
       ## if(refit) stop("NOT WRITTEN YET") ## Remove when done writing this
-      res =  solve_lasso(x=Xtildes[[iclust]], y=yvecs[[iclust]], lambda=mean_lambda,
-                         intercept=FALSE,
-                         exclude.from.penalty=exclude.from.penalty)
+      res =  solve_lasso(x = Xtildes[[iclust]], y = yvecs[[iclust]], lambda = mean_lambda,
+                         intercept = FALSE,
+                         exclude.from.penalty = exclude.from.penalty)
       ## Unravel to obtain the coef and fitted response
       betahat = matrix(res$b, ncol=dimdat)
     } else {
@@ -167,11 +168,13 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
 ##' Helper to "manipulate" X and y, to get Xtilde and Ytilde and yvec for a more
 ##' efficient beta M step (each are |numclust|-length lists, calculated
 ##' separately for each cluster).
-##' @return 3 |numclust|-length lists.
+##' @return 3 (or dimdat) |numclust|-length lists.
 manip <- function(ylist, X, resp, sigma, numclust){
+
   ntlist = sapply(ylist, nrow)
   dimdat = ncol(ylist[[1]])
   TT = nrow(X)
+
   resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
   sigma.inv.halves = array(NA, dim=dim(sigma))
   for(iclust in 1:numclust){
@@ -192,7 +195,7 @@ manip <- function(ylist, X, resp, sigma, numclust){
     Ytildes[[iclust]] = emptymat
   }
   Xtildes = lapply(1:numclust, function(iclust){
-    sigma.inv.halves[1,iclust,,] %x% (sqrt(resp.sum[,iclust]) * Xa)
+    sigma.inv.halves[1,iclust,,] %x% (sqrt(resp.sum[,iclust]) * X)
   })
 
   ## Vector

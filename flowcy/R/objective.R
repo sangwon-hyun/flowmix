@@ -5,8 +5,9 @@
 ##' @param sigma array of dimension T by M by p by p.
 ##' @param alpha linear coefficients for regression on (log ratio of) pie.
 ##' @param beta linear coefficients for regression on mean.
-objective_overall_cov <- function(mu, pie, sigma, data, pie_lambda=0, mean_lambda=0, alpha=0,
-                                  beta=0){
+objective_overall_cov <- function(mu, pie, sigma, data,
+                                  pie_lambda=0, mean_lambda=0,
+                                  alpha=0, beta=0){
   TT = length(data)
   numclust = dim(mu)[2] ## Temporary; there must be a better solution for this.
   loglikelihood_tt <- function(data, tt, mu, sigma, pie){
@@ -25,12 +26,6 @@ objective_overall_cov <- function(mu, pie, sigma, data, pie_lambda=0, mean_lambd
                                       log=FALSE))
 
       })
-
-    ## ## Trying to catch some errors
-    ## if(any(is.nan(weighted.densities))) browser()
-    ## if(rowSums(weighted.densities) < 0) browser()
-    ## ## End of debug
-
     return(sum(log(rowSums(weighted.densities))))
   }
 
