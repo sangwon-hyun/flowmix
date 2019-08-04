@@ -68,20 +68,7 @@ parallel_cv.covarem <- function(ylist = ylist, X = X,
     cat("clump", iclump, "consists of rows:", ialphas, fill=TRUE)
 
     ## Traverse from right->left, from the right edge
-    ## new.reslists = mclapply(ialphas, function(ialpha){
-    ##   warmstart = loadres(ialpha, gridsize, destin)
-    ##   ## cat("Warmstart from (", ialpha, gridsize, ")", fill = TRUE)
-    ##   move_to_left(ialpha, (gridsize-1):1,
-    ##                pie_lambdas, mean_lambdas,
-    ##                gridsize,
-    ##                warmstart, destin, ylist, X, mysplits,
-    ##                nsplit, refit,
-    ##                multicore.cv = multicore.cv,
-    ##                ...)
-    ## }, mc.cores = numfork)
-
-    ## Start of experimental
-    onealpha <- function(ialpha){
+    new.reslists = mclapply(ialphas, function(ialpha){
       warmstart = loadres(ialpha, gridsize, destin)
       ## cat("Warmstart from (", ialpha, gridsize, ")", fill = TRUE)
       move_to_left(ialpha, (gridsize-1):1,
@@ -91,10 +78,23 @@ parallel_cv.covarem <- function(ylist = ylist, X = X,
                    nsplit, refit,
                    multicore.cv = multicore.cv,
                    ...)
-    }
-    new.reslists = slurm_apply(ialphas, onealpha,
-                               nodes = 2, cpus_per_node = floor(numfork / 2) )
-    ## End of experimental.
+    }, mc.cores = numfork)
+
+    ## ## Start of experimental
+    ## onealpha <- function(ialpha){
+    ##   warmstart = loadres(ialpha, gridsize, destin)
+    ##   ## cat("Warmstart from (", ialpha, gridsize, ")", fill = TRUE)
+    ##   move_to_left(ialpha, (gridsize-1):1,
+    ##                pie_lambdas, mean_lambdas,
+    ##                gridsize,
+    ##                warmstart, destin, ylist, X, mysplits,
+    ##                nsplit, refit,
+    ##                multicore.cv = multicore.cv,
+    ##                ...)
+    ## }
+    ## new.reslists = slurm_apply(ialphas, onealpha,
+    ##                            nodes = 2, cpus_per_node = floor(numfork / 2) )
+    ## ## End of experimental.
 
     cat(fill=TRUE)
   }
