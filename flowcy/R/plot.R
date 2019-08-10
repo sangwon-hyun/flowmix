@@ -77,15 +77,23 @@ plot2d.covarem <- function(obj, ylist, ask=TRUE, show.fewer=NULL,
   } else { TTrange = 1:TT }
 
   if(ask)par(ask=TRUE)
-  par(mfrow=c(1,3))
+  ## par(mfrow=c(1,3))
+  m = matrix(c(1, 1, 2, 2, 4, 4,
+               1, 1, 3, 3, 5, 5),
+             nrow = 2, ncol = 6, byrow=TRUE)
+  layout(m)
+  par(mar=c(3,2,4,1))
   for(tt in TTrange){
+
+
+    ## 1. Add main plot of data and fitted means
+
+    ## Create empty plot
     main0 = paste0("time ", tt, " out of ", TT)
     plot(NA, ylim=ylim, xlim=xlim, cex=3, ylab="", xlab="", main=main0)
 
     ## Add datapoints
     points(ylist[[tt]], col='grey90', pch=16, cex=.5)
-
-
 
     ## Begin temporary
     if(show.xb.constraint){
@@ -103,7 +111,6 @@ plot2d.covarem <- function(obj, ylist, ask=TRUE, show.fewer=NULL,
         })
         points(x=beta0list[[kk]][1],
                 y=beta0list[[kk]][2], col="blue", pch=16)
-        print(obj$maxdev)
         plotrix::draw.circle(x=beta0list[[kk]][1],
                              y=beta0list[[kk]][2],
                              radius=obj$maxdev,
@@ -134,17 +141,23 @@ plot2d.covarem <- function(obj, ylist, ask=TRUE, show.fewer=NULL,
            legend = c("truth", "fitted", "intercept", "other fitted"))
 
     for(kk in 1:numclust){
-    lines(ellipse::ellipse(x=obj$sigma[tt,kk,,],
-                           centre=mns[tt,,kk]
-                           ), lwd=1/2, col='red', lty=2)
+      lines(ellipse::ellipse(x = obj$sigma[tt, kk,,],
+                             centre = mns[tt,, kk]
+                             ), lwd=1/2, col='red', lty=2)
     }
-    ## lines(ellipse(rho), col="red")       # ellipse() from ellipse package
-    ## lines(ellipse(rho, level = .99), col="green")
-    ## lines(ellipse(rho, level = .90), col="blue")
 
+    ## 2. Pies right now.
+    pies.right.now = sapply(1:numclust, function(iclust){pies[[iclust]][[tt]]})
+    names(pies.right.now) = paste("Clust", 1:numclust)
+    barplot(pies.right.now,
+            col = cols,
+            lwd = 1,
+            ylim = c(0, 1),
+            main = paste0("Cluster prob. at time ", tt)
+            )##, lwd=2, type='o', pch=toString(iclust))
 
-    ## Plot pies
-    plot(NA, xlim=c(0,TT), ylim=c(0,1.4), main=main0,
+    ## 3. Plot pies
+    plot(NA, xlim=c(0,TT), ylim=c(0,1.4), main="Cluster probs.",
          ylab = "Mixture probability", xlab="time, t=1,..,T")
     for(iclust in 1:numclust){
       lines(pies[[iclust]], col=cols[iclust], lwd=2, type='o', pch=toString(iclust))
@@ -152,31 +165,96 @@ plot2d.covarem <- function(obj, ylist, ask=TRUE, show.fewer=NULL,
     abline(v=tt, col='green')
 
 
-    ## Plot covariates
+    ## 4. Add table
+    add_table(obj)
+
+    ## 5. Plot covariates
     ylim.cov=range(obj$X)*1.5
-    plot(NA, xlim=c(0,TT), ylim=ylim.cov, main="Covariates",
+    plot(NA, xlim=c(0,TT*1.3), ylim=ylim.cov, main="Covariates",
          ylab = "Environmental covariates", xlab="time, t=1,..,T")
+    lwd = c(3,3,0.5,0.5,0.5)
     for(ii in p:1){
-      lines(obj$X[,ii], col=ii, lwd=2, type='l')
+      lines(obj$X[,ii], col=ii, lwd=lwd[ii], type='l')
     }
     abline(v=tt, col='green')
-
-    ## if(plot.iter>1){
-      ## betas = obj$beta.list[[plot.iter]]
-      ## betas = do.call(cbind, lapply(obj$beta, function(beta)beta[-1,]))
-      betas = round(do.call(cbind, obj$beta),2)
-      rownames(betas) = paste("beta:", c("intrcpt", paste0("coef", 1:5)))
-      colnames(betas)= paste0("clust-", c(1,1,2,2,3,3,4,4))
-      text(0.6,max(ylim.cov)/1.5, paste(capture.output(betas), collapse='\n'), pos=4)##, family="monospace")
-
-      alphas = as.matrix(t(obj$alpha))
-      rownames(alphas) = paste("alpha:", c("intrcpt", paste0("coef", 1:5)))
-      alphas = round(alphas,2)
-      colnames(alphas)= paste0("cluster ", c(1:4))
-      text(25,min(ylim)/1.5, paste(capture.output(alphas), collapse='\n'), pos=4)##, family="monospace")
+    legend("topright", col=1:p, lwd=lwd, lty=1, legend=c("Salinity",
+                                                         "SST", "Iron",
+                                                         "Phosphorus",
+                                                         "Chlorophyll"))
   }
   par(ask=FALSE)
 }
+
+add_table <- function(obj){
+
+  ylim.cov=range(obj$X)*1.5
+
+  ## Create the problem
+  plot(NA, xlim=c(0,100), ylim=c(0,100),
+       axes=FALSE)##c(0,1.4))##
+       ## ylab = "Mixture probability", xlab="time, t=1,..,T")
+
+  ## Add table of betas
+  betas = round(do.call(cbind, obj$beta),2)
+  rownames(betas) = paste("beta:", c("intrcpt", paste0("coef", 1:5)))
+  betas[,seq(from = 1, to = ncol(betas), by=2)]
+
+  betas = do.call(cbind, lapply(obj$beta, function(mybeta){
+    vec = rep(NA, 2*nrow(mybeta))
+    vec[seq(from = 1, to = nrow(mybeta)*2, by=2)] = mybeta[,1]
+    vec[seq(from = 2, to = nrow(mybeta)*2, by=2)] = mybeta[,2]
+    return(vec)
+  }))
+  rownames(betas) = c("Intercept", "",
+                      "Salinity", "",
+                     "SST", "",
+                     "Iron", "",
+                     "Phosphorus", "",
+                     "Chlorophyll", "")
+  betas = signif(betas, 2)
+  betas = cbind(rep(c(1,2),6), betas)
+  colnames(betas) = c("Dim", paste0("Clust ", c(1,2,3,4)))
+
+  ## colnames(betas)= paste0("clust-", c(1,1,2,2,3,3,4,4))
+  ## text(1,1,
+  ##      paste(capture.output(betas), collapse='\n'),
+  ##      pos=4)##, family="monospace")
+  abg <- matrix(c(rep("grey90",10),
+                  rep("grey80",10)), nrow=12, ncol=5,
+                byrow=TRUE)
+  plotrix::addtable2plot(-10,0,betas,
+                         display.rownames = TRUE,
+                         ## vlines=TRUE,
+                         ## hlines=TRUE,
+                         bg=abg,
+                         title="Coef. for cluster centers")
+
+  ## Add table of alphas
+  alphas = as.matrix(t(obj$alpha))
+  alphas = round(alphas,2)
+  abg <- matrix(c(rep("grey90",4),
+                  rep("grey80",4)), nrow=6, ncol=4,
+                byrow=TRUE)
+  rownames(alphas) = c("Intercept",
+                      "Salinity",
+                     "SST",
+                     "Iron",
+                     "Phosphorus",
+                     "Chlorophyll")
+  colnames(alphas) =  paste0("Clust ", c(1,2,3,4))
+  plotrix::addtable2plot(50,0,alphas,
+                         display.rownames = TRUE,
+                         ## vlines=TRUE,
+                         ## hlines=TRUE
+                         bg=abg,
+                         title="Coef. for cluster probs")
+
+  ## rownames(alphas) = paste("alpha:", c("intrcpt", paste0("coef", 1:5)))
+  ## colnames(alphas)= paste0("cluster ", c(1:4))
+  ## text(25,min(ylim)/1.5, paste(capture.output(alphas), collapse='\n'), pos=4)##, family="monospace")
+}
+
+
 
 
 ## ##' Visualizes the  data only. Temporarily useful.
