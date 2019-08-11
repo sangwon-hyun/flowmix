@@ -71,7 +71,7 @@ cvxr_multinom <- function(y, X, lambda, exclude.from.penalty=NULL){
 ##' CVXR, the l1-penalized multinom problem: \deqn{ \frac{1}{n} \sum_{i=1}^n
 ##' \sum_{k=1}^K y_{ik} ( x_i^T \alpha_k) - \log \left( \sum_{l=1}^K \exp ( x^T
 ##' \alpha_l) \right) - \lambda \sum_{l=1}^K \left(\| \alpha_l \|_1 \right)}
-cvxr_multinom_new <- function(y, X, lambda, exclude.from.penalty=NULL, sel.coef=NULL){
+cvxr_multinom_new <- function(y, X, lambda, exclude.from.penalty=NULL, sel_coef=NULL){
 
   ## Setup
   numclust = ncol(y)
@@ -95,10 +95,10 @@ cvxr_multinom_new <- function(y, X, lambda, exclude.from.penalty=NULL, sel.coef=
 
   ## For refitting without regularization; this could easily be
   constraints = list()
-  if(!is.null(sel.coef)){
+  if(!is.null(sel_coef)){
     assert_that(lambda==0)
-    if(!all(sel.coef==1)){
-      constraints = list(alphamat[!t(sel.coef)] == 0)
+    if(!all(sel_coef==1)){
+      constraints = list(alphamat[!t(sel_coef)] == 0)
     }
   }
   ## Solve the problem
@@ -106,3 +106,5 @@ cvxr_multinom_new <- function(y, X, lambda, exclude.from.penalty=NULL, sel.coef=
   result <- solve(prob)
   return(result$getValue(alphamat))
 }
+
+

@@ -26,7 +26,7 @@ Mstep_alpha <- function(resp, X, numclust, lambda = 0, alpha = 1,
   } else {
     Xa = cbind(1, X)
     alphahat = cvxr_multinom_new(X = Xa, y = resp.sum, lambda = 0,
-                                 sel.coef = sel_coef$alpha,
+                                 sel_coef = sel_coef$alpha,
                                  exclude = 1)
     alphahat[which(abs(alphahat) < 1E-8, arr.ind = TRUE)] = 0
     alphahat = t(as.matrix(alphahat))
