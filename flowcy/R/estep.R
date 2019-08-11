@@ -19,7 +19,8 @@ Estep_covar <- function(mn, sigma, pie, ylist, numclust){
       ## Gather the means
       mu = mn[tt,,kk] ## This is a single 3-variate mean.
       sigm = as.matrix(sigma[tt,kk,,])
-      densmat[,kk] = mvtnorm::dmvnorm(y, mean=mu, sigma=sigm, log=FALSE)##sigma=matrix(sigm)
+      ## densmat[,kk] = mvtnorm::dmvnorm(y, mean=mu, sigma=sigm, log=FALSE)##sigma=matrix(sigm)
+      densmat[,kk] = mvnfast::dmvn(y, mean=mu, sigma=sigm, log=FALSE)##sigma=matrix(sigm)
       if(any(is.nan(densmat[,kk]))) browser()
     }
     piemat = matrix(pie[tt,], nrow=ntlist[tt], ncol=ncol(pie), byrow=TRUE)

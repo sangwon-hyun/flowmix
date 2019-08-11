@@ -20,11 +20,14 @@ objective_overall_cov <- function(mu, pie, sigma, data,
       mypie = pie[tt,iclust]
       mymu = mu[tt,iclust,]
       mysigma = as.matrix(sigma[tt,iclust,,])
-      return(mypie * mvtnorm::dmvnorm(mydat,
-                                      mean=mymu,
-                                      sigma=mysigma,
-                                      log=FALSE))
-
+      ## return(mypie * mvtnorm::dmvnorm(mydat,
+      ##                                 mean=mymu,
+      ##                                 sigma=mysigma,
+      ##                                 log=FALSE))
+      return(mypie * mvnfast::dmvn(mydat,
+                                   mean=mymu,
+                                   sigma=mysigma,
+                                   log=FALSE))
       })
     return(sum(log(rowSums(weighted.densities))))
   }
