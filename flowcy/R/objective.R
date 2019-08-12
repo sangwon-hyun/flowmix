@@ -25,7 +25,7 @@ objective_overall_cov <- function(mu, pie, sigma, data,
       ##                                 sigma=mysigma,
       ##                                 log=FALSE))
       return(mypie * mvnfast::dmvn(mydat,
-                                   mean=mymu,
+                                   mu=mymu,
                                    sigma=mysigma,
                                    log=FALSE))
       })
