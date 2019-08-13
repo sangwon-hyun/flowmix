@@ -42,7 +42,8 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
                     warmstart  =  c("none", "rough"), sigma.fac = 1, tol = 1E-6,
                     refit = FALSE, ## EXPERIMENTAL FEATURE.
                     sel_coef = NULL,
-                    maxdev = NULL
+                    maxdev = NULL,
+                    faster_mvn=FALSE,
                     ){
 
   ## Setup.
@@ -85,7 +86,8 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
                         sigma.list[[iter-1]],
                         pie.list[[iter-1]],
                         ylist,
-                        numclust)  ## This should be (T x numclust x dimdat x dimdat)
+                        numclust
+                        faster_mvn=faster_mvn)  ## This should be (T x numclust x dimdat x dimdat)
 
     ## Conduct M step
     ## 1. Alpha
@@ -118,7 +120,8 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
                                              pie_lambda = pie_lambda,
                                              mean_lambda = mean_lambda,
                                              alpha = res.alpha$alpha,
-                                             beta = res.beta$beta)
+                                             beta = res.beta$beta,
+                                             faster.mvn=faster.mvn)
 
     ## Check convergence
     if(check_converge_rel(objectives[iter-1],

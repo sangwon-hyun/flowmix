@@ -6,7 +6,7 @@
 ##' @return Responsibility matrix, containing the posterior probabilities of the
 ##'   latent  variable $Z$  (memberships  to each  cluster)  given the  paramter
 ##'   estimates. Dimension is (T X nt x K).
-Estep_covar <- function(mn, sigma, pie, ylist, numclust){
+Estep_covar <- function(mn, sigma, pie, ylist, numclust, faster_mvn=FALSE){
 
   TT = length(ylist)
   ntlist = sapply(ylist, nrow)
@@ -19,8 +19,11 @@ Estep_covar <- function(mn, sigma, pie, ylist, numclust){
       ## Gather the means
       mu = mn[tt,,kk] ## This is a single 3-variate mean.
       sigm = as.matrix(sigma[tt,kk,,])
-      ## densmat[,kk] = mvtnorm::dmvnorm(y, mean=mu, sigma=sigm, log=FALSE)##sigma=matrix(sigm)
-      densmat[,kk] = mvnfast::dmvn(y, mu=mu, sigma=sigm, log=FALSE)##sigma=matrix(sigm)
+      if(faster_mvn){
+        densmat[,kk] = mvnfast::dmvn(y, mu=mu, sigma=sigm, log=FALSE)##sigma=matrix(sigm)
+      } else {
+        densmat[,kk] = mvtnorm::dmvnorm(y, mean=mu, sigma=sigm, log=FALSE)##sigma=matrix(sigm)
+      }
       if(any(is.nan(densmat[,kk]))) browser()
     }
     piemat = matrix(pie[tt,], nrow=ntlist[tt], ncol=ncol(pie), byrow=TRUE)

@@ -7,7 +7,8 @@
 ##' @param beta linear coefficients for regression on mean.
 objective_overall_cov <- function(mu, pie, sigma, data,
                                   pie_lambda=0, mean_lambda=0,
-                                  alpha=0, beta=0){
+                                  alpha=0, beta=0,
+                                  faster_mvn=FALSE){
   TT = length(data)
   numclust = dim(mu)[2] ## Temporary; there must be a better solution for this.
   loglikelihood_tt <- function(data, tt, mu, sigma, pie){
@@ -20,14 +21,17 @@ objective_overall_cov <- function(mu, pie, sigma, data,
       mypie = pie[tt,iclust]
       mymu = mu[tt,iclust,]
       mysigma = as.matrix(sigma[tt,iclust,,])
-      ## return(mypie * mvtnorm::dmvnorm(mydat,
-      ##                                 mean=mymu,
-      ##                                 sigma=mysigma,
-      ##                                 log=FALSE))
-      return(mypie * mvnfast::dmvn(mydat,
-                                   mu=mymu,
-                                   sigma=mysigma,
-                                   log=FALSE))
+      if(faster_mvn){
+        return(mypie * mvnfast::dmvn(mydat,
+                                     mu=mymu,
+                                     sigma=mysigma,
+                                     log=FALSE))
+      } else {
+        return(mypie * mvtnorm::dmvnorm(mydat,
+                                        mean=mymu,
+                                        sigma=mysigma,
+                                        log=FALSE))
+      }
       })
     return(sum(log(rowSums(weighted.densities))))
   }
