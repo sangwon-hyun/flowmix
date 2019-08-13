@@ -86,7 +86,7 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
                         sigma.list[[iter-1]],
                         pie.list[[iter-1]],
                         ylist,
-                        numclust
+                        numclust,
                         faster_mvn=faster_mvn)  ## This should be (T x numclust x dimdat x dimdat)
 
     ## Conduct M step
