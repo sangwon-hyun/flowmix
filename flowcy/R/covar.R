@@ -43,7 +43,7 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
                     refit = FALSE, ## EXPERIMENTAL FEATURE.
                     sel_coef = NULL,
                     maxdev = NULL,
-                    faster_mvn=FALSE,
+                    faster_mvn=FALSE
                     ){
 
   ## Setup.
