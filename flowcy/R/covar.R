@@ -121,7 +121,7 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
                                              mean_lambda = mean_lambda,
                                              alpha = res.alpha$alpha,
                                              beta = res.beta$beta,
-                                             faster.mvn=faster.mvn)
+                                             faster_mvn=faster_mvn)
 
     ## Check convergence
     if(check_converge_rel(objectives[iter-1],
