@@ -8,10 +8,14 @@
 objective_overall_cov <- function(mu, pie, sigma, data,
                                   pie_lambda=0, mean_lambda=0,
                                   alpha=0, beta=0,
-                                  faster_mvn=FALSE){
+                                  faster_mvn=FALSE,
+                                  sigma_eig_by_dim=NULL){
+  ## Setup
   TT = length(data)
   numclust = dim(mu)[2] ## Temporary; there must be a better solution for this.
-  loglikelihood_tt <- function(data, tt, mu, sigma, pie){
+
+
+  loglikelihood_tt <- function(data, tt, mu, sigma, pie, faster_mvn){
     dat = data[[tt]]
 
     ## One particle's log likelihood
@@ -21,6 +25,8 @@ objective_overall_cov <- function(mu, pie, sigma, data,
       mypie = pie[tt,iclust]
       mymu = mu[tt,iclust,]
       mysigma = as.matrix(sigma[tt,iclust,,])
+
+      ## One of two ways to calculate the multivariate normal:
       if(faster_mvn){
         return(mypie * mvnfast::dmvn(mydat,
                                      mu=mymu,
@@ -36,10 +42,44 @@ objective_overall_cov <- function(mu, pie, sigma, data,
     return(sum(log(rowSums(weighted.densities))))
   }
 
-  ## Calculate the data likelilhood of one time point
-  loglik = sapply(1:TT, function(tt){
-    loglikelihood_tt(data, tt, mu, sigma, pie)
-  })
+  ## Temporary
+  loglikelihood_tt_eigenspeed <- function(data, tt, mu, pie, sigma_eig_by_dim){
+
+    ## One particle's log likelihood
+    weighted.densities = sapply(1:numclust, function(iclust){
+
+      ## Setup
+      mydat = data[[tt]]
+      mypie = pie[tt,iclust]
+      mymu = mu[tt,iclust,]
+      mysigma_eig = sigma_eig_by_dim[[iclust]]
+
+      ## Calculate weigthed density
+      return(mypie * dmvnorm_fast(mydat,
+                                  mu=mymu,
+                                  sigma_eig=mysigma_eig))
+    })
+    return(sum(log(rowSums(weighted.densities))))
+  }
+
+  if(!is.null(sigma_eig_by_dim)){
+    loglik = sapply(1:TT, function(tt){
+      loglikelihood_tt_eigenspeed(data, tt, mu, pie, sigma_eig_by_dim)
+    })
+    ## In fact, what I could do is get /all/ the densities in one swipe, without
+    ## sapplying in TT. How? For a given idim, concatenate all the data (only do
+    ## once), concatenate all the means (every time), concatenate the weights,
+    ## calculate /all/ the densities and multiply the weights, and chop them up
+    ## to store in |loglik|. This way, dmvnorm() (or its alternatives) are only
+    ## called 4 times, intead of 4*TT times. This is next up!!!!
+  } else {
+    ## Calculate the data likelilhood of one time point
+    loglik = sapply(1:TT, function(tt){
+      loglikelihood_tt(data, tt, mu, sigma, pie, faster_mvn)
+    })
+  }
+  ## End of temporary
+
 
   ## Return penalized
   l1norm <- function(coef){ sum(abs(coef)) }

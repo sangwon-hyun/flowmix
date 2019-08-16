@@ -49,6 +49,7 @@ Mstep_alpha <- function(resp, X, numclust, lambda = 0, alpha = 1,
 
 ##' Estimates sigma.
 ##' @param mn are the fitted means
+##' @return (TT x numclust x dimdat x dimdat) array.
 Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
   TT = length(ylist)
   ntlist = sapply(ylist, nrow)
@@ -79,7 +80,7 @@ Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
   sigma = abind::abind(lapply(1:TT, function(tt){
     (abind::abind(vars,along=0))
   }), along=0)
-  ## stopifnot(all(dim(sigma) == c(TT, numclust, dimdat, dimdat)))
+  stopifnot(all(dim(sigma) == c(TT, numclust, dimdat, dimdat)))
 
   ## Return |K| of them.
   return(sigma)
@@ -102,7 +103,8 @@ mtsqrt_inv <- function(a){
 Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
                        refit = NULL,
                        sel_coef = NULL,
-                       maxdev = NULL
+                       maxdev = NULL,
+                       sigma_eig_by_dim=NULL
                        ){
 
   ## Preliminaries
@@ -115,7 +117,7 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
   Xa = cbind(1, X)
 
   ## Setup
-  manip_obj = manip(ylist, Xa, resp, sigma, numclust)
+  manip_obj = manip(ylist, Xa, resp, sigma, numclust, sigma_eig_by_dim=sigma_eig_by_dim)
   Xtildes = manip_obj$Xtildes
   yvecs = manip_obj$yvecs
 
@@ -169,17 +171,25 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
 ##' efficient beta M step (each are |numclust|-length lists, calculated
 ##' separately for each cluster).
 ##' @return 3 (or dimdat) |numclust|-length lists.
-manip <- function(ylist, X, resp, sigma, numclust){
+manip <- function(ylist, X, resp, sigma, numclust, sigma_eig_by_dim=NULL){
 
   ntlist = sapply(ylist, nrow)
   dimdat = ncol(ylist[[1]])
   TT = nrow(X)
-
   resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
-  sigma.inv.halves = array(NA, dim=dim(sigma))
-  for(iclust in 1:numclust){
-    mymat = mtsqrt_inv(sigma[1,iclust,,])
-    for(tt in 1:TT){ sigma.inv.halves[tt,iclust,,] = mymat }
+  sigma.inv.halves = array(NA, dim=dim(sigma)[-1])
+
+  if(!is.null(sigma_eig_by_dim)){
+    ## 1. New way
+    for(iclust in 1:numclust){
+        sigma.inv.halves[iclust,,] = sigma_eig_by_dim[[iclust]]$sigma_half
+    }
+
+  } else {
+    ## 2. Old (original) way
+    for(iclust in 1:numclust){
+      sigma.inv.halves[iclust,,] = mtsqrt_inv(sigma[1,iclust,,])
+    }
   }
 
   ## Pre-calculate response and covariates to feed into lasso.
@@ -195,16 +205,17 @@ manip <- function(ylist, X, resp, sigma, numclust){
     Ytildes[[iclust]] = emptymat
   }
   Xtildes = lapply(1:numclust, function(iclust){
-    sigma.inv.halves[1,iclust,,] %x% (sqrt(resp.sum[,iclust]) * X)
+    sigma.inv.halves[iclust,,] %x% (sqrt(resp.sum[,iclust]) * X)
   })
 
   ## Vector
   yvecs = lapply(1:numclust, function(iclust){
-    yvec = (1/sqrt(resp.sum[,iclust]) * t(Ytildes[[iclust]])) %*% sigma.inv.halves[1,iclust,,]
+    yvec = (1/sqrt(resp.sum[,iclust]) * t(Ytildes[[iclust]])) %*% sigma.inv.halves[iclust,,]
     yvec = as.vector(yvec)
   })
 
   return(list(Xtildes = Xtildes,
               Ytildes = Ytildes,
-              yvecs = yvecs))
+              yvecs = yvecs
+              ))
 }

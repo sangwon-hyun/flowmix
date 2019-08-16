@@ -43,7 +43,8 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
                     refit = FALSE, ## EXPERIMENTAL FEATURE.
                     sel_coef = NULL,
                     maxdev = NULL,
-                    faster_mvn=FALSE
+                    faster_mvn=FALSE,
+                    eigenspeed=FALSE
                     ){
 
   ## Setup.
@@ -51,6 +52,7 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
   TT = length(ylist)
   p = ncol(X)
   warmstart = match.arg(warmstart)
+  sigma_eig_by_dim <- NULL
 
   ## Initialize.
   beta = init_beta(TT, p, dimdat, numclust)
@@ -87,7 +89,9 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
                         pie.list[[iter-1]],
                         ylist,
                         numclust,
-                        faster_mvn=faster_mvn)  ## This should be (T x numclust x dimdat x dimdat)
+                        faster_mvn = faster_mvn,
+                        sigma_eig_by_dim = sigma_eig_by_dim
+                        )  ## This should be (T x numclust x dimdat x dimdat)
 
     ## Conduct M step
     ## 1. Alpha
@@ -102,7 +106,8 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
     ## 2. Beta
     res.beta = Mstep_beta(resp, ylist, X, mean_lambda = mean_lambda,
                           sigma.list[[iter-1]], refit = refit,
-                          sel_coef = sel_coef, maxdev = maxdev)
+                          sel_coef = sel_coef, maxdev = maxdev,
+                          sigma_eig_by_dim = sigma_eig_by_dim)
     beta.list[[iter]] = res.beta$beta
     mn.list[[iter]]    = res.beta$mns
 
@@ -111,6 +116,11 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
                                             ylist,
                                             mn.list[[iter]],
                                             numclust)
+
+    ## 3. (Continue) Eigendecomp the sigmas.
+    if(eigenspeed){
+      sigma_eig_by_dim <- eigendecomp_sigma_array(sigma.list[[iter]])
+    }
 
     ## Calculate the objectives
     objectives[iter] = objective_overall_cov(aperm(mn.list[[iter]], c(1,3,2)),
@@ -121,7 +131,9 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
                                              mean_lambda = mean_lambda,
                                              alpha = res.alpha$alpha,
                                              beta = res.beta$beta,
-                                             faster_mvn=faster_mvn)
+                                             faster_mvn=faster_mvn,
+                                             sigma_eig_by_dim = sigma_eig_by_dim
+                                             )
 
     ## Check convergence
     if(check_converge_rel(objectives[iter-1],

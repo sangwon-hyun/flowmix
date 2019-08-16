@@ -6,7 +6,9 @@
 ##' @return Responsibility matrix, containing the posterior probabilities of the
 ##'   latent  variable $Z$  (memberships  to each  cluster)  given the  paramter
 ##'   estimates. Dimension is (T X nt x K).
-Estep_covar <- function(mn, sigma, pie, ylist, numclust, faster_mvn=FALSE){
+Estep_covar <- function(mn, sigma, pie, ylist, numclust, faster_mvn=FALSE,
+                        sigma_eig_by_dim=NULL
+                        ){
 
   TT = length(ylist)
   ntlist = sapply(ylist, nrow)
@@ -14,17 +16,23 @@ Estep_covar <- function(mn, sigma, pie, ylist, numclust, faster_mvn=FALSE){
   for(tt in 1:TT){
     y = ylist[[tt]]  ## These are nt rows of 3-variate measurements
     densmat = matrix(NA, nrow=ntlist[tt], ncol=numclust)
-    for(kk in 1:numclust){
+    for(iclust in 1:numclust){
 
       ## Gather the means
-      mu = mn[tt,,kk] ## This is a single 3-variate mean.
-      sigm = as.matrix(sigma[tt,kk,,])
-      if(faster_mvn){
-        densmat[,kk] = mvnfast::dmvn(y, mu=mu, sigma=sigm, log=FALSE)##sigma=matrix(sigm)
+      mu = mn[tt,,iclust] ## This is a single 3-variate mean.
+      sigm = as.matrix(sigma[tt,iclust,,])
+
+      if(!is.null(sigma_eig_by_dim)){
+        mysigma_eig = sigma_eig_by_dim[[iclust]]
+        densmat[,iclust] = dmvnorm_fast(y,
+                                        mu = mu,
+                                        sigma_eig = mysigma_eig)
+      } else if(faster_mvn){
+        densmat[,iclust] = mvnfast::dmvn(y, mu=mu, sigma=sigm, log=FALSE)##sigma=matrix(sigm)
       } else {
-        densmat[,kk] = mvtnorm::dmvnorm(y, mean=mu, sigma=sigm, log=FALSE)##sigma=matrix(sigm)
+        densmat[,iclust] = mvtnorm::dmvnorm(y, mean=mu, sigma=sigm, log=FALSE)##sigma=matrix(sigm)
       }
-      if(any(is.nan(densmat[,kk]))) browser()
+      if(any(is.nan(densmat[,iclust]))) browser()
     }
     piemat = matrix(pie[tt,], nrow=ntlist[tt], ncol=ncol(pie), byrow=TRUE)
 
