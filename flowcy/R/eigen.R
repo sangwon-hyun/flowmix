@@ -18,8 +18,10 @@ dmvnorm_fast <- function(y, mu, sigma_eig, const){
   transformed_resids = resids %*% myinv_half
 
  ## Twice as fast as regular RowSums(), which is supposed to be fast itself
-  resid.prods = Rfast::rowsums(transformed_resids * transformed_resids)
-  ## resid.prods = rowSums(transformed_resids * transformed_resids)
+  ## resid.prods = Rfast::rowsums(transformed_resids * transformed_resids)
+
+  ## Old way:
+  resid.prods = rowSums(transformed_resids * transformed_resids)
 
   return(const * mydet^(-1/2) * exp(-1/2 * resid.prods))
 }
