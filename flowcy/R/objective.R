@@ -9,7 +9,7 @@ objective_overall_cov <- function(mu, pie, sigma, data,
                                   pie_lambda=0, mean_lambda=0,
                                   alpha=0, beta=0,
                                   faster_mvn=FALSE,
-                                  sigma_eig_by_dim=NULL){
+                                  sigma_eig_by_dim=NULL, const){
   ## Setup
   TT = length(data)
   numclust = dim(mu)[2] ## Temporary; there must be a better solution for this.
@@ -43,7 +43,7 @@ objective_overall_cov <- function(mu, pie, sigma, data,
   }
 
   ## Temporary
-  loglikelihood_tt_eigenspeed <- function(data, tt, mu, pie, sigma_eig_by_dim){
+  loglikelihood_tt_eigenspeed <- function(data, tt, mu, pie, sigma_eig_by_dim, const){
 
     ## One particle's log likelihood
     weighted.densities = sapply(1:numclust, function(iclust){
@@ -57,14 +57,15 @@ objective_overall_cov <- function(mu, pie, sigma, data,
       ## Calculate weigthed density
       return(mypie * dmvnorm_fast(mydat,
                                   mu=mymu,
-                                  sigma_eig=mysigma_eig))
+                                  sigma_eig=mysigma_eig,
+                                  const=const))
     })
     return(sum(log(rowSums(weighted.densities))))
   }
 
   if(!is.null(sigma_eig_by_dim)){
     loglik = sapply(1:TT, function(tt){
-      loglikelihood_tt_eigenspeed(data, tt, mu, pie, sigma_eig_by_dim)
+      loglikelihood_tt_eigenspeed(data, tt, mu, pie, sigma_eig_by_dim, const)
     })
     ## In fact, what I could do is get /all/ the densities in one swipe, without
     ## sapplying in TT. How? For a given idim, concatenate all the data (only do

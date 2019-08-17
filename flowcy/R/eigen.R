@@ -3,23 +3,26 @@
 
 ##' From eigendecomposition of the sigmas, calculate dmvnorm.
 ##' @param sigma_eig Result of eigendecomposition of sigma.
-dmvnorm_fast <- function(y, mu, sigma_eig){
+dmvnorm_fast <- function(y, mu, sigma_eig, const){
+  ## const = (2 * pi)^(- dimdat/2)
 
   ## Setup
   TT = nrow(y)
   mydet <- sigma_eig$det
   myinv <- sigma_eig$sigma_inv
   dimdat <- ncol(y)
-  resids = sweep(y, 2, mu)
+
+  ## Main calculations.
+  resids = sweep(y, 2, mu) ## This takes a lot of time, but not clear how to fix
   myinv_half <- sigma_eig$inverse_sigma_half
   transformed_resids = resids %*% myinv_half
-  resid.prods = rowSums(transformed_resids * transformed_resids)
-  ## Calculate the density
-  ## tresids = t(resids)
-  ## resid.prods = sapply(1:TT, function(ii){
-  ##   tresids[,ii] %*% myinv %*% resids[ii,]})
-  return(as.numeric((2 * pi)^(- dimdat/2) * mydet^(-1/2) * exp(-1/2 * resid.prods)))
-}
+
+ ## Twice as fast as regular RowSums(), which is supposed to be fast itself
+  resid.prods = Rfast::rowsums(transformed_resids * transformed_resids)
+  ## resid.prods = rowSums(transformed_resids * transformed_resids)
+
+  return(const * mydet^(-1/2) * exp(-1/2 * resid.prods))
+
 
 
 ##' Get's eigendecomposition of a matrix. Basically, \code{sigma == evecs %*% Lambdamat

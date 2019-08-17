@@ -53,6 +53,7 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
   p = ncol(X)
   warmstart = match.arg(warmstart)
   sigma_eig_by_dim <- NULL
+  const = (2 * pi)^(- dimdat/2)
 
   ## Initialize.
   beta = init_beta(TT, p, dimdat, numclust)
@@ -90,7 +91,8 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
                         ylist,
                         numclust,
                         faster_mvn = faster_mvn,
-                        sigma_eig_by_dim = sigma_eig_by_dim
+                        sigma_eig_by_dim = sigma_eig_by_dim,
+                        const=const
                         )  ## This should be (T x numclust x dimdat x dimdat)
 
     ## Conduct M step
@@ -132,7 +134,8 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
                                              alpha = res.alpha$alpha,
                                              beta = res.beta$beta,
                                              faster_mvn=faster_mvn,
-                                             sigma_eig_by_dim = sigma_eig_by_dim
+                                             sigma_eig_by_dim = sigma_eig_by_dim,
+                                             const=const
                                              )
 
     ## Check convergence

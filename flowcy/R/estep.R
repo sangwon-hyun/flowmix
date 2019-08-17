@@ -7,7 +7,8 @@
 ##'   latent  variable $Z$  (memberships  to each  cluster)  given the  paramter
 ##'   estimates. Dimension is (T X nt x K).
 Estep_covar <- function(mn, sigma, pie, ylist, numclust, faster_mvn=FALSE,
-                        sigma_eig_by_dim=NULL
+                        sigma_eig_by_dim=NULL,
+                        const
                         ){
 
   TT = length(ylist)
@@ -26,7 +27,8 @@ Estep_covar <- function(mn, sigma, pie, ylist, numclust, faster_mvn=FALSE,
         mysigma_eig = sigma_eig_by_dim[[iclust]]
         densmat[,iclust] = dmvnorm_fast(y,
                                         mu = mu,
-                                        sigma_eig = mysigma_eig)
+                                        sigma_eig = mysigma_eig,
+                                        const = const)
       } else if(faster_mvn){
         densmat[,iclust] = mvnfast::dmvn(y, mu=mu, sigma=sigm, log=FALSE)##sigma=matrix(sigm)
       } else {
