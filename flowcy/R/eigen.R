@@ -22,6 +22,7 @@ dmvnorm_fast <- function(y, mu, sigma_eig, const){
   ## resid.prods = rowSums(transformed_resids * transformed_resids)
 
   return(const * mydet^(-1/2) * exp(-1/2 * resid.prods))
+}
 
 
 
