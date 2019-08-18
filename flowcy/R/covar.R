@@ -44,7 +44,8 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
                     sel_coef = NULL,
                     maxdev = NULL,
                     faster_mvn=FALSE,
-                    eigenspeed=FALSE
+                    eigenspeed=FALSE,
+                    neweigen=FALSE
                     ){
 
   ## Setup.
@@ -53,7 +54,8 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
   p = ncol(X)
   warmstart = match.arg(warmstart)
   sigma_eig_by_dim <- NULL
-  const = (2 * pi)^(- dimdat/2)
+  if(!neweigen) const=NULL
+  if(neweigen)const = (2 * pi)^(- dimdat/2)
 
   ## Initialize.
   beta = init_beta(TT, p, dimdat, numclust)
