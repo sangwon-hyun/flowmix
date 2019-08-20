@@ -84,11 +84,13 @@ solve_lasso <- function(y, x, lambda, intercept=TRUE, exclude.from.penalty=NULL)
 
 
 
-##' (New version) Solving the  no-intercept Lasso problem using  CVXR.  \deqn{\min_{\beta} 1/2n
-##' \|y - X\beta\|^2 + \lambda \|\beta\|_1}
+##' (New version) Solving the no-intercept Lasso problem using CVXR.
+##' \deqn{\min_{\beta} 1/2n \|y - X\beta\|^2 + \lambda \|\beta\|_1}
 ##' @param X Covariate matrix.
 ##' @param y Response vector.
 ##' @param lambda regularization problem.
+##' @param sel_coef The ones in this matrix defines the entries in the
+##'   regression coefficients |beta| that are allowed to be nonzero.
 ##' @return Fitted beta.
 cvxr_lasso_newer <- function(y, X, Xorig, lambda, exclude.from.penalty=NULL, thresh=1E-12,
                            maxdev=NULL,

@@ -3,8 +3,8 @@
 
 ##' From eigendecomposition of the sigmas, calculate dmvnorm.
 ##' @param sigma_eig Result of eigendecomposition of sigma.
-dmvnorm_fast <- function(y, mu, sigma_eig, const){
-  ## const = (2 * pi)^(- dimdat/2)
+dmvnorm_fast <- function(y, mu, sigma_eig){
+  const = (2 * pi)^(- dimdat/2)
 
   ## Setup
   TT = nrow(y)
@@ -18,16 +18,9 @@ dmvnorm_fast <- function(y, mu, sigma_eig, const){
   transformed_resids = resids %*% myinv_half
 
  ## Twice as fast as regular RowSums(), which is supposed to be fast itself
-  ## resid.prods = Rfast::rowsums(transformed_resids * transformed_resids)
-
-  ## Old way:
   resid.prods = rowSums(transformed_resids * transformed_resids)
 
-  if(!is.null(const)){
-    return(const * mydet^(-1/2) * exp(-1/2 * resid.prods))
-  } else {
-    return((2 * pi)^(- dimdat/2) * mydet^(-1/2) * exp(-1/2 * resid.prods))
-  }
+  return(const * mydet^(-1/2) * exp(-1/2 * resid.prods))
 }
 
 

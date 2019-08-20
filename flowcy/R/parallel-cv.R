@@ -101,7 +101,7 @@ parallel_cv.covarem <- function(ylist = ylist, X = X,
 }
 
 
-## Should be the same as move_to_left() but with different direction.
+##' Should be the same as move_to_left() but with different direction.
 move_to_up <- function(ialphas, ibeta,
                        alpha_lambdas, beta_lambdas,
                        gridsize,
@@ -145,7 +145,7 @@ move_to_up <- function(ialphas, ibeta,
 }
 
 
-## Move to the left in a row (fix ialpha)
+##' Move to the left in a row (fix ialpha)
 move_to_left <- function(ialpha, ibetas,
                          alpha_lambdas, beta_lambdas,
                          gridsize,
@@ -183,12 +183,6 @@ move_to_left <- function(ialpha, ibetas,
   }
 }
 
-
-## ialpha = 3
-## ibeta = 9
-##   filename = paste0(ibeta, "-", ialpha, ".Rdata")
-##   load(file=file.path(destin, filename))
-
 ##' Helper to load parallelized CV results, saved in |destin|.
 loadres <- function(ialpha, ibeta, destin){
   filename = paste0(ialpha, "-", ibeta, ".Rdata")
@@ -203,16 +197,21 @@ saveres <- function(res, cvres, ialpha, ibeta, destin, alpha_lambdas, beta_lambd
 }
 
 
-##' Helper to AGGREGATE parallelized CV results, saved in |destin|.
+##' Helper to aggregate parallelized CV results, saved in |destin|.
+##' @param gridsize Size of CV grid.
+##' @param destin Location of saved things.
+##' @param numfold Number of CV folds.
+##' @return gridsize x gridsize Matrix containing average CV scores.
 aggregateres <- function(gridsize, destin){
 
   cvscoremat = matrix(NA, gridsize, gridsize)
   for(ialpha in 1:gridsize){
     for(ibeta in 1:gridsize){
       filename = paste0(ialpha, "-", ibeta, ".Rdata")
+
       ## Check that results exist
-      ## cat("(", ialpha, ibeta, ")", fill=TRUE)
       assert_that(file.exists(file = file.path(destin, filename)))
+
       ## Load CV score and insert in matrix
       load(file = file.path(destin, filename))
       cvscoremat[ialpha, ibeta] = cvres$mean
@@ -221,39 +220,102 @@ aggregateres <- function(gridsize, destin){
   return(cvscoremat)
 }
 
+##' Helper to aggregate parallelized CV results and obtain degrees of freedom
+##' (DF) estimate, saved in |destin|.
+##' @param gridsize Size of CV grid.
+##' @param destin Location of saved things.
+##' @return Matrix containing estimated degrees of freedom.
+aggregateres_df <- function(gridsize, destin){
 
-## ## Temporary aggregation
-## aggregateres_temp <- function(gridsize, destin, numfork=3){
+  dfmat = matrix(NA, gridsize, gridsize)
+  for(ialpha in 1:gridsize){
+    for(ibeta in 1:gridsize){
+      filename = paste0(ialpha, "-", ibeta, ".Rdata")
+      assert_that(file.exists(file = file.path(destin, filename)))
+      load(file = file.path(destin, filename))
+      mydf = do.call(sum, lapply(res$beta, function(mybeta){
+        sum(mybeta[-1,]!=0)})) + sum(res$alpha[,-1]!=0)
+      dfmat[ialpha, ibeta] = mydf
+    }
+  }
+  return(dfmat)
+}
 
-##   cvscoremat = matrix(NA, gridsize, gridsize)
 
-##   ## Define clumps of row numbers (Rows are alpha, columns are beta.)
-##   ialpha.clumps =
-##     Map(function(a,b)a:b,
-##         pmin(seq(from=numfork, to=gridsize+numfork-1, by=numfork), gridsize),
-##         seq(from=1, to=gridsize, by=numfork))
+##' Same as \code{aggregateres()}, but taking all folds!
+##' @param gridsize Size of CV grid.
+##' @param destin Location of saved things.
+##' @param numfold Number of CV folds.
+##' @return Array containing /all/ CV scores. Dimension is gridsize x gridsize x
+##'   numfold.
+aggregateres_allfolds <- function(gridsize, destin, numfold){
 
-##   for(iclump in 1:length(ialpha.clumps)){
+  cvscorearray = array(NA, c(gridsize, gridsize, numfold))
+  for(ialpha in 1:gridsize){
+    for(ibeta in 1:gridsize){
+      filename = paste0(ialpha, "-", ibeta, ".Rdata")
+      ## Check that results exist
+      ## cat("(", ialpha, ibeta, ")", fill=TRUE)
+      assert_that(file.exists(file = file.path(destin, filename)))
+      ## Load CV score and insert in matrix
+      load(file = file.path(destin, filename))
+      cvscorearray[ialpha, ibeta, ] = cvres$all
+    }
+  }
+  return(cvscorearray)
+}
 
-##     ## Fill in right edge first
-##     ialphas = ialpha.clumps[[iclump]]
-##     ibeta = gridsize
-##     for(ialpha in ialphas){
-##       filename = paste0(ialpha, "-", ibeta, ".Rdata")
-##       cat("(", ialpha, ibeta, ")", fill=TRUE)
-##       load(file = file.path(destin, filename))
-##       cvscoremat[ialpha, ibeta] = res$mean
-##     }
+##' Gets all the lambdas, from one of the results.
+##' @param destin Directory containing output.
+##' @return List containing the regularization parameter values used for CV.
+getlambdasres <- function(destin){
+  ialpha = ibeta = 1
+  filename = paste0(ialpha, "-", ibeta, ".Rdata")
+  assert_that(file.exists(file = file.path(destin, filename)))
+  ## Load CV score and insert in matrix
+  load(file = file.path(destin, filename))
+  return(list(alpha = alpha_lambdas,
+              beta = beta_lambdas))
+}
 
-##     ## Traverse from right->left, from the right edge
-##     for(ialpha in ialphas){
-##       for(ibeta in (gridsize-1):1){
-##         cat("(", ialpha, ibeta, ")", fill=TRUE)
-##         filename = paste0(ialpha, "-", ibeta, ".Rdata")
-##         load(file = file.path(destin, filename))
-##         cvscoremat[ialpha, ibeta] = cvres$mean
-##       }
-##     }
-##   }
-##   return(cvscoremat)
-## }
+##' Gets the fitted object at (ialpha, ibeta).
+##' @param ialpha Number between 1-gridsize.
+##' @param ibeta Number between 1-gridsize.
+##' @param destin Directory containing output.
+getres <- function(ialpha, ibeta, destin){
+  filename = paste0(ialpha, "-", ibeta, ".Rdata")
+  assert_that(file.exists(file = file.path(destin, filename)))
+  ## Load CV score and insert in matrix
+  load(file = file.path(destin, filename))
+  return(res)
+}
+
+
+##' Helper to get optimal model's information from (parallelized) CV results.
+##' @param gridsize Size of CV grid.
+##' @param isim The simulation number.
+##' @param outputdir directory containing output of simulation.
+##' @param excludecorner temporary feature to exclude the most regularized
+##'   result.
+##' @return Array containing /all/ CV scores. Dimension is gridsize x gridsize x
+##'   numfold.
+get_optimal_info <- function(isim, outputdir="~/repos/flowcy/output/vanilla",
+                             gridsize=12, excludecorner=FALSE){
+  destin = file.path(outputdir, paste0("isim-", isim))
+
+  ## Collect CV score matrix
+  cvscoremat = aggregateres(gridsize, destin)
+  if(excludecorner) cvscoremat[gridsize,gridsize] = Inf
+  cvscoremat[which(is.na(cvscoremat), arr.ind=TRUE)] = Inf
+
+  ## Get maximizer
+  ind = which(cvscoremat == min(cvscoremat), arr.ind=TRUE)
+  filename = paste0(ind[1], "-", ind[2], ".Rdata")
+  load(file=file.path(destin, filename))
+  lambda_alpha = alpha_lambdas[ind[1]]
+  lambda_beta = beta_lambdas[ind[2]]
+
+  return(list(param = c(lambda_alpha, lambda_beta),
+              res=res,
+              cvscoremat=cvscoremat))
+}

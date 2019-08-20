@@ -152,9 +152,12 @@ get_cv_score <- function(ylist, X, splits, nsplit, refit,
 ##'   coefficients) are calculated.
 ##' @param ... arguments to covarem
 ##' @return One split's test likelihood.
-get_cv_score_onesplit <- function(test.isplit, splits, ylist, X, refit,...){##, refit=FALSE,...){
+get_cv_score_onesplit <- function(test.isplit, splits, ylist, X, refit, ...){##, refit=FALSE,...){
 
   TT = length(ylist)
+  dimdat = ncol(ylist[[1]])
+  myargs = list(...)
+  numclust = myargs$numclust ## might work, might not.
 
   ## Obtain train and test data according to test split
   ylist.test = lapply(1:TT, function(tt){
@@ -166,7 +169,7 @@ get_cv_score_onesplit <- function(test.isplit, splits, ylist, X, refit,...){##, 
     ylist[[tt]][-ind,]
   })
 
-  ## Run algorithm on train data, evaluate test data.
+  ## Run algorithm on training data, evaluate on test data.
   res.train = covarem(ylist.train, X,  refit = FALSE, ...)
 
   ## If applicable, unregularized refit on the sparsity pattern
@@ -183,8 +186,11 @@ get_cv_score_onesplit <- function(test.isplit, splits, ylist, X, refit,...){##, 
   stopifnot(all(pred$newpie >= 0))
 
   ## Calculate objective (penalized likelihood)
-  objective_overall_cov(aperm(pred$newmn, c(1,3,2)),
-                        pred$newpie, pred$sigma, ylist.test,
+  objective_overall_cov(pred$newmn,
+                        pred$newpie,
+                        pred$sigma,
+                        TT, dimdat, numclust,
+                        ylist.test,
                         pie_lambda = 0,
                         mean_lambda = 0,
                         alpha = res.train$alpha,
@@ -219,3 +225,222 @@ get_sparsity_pattern <- function(res, thresh=1E-8){
        alpha = as.matrix(abs(res$alpha) <= thresh))
 }
 
+
+
+##' Make a plot of the 1SE results.
+onese_plot <- function(isim, outputdir,
+                       gridsize=12){
+
+  obj = onese(isim, outputdir, gridsize)
+  ind.min = obj$ind.min
+  dfmat = obj$dfmat
+  cvscoremat = obj$cvscoremat
+  se = obj$se
+
+  ## Initialize the plot
+  plot(NA,
+       xlim=c(0, max(dfmat)),
+       ylim=c(min(cvscoremat, na.rm=TRUE), max(cvscoremat, na.rm=TRUE))+c(-1000,1000),
+       ylab="CV error",
+       xlab="Total # nonzero coefs")
+
+  ## Add the points
+  xlist = c()
+  ylist = c()
+  for(ii in 1:gridsize){
+    for(jj in 1:gridsize){
+      xlist = c(xlist, dfmat[ii,jj])
+      ylist = c(ylist, cvscoremat[ii,jj])
+      points(x=dfmat[ii,jj],
+             y=cvscoremat[ii,jj])
+    }
+  }
+
+  ## if(any(is.na(cvscoremat))) cvscoremat[is.na(cvscoremat)]=Inf
+  ind = which(cvscoremat==min(cvscoremat, na.rm=TRUE), arr.ind=TRUE)
+  abline(v=dfmat[ind[1], ind[2]], col='green')
+  abline(h=cvscoremat[ind[1], ind[2]] + c(-se, se), col='violet')
+
+  points(x = dfmat[ind.min[1], ind.min[2]],
+         y = cvscoremat[ind.min[1], ind.min[2]], pch = 16,
+         col = 'violet', cex = 1.5)
+
+  ## Add kernel density plot
+  if(any(is.na(ylist))){ xlist = xlist[-which(is.na(ylist))]; ylist = ylist[-which(is.na(ylist))]}
+  a = ksmooth(x=xlist, y=ylist, kernel = "normal", bandwidth=5)
+  lines(a$y~a$x, col='red')
+}
+
+##' Apply the 1SE rule (results are similar to those of get_optimal_info())
+##' @param outputdir Location of the output files. e.g. outputdir="~/output/vanilla"
+##' @return NULL.
+onese <- function(isim, outputdir,
+                       gridsize=12){
+## outputdir="~/repos/flowcy/output/vanilla"
+
+  ## Load data
+  destin = file.path(outputdir, paste0("isim-", isim))
+
+  ## Gather the degrees of freedom
+  dfmat = aggregateres_df(gridsize, destin)
+  cvscoremat = aggregateres(gridsize, destin)
+
+  ## Add the line
+  ind = ind.min = which(cvscoremat==min(cvscoremat, na.rm=TRUE), arr.ind=TRUE)
+
+  ## Add horizontal lines
+  load(file=file.path(destin, paste0(ind[1], "-", ind[2], ".Rdata")))
+  se = sd(cvres$all)/sqrt(length(cvres$all))
+
+  ## Apply the 1SE rule
+  inds = which((cvscoremat <  cvscoremat[ind[1], ind[2]] + se &
+                cvscoremat >  cvscoremat[ind[1], ind[2]] - se &
+               dfmat < dfmat[ind[1], ind[2]]),
+               arr.ind = TRUE)
+  if(nrow(inds) > 0){
+
+    ## Pick the minimum CV error that is most sparsimonious.
+    all.df = apply(inds, 1, function(myind){dfmat[myind[1],myind[2]]})
+    inds = inds[which(all.df==min(all.df)),,drop=FALSE]
+    all.cvscores = apply(inds, 1, function(myind){cvscoremat[myind[1],myind[2]]})
+    ind.min = inds[which.min(all.cvscores),,drop=FALSE]
+    assert_that(nrow(ind.min)==1)
+
+  }
+
+  ## Obtain the best parameters and return
+  filename = paste0(ind.min[1], "-", ind.min[2], ".Rdata")
+  load(file=file.path(destin, filename))
+  lambda_alpha = alpha_lambdas[ind.min[1]]
+  lambda_beta = beta_lambdas[ind.min[2]]
+
+  return(list(param = c(lambda_alpha, lambda_beta),
+              res=res,
+              se=se,
+              ind.min=ind.min,
+              cvscoremat=cvscoremat,
+              dfmat=dfmat))
+
+}
+
+
+
+##' Makes a 'fancy' plotly plot.
+##' @param res result of running covarem().
+##' @return plotly object.
+fancyplot <- function(res, saveplot=FALSE, filename=NULL,
+                      title="3D Scatter plot"
+                      ){
+  data = lapply(1:res$numclust, function(iclust){
+    x = res$mn[,1,iclust]
+    y = res$mn[,2,iclust]
+    z = 1:(res$TT)
+    c = rep(iclust, res$TT)
+    s = res$pie[,iclust]*50
+    dat = data.frame(x, y, z, c, s)
+    names(dat) = paste0( c("x", "y", "z", "c", "s"), iclust)
+    dat
+  })
+  data = do.call(cbind, data)
+
+  ## Setup
+  scene = list(camera = list(eye = list(x = -1.25, y = 1.25, z = 1.25)),
+               zaxis = list(title = "Time"),
+               xaxis = list(title = "Dim 1"),
+               yaxis = list(title = "Dim 2"))
+
+  ## Make plot device
+  p <- plotly::plot_ly(data, x = ~x1, y = ~y1, z = ~z1, type = 'scatter3d',
+                       mode = 'lines+markers',
+                       line = list(width = 2, fill = ~c1, colorscale = 'Viridis'),
+                       marker = list(size = ~s1, fill = ~c1,
+                                     colorscale = 'Viridis'),
+                       name="Cluster 1")  %>%
+  plotly::add_trace(x = ~x2, y = ~y2, z = ~z2,
+            line = list(width = 2, fill = ~c2, colorscale = 'Viridis'),
+            marker = list(size=~s2, fill=~c2),
+            name="Cluster 2")%>% ## ,
+  plotly::add_trace(x = ~x3, y = ~y3, z = ~z3,
+            line = list(width = 2, fill = ~c3, colorscale = 'Viridis'),
+            marker = list(size=~s3, fill=~c3),
+            name="Cluster 3")%>% ## ,
+  plotly::add_trace(x = ~x4, y = ~y4, z = ~z4,
+            line = list(width = 2, fill = ~c4, colorscale = 'Viridis'),
+            marker = list(size=~s4, fill=~c4),
+            name="Cluster 4") %>%
+  plotly::layout(title = title,
+         scene = scene)
+         ## autosize = F, width = 500, height = 500)
+
+
+  if(saveplot) htmlwidgets::saveWidget(as.widget(p), filename)
+  return(p)
+}
+
+
+
+fancytable <- function(res, type=c("alpha", "beta")){
+  tables = get_table(res)
+  if(type=="alpha")return(plotmat(tables$betas))
+  if(type=="beta")return(plotmat(tables$alphas))
+
+}
+
+plotmat <- function(mat){
+  p <- plot_ly(
+    type = 'table',
+    header = list(
+        values = c("Dim", colnames(mat)),
+        line = list(width = 1, color = 'black'),
+        fill = list(color = 'rgb(235, 100, 230)'),
+        font = list(family = "Arial", size = 14, color = "white")
+    ),
+    cells = list(
+      values = rbind(
+        rownames(mat),
+        t(as.matrix(unname(mat)))
+      ),
+      align = c('left', rep('center', ncol(mat))),
+      line = list(color = "black", width = 1),
+      fill = list(color = c('rgb(235, 193, 238)', 'rgba(228, 222, 249, 0.65)')),
+      font = list(family = "Arial", size = 12, color = c("black"))
+    ))
+  return(p)
+}
+
+get_table <- function(res){
+  ## Add table of betas
+  betas = round(do.call(cbind, res$beta),2)
+  rownames(betas) = paste("beta:", c("intrcpt", paste0("coef", 1:5)))
+  betas[,seq(from = 1, to = ncol(betas), by=2)]
+  betas = do.call(cbind, lapply(res$beta, function(mybeta){
+    vec = rep(NA, 2*nrow(mybeta))
+    vec[seq(from = 1, to = nrow(mybeta)*2, by=2)] = mybeta[,1]
+    vec[seq(from = 2, to = nrow(mybeta)*2, by=2)] = mybeta[,2]
+    return(vec)
+  }))
+  rownames(betas) = c("Intercept", "",
+                      "Salinity", "",
+                     "SST", "",
+                     "Iron", "",
+                     "Phosphorus", "",
+                     "Chlorophyll", "")
+  betas = signif(betas, 2)
+  betas = cbind(rep(c(1,2),6), betas)
+  colnames(betas) = c("Dim", paste0("Clust ", c(1,2,3,4)))
+
+  ## Add table of alphas
+  alphas = as.matrix(t(res$alpha))
+  alphas = round(alphas,2)
+  abg <- matrix(c(rep("grey90",4),
+                  rep("grey80",4)), nrow=6, ncol=4,
+                byrow=TRUE)
+  rownames(alphas) = c("Intercept",
+                      "Salinity",
+                     "SST",
+                     "Iron",
+                     "Phosphorus",
+                     "Chlorophyll")
+  colnames(alphas) =  paste0("Clust ", c(1,2,3,4))
+  return(list(betas=betas, alphas=alphas))
+}

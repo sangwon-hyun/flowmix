@@ -64,7 +64,7 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
     if(warmstart == "rough"){
       mn = warmstart_covar(ylist, numclust)
     } else if (warmstart == "none"){
-      mn = aperm(init_mu(lapply(ylist, cbind), numclust, TT), c(1,3,2))
+      mn = init_mn(lapply(ylist, cbind), numclust, TT)
     } else {
       stop("warmstart option not recognized")
     }
@@ -78,7 +78,7 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
   objectives[1] = +1E20 ## Fake
   beta.list[[1]] = beta ## beta.list: Each element is a (T x p+1 x 3 x K) array
   alpha.list[[1]] = alpha ## alpha.list: Each element is a T by p+1 array
-  mn.list[[1]] = mn
+  mn.list[[1]] = mn  ## (T x dimdat x numclust)
   sigma.list[[1]] = sigma
   pie.list[[1]] = pie
 
@@ -127,9 +127,12 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
     }
 
     ## Calculate the objectives
-    objectives[iter] = objective_overall_cov(aperm(mn.list[[iter]], c(1,3,2)),
+    objectives[iter] = objective_overall_cov(mn.list[[iter]],
                                              pie.list[[iter]],
                                              sigma.list[[iter]],
+                                             TT,
+                                             dimdat,
+                                             numclust,
                                              ylist,
                                              pie_lambda = pie_lambda,
                                              mean_lambda = mean_lambda,
@@ -202,8 +205,8 @@ predict.covarem <- function(res, newx = NULL){
   newmn = lapply(1:numclust, function(iclust){
     newx.a  %*%  res$beta[[iclust]]
   })
-  newmn = abind::abind(newmn, along=0)
-  newmn = aperm(newmn, c(2,3,1)) ## This needs to by (T x dimdat x numclust)
+  newmn_array = array(NA, dim=c(TT, dimdat, numclust))
+  for(iclust in 1:numclust){ newmn_array[,,iclust] = newmn[[iclust]] }
 
   ## Predict the pies.
   ## newpie = predict(res$alpha.fit, newx=newx, type='response')[,,1]
@@ -215,7 +218,7 @@ predict.covarem <- function(res, newx = NULL){
   stopifnot(all(newpie >= 0))
 
   ## Return all three things
-  return(list(newmn = newmn,
+  return(list(newmn = newmn_array,
               newpie = newpie,
               sigma = res$sigma))
 }

@@ -7,9 +7,7 @@
 ##'   latent  variable $Z$  (memberships  to each  cluster)  given the  paramter
 ##'   estimates. Dimension is (T X nt x K).
 Estep_covar <- function(mn, sigma, pie, ylist, numclust, faster_mvn=FALSE,
-                        sigma_eig_by_dim=NULL,
-                        const
-                        ){
+                        sigma_eig_by_dim=NULL){
 
   TT = length(ylist)
   ntlist = sapply(ylist, nrow)

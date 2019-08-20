@@ -37,3 +37,34 @@ calc_pie <- function(TT,numclust){
   ## For now, return a dummy of
   return(matrix(1/numclust, nrow=TT, ncol=numclust))
 }
+
+
+##' Initialize the cluster centers (naively).
+##'  @param data  A T-length list of (nt  by 3) datasets.  There should  be T of
+##'   such datasets. 3 is actually \code{mulen}.
+##' @param numclust Number of clusters (M).
+##' @param TT total number of (training) time points.
+##' @return An array of dimension (T x dimdat x M).
+init_mn <- function(data, numclust, TT, all.times.same=FALSE){
+
+  dimdat = ncol(data[[1]])
+
+  ## If all times are to start with the same data points,
+  if(all.times.same){isamp = sample(1:nrow(data[[1]]), numclust)} #Note, this is using the smallest nt.
+
+  ## Initialize the means
+  mulist = lapply(1:TT, function(tt){
+    mydata = data[[tt]]
+    if(!all.times.same){isamp = sample(1:nrow(mydata), numclust)}
+    sampled.data = mydata[isamp,,drop=FALSE]
+    rownames(sampled.data) = paste0("clust", 1:numclust)
+    return(sampled.data)
+  })
+  names(mulist) = 1:TT
+
+  ## New (T x dimdat x numclust)
+  muarray = array(NA, dim=c(TT, dimdat, numclust))
+  for(iclust in 1:numclust){ muarray[,,iclust] = mulist[[iclust]] }
+
+  return(muarray)
+}

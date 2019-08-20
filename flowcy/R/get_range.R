@@ -27,7 +27,7 @@ covarem_getrange <- function(ylist, X=NULL, numclust, niter=100, mn=NULL, pie_la
     if(warmstart=="rough"){
       mn = warmstart_covar(ylist, numclust)
     } else if (warmstart=="none"){
-      mn = aperm(init_mu(lapply(ylist, cbind), numclust, TT), c(1,3,2))
+      mn = init_mu(lapply(ylist, cbind), numclust, TT)
     } else {
       stop("warmstart option not recognized")
     }

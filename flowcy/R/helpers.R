@@ -1,9 +1,11 @@
 ##' A very rough warmstarts for covariate EM.
 ##' @param ylist list of data.
 ##' @param numclust number of clusters desired.
+##' @return (TT x dimdat x numclust)
 warmstart_covar <- function(ylist, numclust){
 
   dimdat = ncol(ylist[[1]])
+  TT = length(ylist)
 
   ## Collapse all the data
   all.y = do.call(rbind, ylist)
@@ -16,5 +18,6 @@ warmstart_covar <- function(ylist, numclust){
   for(tt in 1:TT){
     centres[tt,,] = t(obj$centers)
   }
+  stopifnot(dim(centres) == c(TT, dimdat, numclust)) ## Unnecessary, but still.
   return(centres)
 }

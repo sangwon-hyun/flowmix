@@ -76,14 +76,18 @@ Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
   }
   rm(resid.rows)
 
-  ## reformat
-  sigma = abind::abind(lapply(1:TT, function(tt){
-    (abind::abind(vars,along=0))
-  }), along=0)
+  ## Reformat (new)
+  sigma_array = array(NA, dim=c(TT, numclust, dimdat, dimdat))
+  sigmas_by_dim = vars
+  for(iclust in 1:numclust){
+    for(tt in 1:TT){
+      sigma_array[tt,iclust,,] = vars[[iclust]]
+    }
+  }
   stopifnot(all(dim(sigma) == c(TT, numclust, dimdat, dimdat)))
 
   ## Return |K| of them.
-  return(sigma)
+  return(sigma_array)
 }
 
 
@@ -155,15 +159,15 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
     return(list(betahat = betahat, yhat = yhat))
   })
 
-  ## Extract results
+  ## Extract results; this needs to by (T x dimdat x numclust)
   betahats = lapply(results, function(a){a$betahat})
   yhats = lapply(results, function(a){as.matrix(a$yhat)})
-  yhats = abind::abind(yhats, along = 0)
-  yhats = aperm(yhats, c(2,3,1)) ## This needs to by (T x dimdat x numclust)
+  yhats_array = array(NA, dim=c(TT,dimdat,numclust))
+  for(iclust in 1:numclust){ yhats_array[,,iclust] = yhats[[iclust]] }
 
   ## Each are lists of length |numclust|.
   return(list(beta = betahats,
-              mns = yhats))
+              mns = yhats_array))
 }
 
 

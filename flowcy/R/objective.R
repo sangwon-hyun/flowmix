@@ -1,11 +1,13 @@
 ##' Objectives.
 ##' @param pie matrix of mixture proportions, T by M.
-##' @param mu array of dimension T by M by p.
+##' @param mu array of dimension (T x dimdat x numclust ) ; old: T by M by p.
 ##' @param data TT lengthed list of data
 ##' @param sigma array of dimension T by M by p by p.
 ##' @param alpha linear coefficients for regression on (log ratio of) pie.
 ##' @param beta linear coefficients for regression on mean.
-objective_overall_cov <- function(mu, pie, sigma, data,
+objective_overall_cov <- function(mu, pie, sigma,
+                                  TT, dimdat, numclust,
+                                  data,
                                   pie_lambda=0, mean_lambda=0,
                                   alpha=0, beta=0,
                                   faster_mvn=FALSE,
@@ -15,6 +17,9 @@ objective_overall_cov <- function(mu, pie, sigma, data,
   numclust = dim(mu)[2] ## Temporary; there must be a better solution for this.
 
 
+  ## Basic checks
+  stopifnot(dim(mu) == c(TT, dimdat, numclust))
+
   loglikelihood_tt <- function(data, tt, mu, sigma, pie, faster_mvn){
     dat = data[[tt]]
 
@@ -23,7 +28,7 @@ objective_overall_cov <- function(mu, pie, sigma, data,
 
       mydat = dat
       mypie = pie[tt,iclust]
-      mymu = mu[tt,iclust,]
+      mymu = mu[tt,,iclust]
       mysigma = as.matrix(sigma[tt,iclust,,])
 
       ## One of two ways to calculate the multivariate normal:
@@ -51,7 +56,7 @@ objective_overall_cov <- function(mu, pie, sigma, data,
       ## Setup
       mydat = data[[tt]]
       mypie = pie[tt,iclust]
-      mymu = mu[tt,iclust,]
+      mymu = mu[tt,,iclust]
       mysigma_eig = sigma_eig_by_dim[[iclust]]
 
       ## Calculate weigthed density
