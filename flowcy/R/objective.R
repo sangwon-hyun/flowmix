@@ -11,22 +11,20 @@ objective_overall_cov <- function(mu, pie, sigma,
                                   pie_lambda=0, mean_lambda=0,
                                   alpha=0, beta=0,
                                   faster_mvn=FALSE,
-                                  sigma_eig_by_dim=NULL, const){
-  ## Setup
-  TT = length(data)
-  numclust = dim(mu)[2] ## Temporary; there must be a better solution for this.
-
+                                  sigma_eig_by_dim=NULL,
+                                  denslist_by_clust=NULL
+                                  ){
 
   ## Basic checks
   stopifnot(dim(mu) == c(TT, dimdat, numclust))
 
-  loglikelihood_tt <- function(data, tt, mu, sigma, pie, faster_mvn){
-    dat = data[[tt]]
+  loglikelihood_tt <- function(data_tt, tt, mu, sigma, pie, faster_mvn){
+    ## dat = data[[tt]]
 
     ## One particle's log likelihood
     weighted.densities = sapply(1:numclust, function(iclust){
 
-      mydat = dat
+      mydat = dat_tt
       mypie = pie[tt,iclust]
       mymu = mu[tt,,iclust]
       mysigma = as.matrix(sigma[tt,iclust,,])
@@ -48,13 +46,14 @@ objective_overall_cov <- function(mu, pie, sigma,
   }
 
   ## Temporary
-  loglikelihood_tt_eigenspeed <- function(data, tt, mu, pie, sigma_eig_by_dim, const){
+  loglikelihood_tt_eigenspeed <- function(data_tt, tt, mu, pie, sigma_eig_by_dim){
 
     ## One particle's log likelihood
     weighted.densities = sapply(1:numclust, function(iclust){
 
       ## Setup
-      mydat = data[[tt]]
+      ## mydat = data[[tt]]
+      mydat = data_tt
       mypie = pie[tt,iclust]
       mymu = mu[tt,,iclust]
       mysigma_eig = sigma_eig_by_dim[[iclust]]
@@ -62,15 +61,29 @@ objective_overall_cov <- function(mu, pie, sigma,
       ## Calculate weigthed density
       return(mypie * dmvnorm_fast(mydat,
                                   mu=mymu,
-                                  sigma_eig=mysigma_eig,
-                                  const=const))
+                                  sigma_eig=mysigma_eig))
+    })
+    return(sum(log(rowSums(weighted.densities))))
+  }
+
+
+  loglikelihood_tt_eigenspeed_new <- function(tt, denslist_by_clust, pie){
+
+    ## One particle's log likelihood (weighted density)
+    weighted.densities = sapply(1:numclust, function(iclust){
+      return(pie[tt,iclust] * denslist_by_clust[[iclust]][[tt]])
     })
     return(sum(log(rowSums(weighted.densities))))
   }
 
   if(!is.null(sigma_eig_by_dim)){
+
+    ## loglik = sapply(1:TT, function(tt){
+    ##   loglikelihood_tt_eigenspeed(data[[tt]], tt, mu, pie, sigma_eig_by_dim)
+    ## })
+
     loglik = sapply(1:TT, function(tt){
-      loglikelihood_tt_eigenspeed(data, tt, mu, pie, sigma_eig_by_dim, const)
+      loglikelihood_tt_eigenspeed_new(tt, denslist_by_clust, pie)
     })
     ## In fact, what I could do is get /all/ the densities in one swipe, without
     ## sapplying in TT. How? For a given idim, concatenate all the data (only do

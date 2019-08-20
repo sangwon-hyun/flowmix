@@ -44,8 +44,7 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
                     sel_coef = NULL,
                     maxdev = NULL,
                     faster_mvn=FALSE,
-                    eigenspeed=FALSE,
-                    neweigen=FALSE
+                    eigenspeed=FALSE
                     ){
 
   ## Setup.
@@ -54,8 +53,6 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
   p = ncol(X)
   warmstart = match.arg(warmstart)
   sigma_eig_by_dim <- NULL
-  if(!neweigen) const=NULL
-  if(neweigen)const = (2 * pi)^(- dimdat/2)
 
   ## Initialize.
   beta = init_beta(TT, p, dimdat, numclust)
@@ -93,8 +90,7 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
                         ylist,
                         numclust,
                         faster_mvn = faster_mvn,
-                        sigma_eig_by_dim = sigma_eig_by_dim,
-                        const=const
+                        sigma_eig_by_dim = sigma_eig_by_dim
                         )  ## This should be (T x numclust x dimdat x dimdat)
 
     ## Conduct M step
@@ -126,6 +122,9 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
       sigma_eig_by_dim <- eigendecomp_sigma_array(sigma.list[[iter]])
     }
 
+    denslist_by_clust <- make_denslist(ylist, mn.list[[iter]],
+                                       sigmalist[[iter]], TT, dimdat, numclust)
+
     ## Calculate the objectives
     objectives[iter] = objective_overall_cov(mn.list[[iter]],
                                              pie.list[[iter]],
@@ -140,7 +139,7 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
                                              beta = res.beta$beta,
                                              faster_mvn=faster_mvn,
                                              sigma_eig_by_dim = sigma_eig_by_dim,
-                                             const=const
+                                             denslist_by_clust = denslist_by_clust
                                              )
 
     ## Check convergence
