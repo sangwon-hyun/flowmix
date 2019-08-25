@@ -4,6 +4,7 @@
 ##' From eigendecomposition of the sigmas, calculate dmvnorm.
 ##' @param sigma_eig Result of eigendecomposition of sigma.
 dmvnorm_fast <- function(y, mu, sigma_eig){
+  dimdat = ncol(y)
   const = (2 * pi)^(- dimdat/2)
 
   ## Setup

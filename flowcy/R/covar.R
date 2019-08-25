@@ -53,6 +53,7 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
   p = ncol(X)
   warmstart = match.arg(warmstart)
   sigma_eig_by_dim <- NULL
+  denslist_by_clust <- NULL
 
   ## Initialize.
   beta = init_beta(TT, p, dimdat, numclust)
@@ -90,7 +91,8 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
                         ylist,
                         numclust,
                         faster_mvn = faster_mvn,
-                        sigma_eig_by_dim = sigma_eig_by_dim
+                        sigma_eig_by_dim = sigma_eig_by_dim,
+                        denslist_by_clust=denslist_by_clust
                         )  ## This should be (T x numclust x dimdat x dimdat)
 
     ## Conduct M step
@@ -123,7 +125,9 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
     }
 
     denslist_by_clust <- make_denslist(ylist, mn.list[[iter]],
-                                       sigmalist[[iter]], TT, dimdat, numclust)
+                                       sigmalist[[iter]], TT,
+                                       dimdat, numclust,
+                                       sigma_eig_by_dim)
 
     ## Calculate the objectives
     objectives[iter] = objective_overall_cov(mn.list[[iter]],
@@ -222,3 +226,30 @@ predict.covarem <- function(res, newx = NULL){
               sigma = res$sigma))
 }
 
+
+
+##' Helper for making list of densities. Returns list by cluster then time
+##' e.g. access by \code{denslist_by_clust[[iclust]][[tt]]}
+##' @param sigma_eig_by_dim Result of running
+##'   \code{eigendecomp_sigma_array(sigma.list[[iter]])}.
+make_denslist <- function(ylist, mu,
+                          sigma, TT, dimdat, numclust,
+                          sigma_eig_by_dim){ ## This is experimental.
+
+  assert_that(!is.null(sigma_eig_by_dim))
+  lapply(1:numclust, function(iclust){
+
+    mysigma_eig = sigma_eig_by_dim[[iclust]]
+    lapply(1:TT,function(tt){
+
+      ## Setup
+      mydat = ylist[[tt]]
+      mymu = mu[tt,,iclust]
+
+      ## Calculate weighted density
+      return(dmvnorm_fast(mydat,
+                          mu=mymu,
+                          sigma_eig=mysigma_eig))
+    })
+  })
+}
