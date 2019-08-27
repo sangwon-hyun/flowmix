@@ -1,9 +1,24 @@
 ## Synopsis: Do eigendecomposition once, use thrice, use thrice
 
+## Helper for sweep
+fastsweep <- function(y, mu){
+  mumat = matrix(mu,
+                 ncol=ncol(y),
+                 nrow=nrow(y),
+                 byrow=TRUE)
+  y - mumat
+}
 
-##' From eigendecomposition of the sigmas, calculate dmvnorm.
+
+
+##' From eigendecomposition of the sigmas, calculate the same thing as
+##' \code{mvtnorm::dmvnorm()}.
+##' @param y Multivariate data.
+##' @param mu Mean vector.
 ##' @param sigma_eig Result of eigendecomposition of sigma.
+##' @return Density vector.
 dmvnorm_fast <- function(y, mu, sigma_eig){
+
   dimdat = ncol(y)
   const = (2 * pi)^(- dimdat/2)
 
@@ -14,7 +29,9 @@ dmvnorm_fast <- function(y, mu, sigma_eig){
   dimdat <- ncol(y)
 
   ## Main calculations.
-  resids = sweep(y, 2, mu) ## This takes a lot of time, but not clear how to fix
+  ## resids = sweep(y, 2, mu)
+  resids = fastsweep(y, mu)
+
   myinv_half <- sigma_eig$inverse_sigma_half
   transformed_resids = resids %*% myinv_half
 

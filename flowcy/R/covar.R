@@ -37,7 +37,8 @@ covarem <- function(..., nrep=5){
 ##'   coefficients to be refitted in a nonregularized way.
 ##' @return List containing fitted parameters and means and mixture weights,
 ##'   across algorithm iterations.
-covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_lambda = 0,
+covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
+                         mn = NULL, pie_lambda = 0,
                     mean_lambda = 0, verbose = FALSE,
                     warmstart  =  c("none", "rough"), sigma.fac = 1, tol = 1E-6,
                     refit = FALSE, ## EXPERIMENTAL FEATURE.
@@ -185,6 +186,8 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100, mn = NULL, pie_
 ##' Prediction: given  new X's,  generate a set of means and pies (and return
 ##' the same Sigma)
 ##' @param res object returned from covariate EM covarem().
+##' @param newx New covariate.
+##' @return List containing mean, pie, and sigma.
 predict.covarem <- function(res, newx = NULL){
 
   ## ## Check the dimensions
@@ -230,25 +233,32 @@ predict.covarem <- function(res, newx = NULL){
 
 ##' Helper for making list of densities. Returns list by cluster then time
 ##' e.g. access by \code{denslist_by_clust[[iclust]][[tt]]}
+##' @param ylist T-length list each containing response matrices of size (nt x
+##'   3), which contains coordinates of the 3-variate particles, organized over
+##'   time (T) and with (nt) particles at every time.
+##' @param mu (T x dimdat x numclust) array.
+##' @param dimdat dimension of data.
+##' @param numclust number of clusters.
+##' @param TT number of time points
 ##' @param sigma_eig_by_dim Result of running
 ##'   \code{eigendecomp_sigma_array(sigma.list[[iter]])}.
+##' @return numclust-lengthed list of TT-lengthed.
 make_denslist <- function(ylist, mu,
-                          sigma, TT, dimdat, numclust,
-                          sigma_eig_by_dim){ ## This is experimental.
+                          TT, dimdat, numclust,
+                          sigma_eig_by_dim){
 
+  ## Basic checks
   assert_that(!is.null(sigma_eig_by_dim))
+
+  ## Calculate densities
   lapply(1:numclust, function(iclust){
 
     mysigma_eig = sigma_eig_by_dim[[iclust]]
     lapply(1:TT,function(tt){
 
-      ## Setup
-      mydat = ylist[[tt]]
-      mymu = mu[tt,,iclust]
-
       ## Calculate weighted density
-      return(dmvnorm_fast(mydat,
-                          mu=mymu,
+      return(dmvnorm_fast(ylist[[tt]],
+                          mu[tt,,iclust]
                           sigma_eig=mysigma_eig))
     })
   })
