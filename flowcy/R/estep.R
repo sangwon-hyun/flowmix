@@ -8,6 +8,7 @@
 ##'   estimates. Dimension is (T X nt x K).
 Estep_covar <- function(mn, sigma, pie, ylist, numclust, faster_mvn=FALSE,
                         sigma_eig_by_dim=NULL,
+                        sigma_chol_by_dim=NULL,
                         denslist_by_clust=NULL){
 
   TT = length(ylist)
@@ -20,7 +21,9 @@ Estep_covar <- function(mn, sigma, pie, ylist, numclust, faster_mvn=FALSE,
 
       ## Gather the means
       mu = mn[tt,,iclust] ## This is a single 3-variate mean.
-      sigm = as.matrix(sigma[tt,iclust,,])
+      ## sigm = as.matrix(sigma[tt,iclust,,]) ## This is correct
+      sigm = sigma_chol_by_dim[[iclust]]
+      ## By the way, I can also try not to call this many (TT) times from memory.
 
       if(!is.null(sigma_eig_by_dim)){
         mysigma_eig = sigma_eig_by_dim[[iclust]]
@@ -29,7 +32,15 @@ Estep_covar <- function(mn, sigma, pie, ylist, numclust, faster_mvn=FALSE,
         ##                                 sigma_eig = mysigma_eig)
         densmat[,iclust] = unlist(denslist_by_clust[[iclust]][[tt]])
       } else if(faster_mvn){
-        densmat[,iclust] = mvnfast::dmvn(y, mu=mu, sigma=sigm, log=FALSE)##sigma=matrix(sigm)
+        if(is.null(sigma_chol_by_dim)){ ## Temporary, for the first step
+          isChol = FALSE
+          sigm = as.matrix(sigma[tt,iclust,,])
+        } else {
+          isChol = TRUE
+        }
+        densmat[,iclust] = mvnfast::dmvn(y, mu=mu, sigma=sigm, log=FALSE,
+                                         isChol=isChol
+                                         )##sigma=matrix(sigm)
       } else {
         densmat[,iclust] = mvtnorm::dmvnorm(y, mean=mu, sigma=sigm, log=FALSE)##sigma=matrix(sigm)
       }

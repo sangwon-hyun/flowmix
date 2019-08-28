@@ -12,29 +12,40 @@ objective_overall_cov <- function(mu, pie, sigma,
                                   alpha=0, beta=0,
                                   faster_mvn=FALSE,
                                   sigma_eig_by_dim=NULL,
+                                  sigma_chol_by_dim=NULL,
                                   denslist_by_clust=NULL
                                   ){
 
   ## Basic checks
   stopifnot(dim(mu) == c(TT, dimdat, numclust))
 
-  loglikelihood_tt <- function(data_tt, tt, mu, sigma, pie, faster_mvn){
+  loglikelihood_tt <- function(data_tt, tt, mu, sigma, pie, faster_mvn, sigma_chol_by_dim){
     ## dat = data[[tt]]
 
     ## One particle's log likelihood
     weighted.densities = sapply(1:numclust, function(iclust){
 
-      mydat = dat_tt
+      mydat = data_tt
       mypie = pie[tt,iclust]
       mymu = mu[tt,,iclust]
-      mysigma = as.matrix(sigma[tt,iclust,,])
+      ## mysigma = as.matrix(sigma[tt,iclust,,])
+      mysigma = sigma_chol_by_dim[[iclust]]
 
       ## One of two ways to calculate the multivariate normal:
       if(faster_mvn){
+
+        if(is.null(sigma_chol_by_dim)){ ## Temporary, for the first step
+          isChol = FALSE
+          mysigma = as.matrix(sigma[tt,iclust,,])
+        } else {
+          isChol = TRUE
+        }
+
         return(mypie * mvnfast::dmvn(mydat,
                                      mu=mymu,
                                      sigma=mysigma,
-                                     log=FALSE))
+                                     log=FALSE,
+                                     isChol=isChol))
       } else {
         return(mypie * mvtnorm::dmvnorm(mydat,
                                         mean=mymu,
@@ -94,7 +105,8 @@ objective_overall_cov <- function(mu, pie, sigma,
   } else {
     ## Calculate the data likelilhood of one time point
     loglik = sapply(1:TT, function(tt){
-      loglikelihood_tt(data, tt, mu, sigma, pie, faster_mvn)
+      loglikelihood_tt(data[[tt]], tt, mu, sigma, pie, faster_mvn,
+                       sigma_chol_by_dim) ## Temporary addition
     })
   }
   ## End of temporary

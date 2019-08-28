@@ -54,6 +54,7 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
   p = ncol(X)
   warmstart = match.arg(warmstart)
   sigma_eig_by_dim <- NULL
+  sigma_chol_by_dim <- NULL
   denslist_by_clust <- NULL
 
   ## Initialize.
@@ -93,6 +94,7 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
                         numclust,
                         faster_mvn = faster_mvn,
                         sigma_eig_by_dim = sigma_eig_by_dim,
+                        sigma_chol_by_dim = sigma_chol_by_dim,
                         denslist_by_clust=denslist_by_clust
                         )  ## This should be (T x numclust x dimdat x dimdat)
 
@@ -123,12 +125,13 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
     ## 3. (Continue) Eigendecomp the sigmas.
     if(eigenspeed){
       sigma_eig_by_dim <- eigendecomp_sigma_array(sigma.list[[iter]])
+      denslist_by_clust <- make_denslist(ylist, mn.list[[iter]], TT, dimdat,
+                                         numclust, sigma_eig_by_dim)
+    }
+    if(faster_mvn){
+      sigma_chol_by_dim <- choldecomp_sigma_array(sigma.list[[iter]])
     }
 
-    denslist_by_clust <- make_denslist(ylist, mn.list[[iter]],
-                                       sigmalist[[iter]], TT,
-                                       dimdat, numclust,
-                                       sigma_eig_by_dim)
 
     ## Calculate the objectives
     objectives[iter] = objective_overall_cov(mn.list[[iter]],
@@ -144,6 +147,7 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
                                              beta = res.beta$beta,
                                              faster_mvn=faster_mvn,
                                              sigma_eig_by_dim = sigma_eig_by_dim,
+                                             sigma_chol_by_dim = sigma_chol_by_dim,
                                              denslist_by_clust = denslist_by_clust
                                              )
 
@@ -258,7 +262,7 @@ make_denslist <- function(ylist, mu,
 
       ## Calculate weighted density
       return(dmvnorm_fast(ylist[[tt]],
-                          mu[tt,,iclust]
+                          mu[tt,,iclust],
                           sigma_eig=mysigma_eig))
     })
   })

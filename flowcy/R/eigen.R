@@ -9,8 +9,6 @@ fastsweep <- function(y, mu){
   y - mumat
 }
 
-
-
 ##' From eigendecomposition of the sigmas, calculate the same thing as
 ##' \code{mvtnorm::dmvnorm()}.
 ##' @param y Multivariate data.
@@ -29,8 +27,11 @@ dmvnorm_fast <- function(y, mu, sigma_eig){
   dimdat <- ncol(y)
 
   ## Main calculations.
-  ## resids = sweep(y, 2, mu)
-  resids = fastsweep(y, mu)
+  mumat = matrix(mu,
+                 ncol=ncol(y),
+                 nrow=nrow(y),
+                 byrow=TRUE)
+  resids = y - mumat
 
   myinv_half <- sigma_eig$inverse_sigma_half
   transformed_resids = resids %*% myinv_half
@@ -82,6 +83,15 @@ eigendecomp_sigma <- function(sigma){
                     sigma = sigma
                     )
   return(sigma_eig)
+}
+
+
+##' Gets cholesky decomposition.
+##' @param sigma A single (dimdat x dimdat) matrix.
+##' @return List containing eigenvalues (vector), eigenvectors (matrix of
+##'   eigenvectors as columns)
+choldecomp_sigma <- function(sigma){
+  return(chol(sigma))
 }
 
 
@@ -147,4 +157,21 @@ eigendecomp_sigma_array <- function(sigma_array){
   ## Todo: eventually, figure out a way to save sigma in a non-repetitive way.
 
   return(eig_by_dim)
+}
+
+
+##' From a (TT x numclust x dimdat x dimdat) array whose [tt,ii,,]'th entry is
+##' the (dimdat x dimdat) covariance matrix, do cholesky decompositions.
+##' @param sigma_array (TT x numclust x dimdat x dimdat) array
+##' @return TT length list of (numclust length list of eigendecompositions).
+choldecomp_sigma_array <- function(sigma_array){
+
+  TT = dim(sigma_array)[1]
+  numclust = dim(sigma_array)[2]
+
+  ## Only need to calculate once because sigmas are the same across tt=1:TT
+  chol_by_dim = lapply(1:numclust, function(idim){
+    choldecomp_sigma(sigma_array[1, idim, , ])
+  })
+  return(chol_by_dim)
 }

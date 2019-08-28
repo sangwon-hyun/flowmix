@@ -82,9 +82,11 @@ Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
   for(iclust in 1:numclust){
     for(tt in 1:TT){
       sigma_array[tt,iclust,,] = vars[[iclust]]
-    }
+   }
   }
-  stopifnot(all(dim(sigma) == c(TT, numclust, dimdat, dimdat)))
+
+  ## Basic check
+  stopifnot(all(dim(sigma_array) == c(TT, numclust, dimdat, dimdat)))
 
   ## Return |K| of them.
   return(sigma_array)
