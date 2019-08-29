@@ -130,6 +130,8 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
     }
     if(faster_mvn){
       sigma_chol_by_dim <- choldecomp_sigma_array(sigma.list[[iter]])
+      denslist_by_clust <- make_denslist_cholesky(ylist, mn.list[[iter]], TT, dimdat,
+                                                  numclust, sigma_chol_by_dim)
     }
 
 
@@ -264,6 +266,41 @@ make_denslist <- function(ylist, mu,
       return(dmvnorm_fast(ylist[[tt]],
                           mu[tt,,iclust],
                           sigma_eig=mysigma_eig))
+    })
+  })
+}
+
+
+##' Helper for making list of densities. Returns list by cluster then time
+##' e.g. access by \code{denslist_by_clust[[iclust]][[tt]]}
+##' @param ylist T-length list each containing response matrices of size (nt x
+##'   3), which contains coordinates of the 3-variate particles, organized over
+##'   time (T) and with (nt) particles at every time.
+##' @param mu (T x dimdat x numclust) array.
+##' @param dimdat dimension of data.
+##' @param numclust number of clusters.
+##' @param TT number of time points
+##' @param sigma_eig_by_dim Result of running
+##'   \code{eigendecomp_sigma_array(sigma.list[[iter]])}.
+##' @return numclust-lengthed list of TT-lengthed.
+make_denslist_cholesky <- function(ylist, mu,
+                                   TT, dimdat, numclust,
+                                   sigma_chol_by_dim){
+
+  ## Basic checks
+  assert_that(!is.null(sigma_chol_by_dim))
+
+  ## Calculate densities
+  lapply(1:numclust, function(iclust){
+
+    mysigma_chol = sigma_chol_by_dim[[iclust]]
+    lapply(1:TT,function(tt){
+
+      ## Calculate weighted density
+      return(mvnfast::dmvn(ylist[[tt]],
+                           mu[tt,,iclust],
+                           sigma=mysigma_chol,
+                           isChol=TRUE))
     })
   })
 }

@@ -25,7 +25,7 @@ Estep_covar <- function(mn, sigma, pie, ylist, numclust, faster_mvn=FALSE,
       sigm = sigma_chol_by_dim[[iclust]]
       ## By the way, I can also try not to call this many (TT) times from memory.
 
-      if(!is.null(sigma_eig_by_dim)){
+      if(!is.null(sigma_eig_by_dim) | !is.null(sigma_chol_by_dim)){
         mysigma_eig = sigma_eig_by_dim[[iclust]]
         ## densmat[,iclust] = dmvnorm_fast(y,
         ##                                 mu = mu,

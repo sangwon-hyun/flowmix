@@ -87,7 +87,7 @@ objective_overall_cov <- function(mu, pie, sigma,
     return(sum(log(rowSums(weighted.densities))))
   }
 
-  if(!is.null(sigma_eig_by_dim)){
+  if(!is.null(sigma_eig_by_dim) | !is.null(sigma_chol_by_dim)){
 
     ## loglik = sapply(1:TT, function(tt){
     ##   loglikelihood_tt_eigenspeed(data[[tt]], tt, mu, pie, sigma_eig_by_dim)
