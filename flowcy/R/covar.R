@@ -44,8 +44,8 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
                     refit = FALSE, ## EXPERIMENTAL FEATURE.
                     sel_coef = NULL,
                     maxdev = NULL,
-                    faster_mvn=FALSE,
-                    eigenspeed=FALSE
+                    eigenspeed=FALSE,
+                    cholspeed=FALSE
                     ){
 
   ## Setup.
@@ -92,10 +92,12 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
                         pie.list[[iter-1]],
                         ylist,
                         numclust,
-                        faster_mvn = faster_mvn,
+                        eigenspeed = eigenspeed,
+                        cholspeed = cholspeed,
                         sigma_eig_by_dim = sigma_eig_by_dim,
                         sigma_chol_by_dim = sigma_chol_by_dim,
-                        denslist_by_clust=denslist_by_clust
+                        denslist_by_clust=denslist_by_clust,
+                        first_iter = (iter == 2)
                         )  ## This should be (T x numclust x dimdat x dimdat)
 
     ## Conduct M step
@@ -112,7 +114,11 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
     res.beta = Mstep_beta(resp, ylist, X, mean_lambda = mean_lambda,
                           sigma.list[[iter-1]], refit = refit,
                           sel_coef = sel_coef, maxdev = maxdev,
-                          sigma_eig_by_dim = sigma_eig_by_dim)
+                          eigenspeed = eigenspeed,
+                          cholspeed = cholspeed,
+                          sigma_eig_by_dim = sigma_eig_by_dim,
+                          sigma_chol_by_dim = sigma_chol_by_dim,
+                          first_iter = (iter == 2))
     beta.list[[iter]] = res.beta$beta
     mn.list[[iter]]    = res.beta$mns
 
@@ -122,15 +128,14 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
                                             mn.list[[iter]],
                                             numclust)
 
-    ## 3. (Continue) Eigendecomp the sigmas.
+    ## 3. (Continue) Decompose the sigmas.
     if(eigenspeed){
       sigma_eig_by_dim <- eigendecomp_sigma_array(sigma.list[[iter]])
-      denslist_by_clust <- make_denslist(ylist, mn.list[[iter]], TT, dimdat,
-                                         numclust, sigma_eig_by_dim)
-    }
-    if(faster_mvn){
+      denslist_by_clust <- make_denslist_eigen(ylist, mn.list[[iter]], TT, dimdat,
+                                               numclust, sigma_eig_by_dim)
+    } else if(cholspeed){
       sigma_chol_by_dim <- choldecomp_sigma_array(sigma.list[[iter]])
-      denslist_by_clust <- make_denslist_cholesky(ylist, mn.list[[iter]], TT, dimdat,
+      denslist_by_clust <- make_denslist_chol(ylist, mn.list[[iter]], TT, dimdat,
                                                   numclust, sigma_chol_by_dim)
     }
 
@@ -147,11 +152,11 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
                                              mean_lambda = mean_lambda,
                                              alpha = res.alpha$alpha,
                                              beta = res.beta$beta,
-                                             faster_mvn=faster_mvn,
+                                             eigenspeed=eigenspeed,
+                                             cholspeed=cholspeed,
                                              sigma_eig_by_dim = sigma_eig_by_dim,
                                              sigma_chol_by_dim = sigma_chol_by_dim,
-                                             denslist_by_clust = denslist_by_clust
-                                             )
+                                             denslist_by_clust = denslist_by_clust)
 
     ## Check convergence
     if(check_converge_rel(objectives[iter-1],
@@ -249,7 +254,7 @@ predict.covarem <- function(res, newx = NULL){
 ##' @param sigma_eig_by_dim Result of running
 ##'   \code{eigendecomp_sigma_array(sigma.list[[iter]])}.
 ##' @return numclust-lengthed list of TT-lengthed.
-make_denslist <- function(ylist, mu,
+make_denslist_eigen <- function(ylist, mu,
                           TT, dimdat, numclust,
                           sigma_eig_by_dim){
 
@@ -283,9 +288,9 @@ make_denslist <- function(ylist, mu,
 ##' @param sigma_eig_by_dim Result of running
 ##'   \code{eigendecomp_sigma_array(sigma.list[[iter]])}.
 ##' @return numclust-lengthed list of TT-lengthed.
-make_denslist_cholesky <- function(ylist, mu,
-                                   TT, dimdat, numclust,
-                                   sigma_chol_by_dim){
+make_denslist_chol <- function(ylist, mu,
+                               TT, dimdat, numclust,
+                               sigma_chol_by_dim){
 
   ## Basic checks
   assert_that(!is.null(sigma_chol_by_dim))
@@ -293,7 +298,7 @@ make_denslist_cholesky <- function(ylist, mu,
   ## Calculate densities
   lapply(1:numclust, function(iclust){
 
-    mysigma_chol = sigma_chol_by_dim[[iclust]]
+    mysigma_chol = sigma_chol_by_dim[[iclust]]$chol
     lapply(1:TT,function(tt){
 
       ## Calculate weighted density

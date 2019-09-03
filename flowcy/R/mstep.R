@@ -47,7 +47,9 @@ Mstep_alpha <- function(resp, X, numclust, lambda = 0, alpha = 1,
 
 
 
-##' Estimates sigma.
+##' Estimates sigma. TODO: Change the format of the sigma matrix so that the
+##' covariance at each time is only recorded once i.e. it is a numclust lengthed
+##' list of (dimdat x dimdat) matrices.
 ##' @param mn are the fitted means
 ##' @return (TT x numclust x dimdat x dimdat) array.
 Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
@@ -110,7 +112,11 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
                        refit = NULL,
                        sel_coef = NULL,
                        maxdev = NULL,
-                       sigma_eig_by_dim=NULL
+                       eigenspeed=FALSE,
+                       cholspeed=FALSE,
+                       sigma_eig_by_dim=NULL,
+                       sigma_chol_by_dim=NULL,
+                       first_iter=FALSE
                        ){
 
   ## Preliminaries
@@ -123,7 +129,12 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
   Xa = cbind(1, X)
 
   ## Setup
-  manip_obj = manip(ylist, Xa, resp, sigma, numclust, sigma_eig_by_dim=sigma_eig_by_dim)
+  manip_obj = manip(ylist, Xa, resp, sigma, numclust,
+                    eigenspeed=eigenspeed,
+                    cholspeed=cholspeed,
+                    sigma_eig_by_dim = sigma_eig_by_dim,
+                    sigma_chol_by_dim = sigma_chol_by_dim,
+                    first_iter = first_iter)
   Xtildes = manip_obj$Xtildes
   yvecs = manip_obj$yvecs
 
@@ -177,24 +188,36 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
 ##' efficient beta M step (each are |numclust|-length lists, calculated
 ##' separately for each cluster).
 ##' @return 3 (or dimdat) |numclust|-length lists.
-manip <- function(ylist, X, resp, sigma, numclust, sigma_eig_by_dim=NULL){
+manip <- function(ylist, X, resp, sigma, numclust,
+                  eigenspeed=FALSE,
+                  cholspeed=FALSE,
+                  sigma_eig_by_dim=NULL,
+                  sigma_chol_by_dim=NULL,
+                  first_iter=FALSE){
 
   ntlist = sapply(ylist, nrow)
   dimdat = ncol(ylist[[1]])
   TT = nrow(X)
   resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
   sigma.inv.halves = array(NA, dim=dim(sigma)[-1])
+  precalculate = (eigenspeed | cholspeed)
 
-  if(!is.null(sigma_eig_by_dim)){
-    ## 1. New way
-    for(iclust in 1:numclust){
-        sigma.inv.halves[iclust,,] = sigma_eig_by_dim[[iclust]]$sigma_half
-    }
-
-  } else {
-    ## 2. Old (original) way
+  if(first_iter | !precalculate){
+    ## 2. Old (original) slow way
     for(iclust in 1:numclust){
       sigma.inv.halves[iclust,,] = mtsqrt_inv(sigma[1,iclust,,])
+    }
+  } else {
+    if(eigenspeed){
+      ## 1. New way
+      for(iclust in 1:numclust){
+          sigma.inv.halves[iclust,,] = sigma_eig_by_dim[[iclust]]$inverse_sigma_half
+      }
+    } else if(cholspeed){
+      ## 1. Other new way
+      for(iclust in 1:numclust){
+          sigma.inv.halves[iclust,,] = sigma_chol_by_dim[[iclust]]$inverse_sigma_half
+      }
     }
   }
 

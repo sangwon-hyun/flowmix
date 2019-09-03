@@ -91,7 +91,22 @@ eigendecomp_sigma <- function(sigma){
 ##' @return List containing eigenvalues (vector), eigenvectors (matrix of
 ##'   eigenvectors as columns)
 choldecomp_sigma <- function(sigma){
-  return(chol(sigma))
+
+  ## ## Old:
+  ## return(chol(sigma))
+
+  sigma_eig0 = eigendecomp_sigma_barebones(sigma)
+
+  ## Gather and return results
+  sigma_chol <- list(chol=chol(sigma),
+                     values = sigma_eig0$values,
+                     vectors = sigma_eig0$vectors,
+                     det = det_from_eig(sigma_eig0),
+                     sigma_half = sigma_half_from_eig(sigma_eig0),
+                     inverse_sigma_half = inverse_sigma_half_from_eig(sigma_eig0),
+                     sigma_inv = sigma_inv_from_eig(sigma_eig0),
+                     sigma = sigma
+                    )
 }
 
 
@@ -143,18 +158,6 @@ eigendecomp_sigma_array <- function(sigma_array){
   eig_by_dim = lapply(1:numclust, function(idim){
     eigendecomp_sigma(sigma_array[1, idim, , ])
   })
-  ## eig_list = lapply(1:TT, function(tt){ eig_by_dim }) ## In fact, it would be
-  ##                                                     ## better if we just
-  ##                                                     ## passed around 1 thing
-
-  ## ## The old, incredibly repetitive way of doing it:
-  ## for(iclust in 1:numclust){
-  ##   eig_list[[tt]] = lapply(1:numclust, function(idim){
-  ##     eigendecomp_sigma(sigma_array[tt, idim, , ])
-  ##   })
-  ## }
-
-  ## Todo: eventually, figure out a way to save sigma in a non-repetitive way.
 
   return(eig_by_dim)
 }
@@ -175,3 +178,4 @@ choldecomp_sigma_array <- function(sigma_array){
   })
   return(chol_by_dim)
 }
+
