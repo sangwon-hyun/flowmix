@@ -89,7 +89,7 @@ eigendecomp_sigma <- function(sigma){
 ##' Gets cholesky decomposition.
 ##' @param sigma A single (dimdat x dimdat) matrix.
 ##' @return List containing eigenvalues (vector), eigenvectors (matrix of
-##'   eigenvectors as columns)
+##'   eigenvectors as columns   )
 choldecomp_sigma <- function(sigma){
 
   ## ## Old:

@@ -39,14 +39,12 @@ covarem <- function(..., nrep=5){
 ##'   across algorithm iterations.
 covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
                          mn = NULL, pie_lambda = 0,
-                    mean_lambda = 0, verbose = FALSE,
-                    warmstart  =  c("none", "rough"), sigma.fac = 1, tol = 1E-6,
-                    refit = FALSE, ## EXPERIMENTAL FEATURE.
-                    sel_coef = NULL,
-                    maxdev = NULL,
-                    eigenspeed=FALSE,
-                    cholspeed=FALSE
-                    ){
+                         mean_lambda = 0, verbose = FALSE,
+                         warmstart  =  c("none", "rough"), sigma.fac = 1, tol = 1E-6,
+                         refit = FALSE, ## EXPERIMENTAL FEATURE.
+                         sel_coef = NULL,
+                         maxdev = NULL,
+                         ){
 
   ## Setup.
   dimdat = ncol(ylist[[1]])
@@ -54,7 +52,6 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
   p = ncol(X)
   warmstart = match.arg(warmstart)
   sigma_eig_by_dim <- NULL
-  sigma_chol_by_dim <- NULL
   denslist_by_clust <- NULL
 
   ## Initialize.
@@ -92,11 +89,8 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
                         pie.list[[iter-1]],
                         ylist,
                         numclust,
-                        eigenspeed = eigenspeed,
-                        cholspeed = cholspeed,
                         sigma_eig_by_dim = sigma_eig_by_dim,
-                        sigma_chol_by_dim = sigma_chol_by_dim,
-                        denslist_by_clust=denslist_by_clust,
+                        denslist_by_clust = denslist_by_clust,
                         first_iter = (iter == 2)
                         )  ## This should be (T x numclust x dimdat x dimdat)
 
@@ -114,10 +108,7 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
     res.beta = Mstep_beta(resp, ylist, X, mean_lambda = mean_lambda,
                           sigma.list[[iter-1]], refit = refit,
                           sel_coef = sel_coef, maxdev = maxdev,
-                          eigenspeed = eigenspeed,
-                          cholspeed = cholspeed,
                           sigma_eig_by_dim = sigma_eig_by_dim,
-                          sigma_chol_by_dim = sigma_chol_by_dim,
                           first_iter = (iter == 2))
     beta.list[[iter]] = res.beta$beta
     mn.list[[iter]]    = res.beta$mns
@@ -129,16 +120,9 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
                                             numclust)
 
     ## 3. (Continue) Decompose the sigmas.
-    if(eigenspeed){
-      sigma_eig_by_dim <- eigendecomp_sigma_array(sigma.list[[iter]])
-      denslist_by_clust <- make_denslist_eigen(ylist, mn.list[[iter]], TT, dimdat,
+    sigma_eig_by_dim <- eigendecomp_sigma_array(sigma.list[[iter]])
+    denslist_by_clust <- make_denslist_eigen(ylist, mn.list[[iter]], TT, dimdat,
                                                numclust, sigma_eig_by_dim)
-    } else if(cholspeed){
-      sigma_chol_by_dim <- choldecomp_sigma_array(sigma.list[[iter]])
-      denslist_by_clust <- make_denslist_chol(ylist, mn.list[[iter]], TT, dimdat,
-                                                  numclust, sigma_chol_by_dim)
-    }
-
 
     ## Calculate the objectives
     objectives[iter] = objective_overall_cov(mn.list[[iter]],
@@ -152,10 +136,7 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
                                              mean_lambda = mean_lambda,
                                              alpha = res.alpha$alpha,
                                              beta = res.beta$beta,
-                                             eigenspeed=eigenspeed,
-                                             cholspeed=cholspeed,
                                              sigma_eig_by_dim = sigma_eig_by_dim,
-                                             sigma_chol_by_dim = sigma_chol_by_dim,
                                              denslist_by_clust = denslist_by_clust)
 
     ## Check convergence
@@ -268,44 +249,12 @@ make_denslist_eigen <- function(ylist, mu,
     lapply(1:TT,function(tt){
 
       ## Calculate weighted density
-      return(dmvnorm_fast(ylist[[tt]],
-                          mu[tt,,iclust],
-                          sigma_eig=mysigma_eig))
-    })
-  })
-}
-
-
-##' Helper for making list of densities. Returns list by cluster then time
-##' e.g. access by \code{denslist_by_clust[[iclust]][[tt]]}
-##' @param ylist T-length list each containing response matrices of size (nt x
-##'   3), which contains coordinates of the 3-variate particles, organized over
-##'   time (T) and with (nt) particles at every time.
-##' @param mu (T x dimdat x numclust) array.
-##' @param dimdat dimension of data.
-##' @param numclust number of clusters.
-##' @param TT number of time points
-##' @param sigma_eig_by_dim Result of running
-##'   \code{eigendecomp_sigma_array(sigma.list[[iter]])}.
-##' @return numclust-lengthed list of TT-lengthed.
-make_denslist_chol <- function(ylist, mu,
-                               TT, dimdat, numclust,
-                               sigma_chol_by_dim){
-
-  ## Basic checks
-  assert_that(!is.null(sigma_chol_by_dim))
-
-  ## Calculate densities
-  lapply(1:numclust, function(iclust){
-
-    mysigma_chol = sigma_chol_by_dim[[iclust]]$chol
-    lapply(1:TT,function(tt){
-
-      ## Calculate weighted density
-      return(mvnfast::dmvn(ylist[[tt]],
+      ## return(dmvnorm_fast(ylist[[tt]],
+      ##                     mu[tt,,iclust],
+      ##                     sigma_eig=mysigma_eig))
+      return(fastmvn::dmvn(ylist[[tt]],
                            mu[tt,,iclust],
-                           sigma=mysigma_chol,
-                           isChol=TRUE))
+                           sigma_eig=mysigma_eig))
     })
   })
 }

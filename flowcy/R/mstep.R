@@ -94,10 +94,10 @@ Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
   return(sigma_array)
 }
 
-
-## Only works for positive semidefinite matrices that are diagonalizable (no
-## normal Jordan forms, etc.)
-##' Given a matrix positive definite matrix a, computes a^{-1/2}.
+##' Given a matrix positive definite matrix a, computes a^{-1/2}.  Only works
+##' for positive semidefinite matrices that are diagonalizable (no normal Jordan
+##' forms, etc.)
+##' @param a A PSD matrix.
 mtsqrt_inv <- function(a){
   a.eig <- eigen(a)
   a.sqrt <- a.eig$vectors %*% diag(1 / sqrt(a.eig$values)) %*% t(a.eig$vectors)
@@ -112,10 +112,7 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
                        refit = NULL,
                        sel_coef = NULL,
                        maxdev = NULL,
-                       eigenspeed=FALSE,
-                       cholspeed=FALSE,
                        sigma_eig_by_dim=NULL,
-                       sigma_chol_by_dim=NULL,
                        first_iter=FALSE
                        ){
 
@@ -130,10 +127,7 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
 
   ## Setup
   manip_obj = manip(ylist, Xa, resp, sigma, numclust,
-                    eigenspeed=eigenspeed,
-                    cholspeed=cholspeed,
                     sigma_eig_by_dim = sigma_eig_by_dim,
-                    sigma_chol_by_dim = sigma_chol_by_dim,
                     first_iter = first_iter)
   Xtildes = manip_obj$Xtildes
   yvecs = manip_obj$yvecs
@@ -189,10 +183,7 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
 ##' separately for each cluster).
 ##' @return 3 (or dimdat) |numclust|-length lists.
 manip <- function(ylist, X, resp, sigma, numclust,
-                  eigenspeed=FALSE,
-                  cholspeed=FALSE,
                   sigma_eig_by_dim=NULL,
-                  sigma_chol_by_dim=NULL,
                   first_iter=FALSE){
 
   ntlist = sapply(ylist, nrow)
@@ -200,24 +191,16 @@ manip <- function(ylist, X, resp, sigma, numclust,
   TT = nrow(X)
   resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
   sigma.inv.halves = array(NA, dim=dim(sigma)[-1])
-  precalculate = (eigenspeed | cholspeed)
 
-  if(first_iter | !precalculate){
-    ## 2. Old (original) slow way
+  if(first_iter){
+    ## Old (original) slow way
     for(iclust in 1:numclust){
       sigma.inv.halves[iclust,,] = mtsqrt_inv(sigma[1,iclust,,])
     }
   } else {
-    if(eigenspeed){
-      ## 1. New way
-      for(iclust in 1:numclust){
-          sigma.inv.halves[iclust,,] = sigma_eig_by_dim[[iclust]]$inverse_sigma_half
-      }
-    } else if(cholspeed){
-      ## 1. Other new way
-      for(iclust in 1:numclust){
-          sigma.inv.halves[iclust,,] = sigma_chol_by_dim[[iclust]]$inverse_sigma_half
-      }
+    ## New way
+    for(iclust in 1:numclust){
+      sigma.inv.halves[iclust,,] = sigma_eig_by_dim[[iclust]]$inverse_sigma_half
     }
   }
 

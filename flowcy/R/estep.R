@@ -6,18 +6,14 @@
 ##' @return Responsibility matrix, containing the posterior probabilities of the
 ##'   latent  variable $Z$  (memberships  to each  cluster)  given the  paramter
 ##'   estimates. Dimension is (T X nt x K).
-Estep_covar <- function(mn, sigma, pie, ylist, numclust, faster_mvn=FALSE,
-                        cholspeed=FALSE,
-                        eigenspeed=FALSE,
+Estep_covar <- function(mn, sigma, pie, ylist, numclust,
                         sigma_eig_by_dim=NULL,
-                        sigma_chol_by_dim=NULL,
                         denslist_by_clust=NULL,
                         first_iter=FALSE){
 
   TT = length(ylist)
   ntlist = sapply(ylist, nrow)
   resp = list()
-  precalculate = (eigenspeed | cholspeed)
 
   ## Since sigma is the same across tt, only extract it once.
   sigmalist_by_clust = lapply(1:numclust, function(iclust){
@@ -33,11 +29,11 @@ Estep_covar <- function(mn, sigma, pie, ylist, numclust, faster_mvn=FALSE,
       mu = mn[tt,,iclust]
 
       ## Calculate the density
-      if(first_iter | !precalculate){
+      if(first_iter){
         densmat[,iclust] = mvtnorm::dmvnorm(y,
                                             mean = mu,
                                             sigma = sigmalist_by_clust[[iclust]],
-                                            log=FALSE)
+                                            log=FALSE) ## TODO: change to fastmvn::dmvn()
       } else {
         densmat[,iclust] = unlist(denslist_by_clust[[iclust]][[tt]])
       }
