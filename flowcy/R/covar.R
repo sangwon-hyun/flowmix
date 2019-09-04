@@ -43,8 +43,7 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
                          warmstart  =  c("none", "rough"), sigma.fac = 1, tol = 1E-6,
                          refit = FALSE, ## EXPERIMENTAL FEATURE.
                          sel_coef = NULL,
-                         maxdev = NULL,
-                         regular=FALSE ## Temporary
+                         maxdev = NULL
                          ){
 
   ## Setup.
@@ -122,10 +121,8 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
 
     ## 3. (Continue) Decompose the sigmas.
     sigma_eig_by_dim <- eigendecomp_sigma_array(sigma.list[[iter]])
-    if(!regular)denslist_by_clust <- make_denslist_eigen(ylist, mn.list[[iter]], TT, dimdat,
+    denslist_by_clust <- make_denslist_eigen(ylist, mn.list[[iter]], TT, dimdat,
                                                          numclust, sigma_eig_by_dim)
-    if(regular)denslist_by_clust <- make_denslist_regular(ylist, mn.list[[iter]], TT, dimdat,
-                                                          numclust, sigma.list[[iter]])
 
     ## Calculate the objectives
     objectives[iter] = objective_overall_cov(mn.list[[iter]],
@@ -255,51 +252,6 @@ make_denslist_eigen <- function(ylist, mu,
       return(dmvnorm_fast(ylist[[tt]],
                           mu[tt,,iclust],
                           sigma_eig=mysigma_eig))
-      ## return(mvnfast::dmvn(ylist[[tt]],
-      ##                      mu[tt,,iclust],
-      ##                      sigma_eig=mysigma_eig))
-    })
-  })
-}
-
-
-##' Helper for making list of densities. Returns list by cluster then time
-##' e.g. access by \code{denslist_by_clust[[iclust]][[tt]]}
-##' @param ylist T-length list each containing response matrices of size (nt x
-##'   3), which contains coordinates of the 3-variate particles, organized over
-##'   time (T) and with (nt) particles at every time.
-##' @param mu (T x dimdat x numclust) array.
-##' @param dimdat dimension of data.
-##' @param numclust number of clusters.
-##' @param TT number of time points
-##' @param sigma \code{sigma.list[[iter]]}.
-##' @return numclust-lengthed list of TT-lengthed.
-make_denslist_regular <- function(ylist, mu,
-                          TT, dimdat, numclust,
-                          sigma){
-
-  ## Basic checks
-  ## assert_that(!is.null(sigma_eig_by_dim))
-
-  ## Calculate density once
-  sigma_by_clust <- lapply(1:numclust, function(iclust){
-    sigma[1,iclust,,]
-  })
-  ## numclust length list of (dimdat x dimdat) matrices
-
-  ## Calculate densities
-  lapply(1:numclust, function(iclust){
-
-    mysigma = sigma_by_clust[[iclust]]
-    lapply(1:TT,function(tt){
-
-      ## Calculate weighted density
-      ## return(dmvnorm_fast(ylist[[tt]],
-      ##                     mu[tt,,iclust],
-      ##                     sigma_eig=mysigma_eig))
-      return(mvnfast::dmvn(ylist[[tt]],
-                           mu[tt,,iclust],
-                           sigma=mysigma))
     })
   })
 }
