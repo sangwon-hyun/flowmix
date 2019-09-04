@@ -49,21 +49,10 @@ plot2d.covarem <- function(obj, ylist, ask=TRUE, show.fewer=NULL,
   ylim = range(all.y[,2])
   xlim = range(all.y[,1])
 
-  ## ## Make plot
-  ## par(mfrow=c(1,1))
-  ## par(ask=TRUE)
-  ## for(tt in 1:TT){
-  ##   mn = obj$mn[tt,,]
-  ##   wt = obj$pie[tt,]
-  ##   plot(NA, ylim=ylim, xlim=xlim)
-  ##   points(ylist[[tt]], col='grey50', pch=16)
-  ##   points(mn[1,]~mn[2,],
-  ##        cex=wt*10, pch=16, col='red')
-  ## }
   ## Extract numclust  (eventually from somewhere else)
   mns = obj$mn
   numclust = obj$numclust
-  TT =obj$TT
+  TT = obj$TT
   p = ncol(obj$X)
 
   ## General plot settings
@@ -253,6 +242,128 @@ add_table <- function(obj){
   ## colnames(alphas)= paste0("cluster ", c(1:4))
   ## text(25,min(ylim)/1.5, paste(capture.output(alphas), collapse='\n'), pos=4)##, family="monospace")
 }
+
+
+##' Makes a 'fancy' plotly plot from algorithm output.
+##' @param res result of running covarem().
+##' @return plotly object.
+fancyplot <- function(res, saveplot=FALSE, filename=NULL,
+                      title="3D Scatter plot"
+                      ){
+  data = lapply(1:res$numclust, function(iclust){
+    x = res$mn[,1,iclust]
+    y = res$mn[,2,iclust]
+    z = 1:(res$TT)
+    c = rep(iclust, res$TT)
+    s = res$pie[,iclust]*50
+    dat = data.frame(x, y, z, c, s)
+    names(dat) = paste0( c("x", "y", "z", "c", "s"), iclust)
+    dat
+  })
+  data = do.call(cbind, data)
+
+  ## Setup
+  scene = list(camera = list(eye = list(x = -1.25, y = 1.25, z = 1.25)),
+               zaxis = list(title = "Time"),
+               xaxis = list(title = "Dim 1"),
+               yaxis = list(title = "Dim 2"))
+
+  ## Make plot device
+  p <- plotly::plot_ly(data, x = ~x1, y = ~y1, z = ~z1, type = 'scatter3d',
+                       mode = 'lines+markers',
+                       line = list(width = 2, fill = ~c1, colorscale = 'Viridis'),
+                       marker = list(size = ~s1, fill = ~c1,
+                                     colorscale = 'Viridis'),
+                       name="Cluster 1")  %>%
+  plotly::add_trace(x = ~x2, y = ~y2, z = ~z2,
+            line = list(width = 2, fill = ~c2, colorscale = 'Viridis'),
+            marker = list(size=~s2, fill=~c2),
+            name="Cluster 2")%>% ## ,
+  plotly::add_trace(x = ~x3, y = ~y3, z = ~z3,
+            line = list(width = 2, fill = ~c3, colorscale = 'Viridis'),
+            marker = list(size=~s3, fill=~c3),
+            name="Cluster 3")%>% ## ,
+  plotly::add_trace(x = ~x4, y = ~y4, z = ~z4,
+            line = list(width = 2, fill = ~c4, colorscale = 'Viridis'),
+            marker = list(size=~s4, fill=~c4),
+            name="Cluster 4") %>%
+  plotly::layout(title = title,
+         scene = scene)
+         ## autosize = F, width = 500, height = 500)
+
+
+  if(saveplot) htmlwidgets::saveWidget(as.widget(p), filename)
+  return(p)
+}
+
+
+
+fancytable <- function(res, type=c("alpha", "beta")){
+  tables = get_table(res)
+  if(type=="alpha")return(plotmat(tables$betas))
+  if(type=="beta")return(plotmat(tables$alphas))
+
+}
+
+plotmat <- function(mat){
+  p <- plot_ly(
+    type = 'table',
+    header = list(
+        values = c("Dim", colnames(mat)),
+        line = list(width = 1, color = 'black'),
+        fill = list(color = 'rgb(235, 100, 230)'),
+        font = list(family = "Arial", size = 14, color = "white")
+    ),
+    cells = list(
+      values = rbind(
+        rownames(mat),
+        t(as.matrix(unname(mat)))
+      ),
+      align = c('left', rep('center', ncol(mat))),
+      line = list(color = "black", width = 1),
+      fill = list(color = c('rgb(235, 193, 238)', 'rgba(228, 222, 249, 0.65)')),
+      font = list(family = "Arial", size = 12, color = c("black"))
+    ))
+  return(p)
+}
+
+get_table <- function(res){
+  ## Add table of betas
+  betas = round(do.call(cbind, res$beta),2)
+  rownames(betas) = paste("beta:", c("intrcpt", paste0("coef", 1:5)))
+  betas[,seq(from = 1, to = ncol(betas), by=2)]
+  betas = do.call(cbind, lapply(res$beta, function(mybeta){
+    vec = rep(NA, 2*nrow(mybeta))
+    vec[seq(from = 1, to = nrow(mybeta)*2, by=2)] = mybeta[,1]
+    vec[seq(from = 2, to = nrow(mybeta)*2, by=2)] = mybeta[,2]
+    return(vec)
+  }))
+  rownames(betas) = c("Intercept", "",
+                      "Salinity", "",
+                     "SST", "",
+                     "Iron", "",
+                     "Phosphorus", "",
+                     "Chlorophyll", "")
+  betas = signif(betas, 2)
+  betas = cbind(rep(c(1,2),6), betas)
+  colnames(betas) = c("Dim", paste0("Clust ", c(1,2,3,4)))
+
+  ## Add table of alphas
+  alphas = as.matrix(t(res$alpha))
+  alphas = round(alphas,2)
+  abg <- matrix(c(rep("grey90",4),
+                  rep("grey80",4)), nrow=6, ncol=4,
+                byrow=TRUE)
+  rownames(alphas) = c("Intercept",
+                      "Salinity",
+                     "SST",
+                     "Iron",
+                     "Phosphorus",
+                     "Chlorophyll")
+  colnames(alphas) =  paste0("Clust ", c(1,2,3,4))
+  return(list(betas=betas, alphas=alphas))
+}
+
 
 
 
