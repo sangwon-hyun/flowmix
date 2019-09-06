@@ -88,7 +88,7 @@ parallel_cv.covarem <- function(ylist = ylist, X = X,
     }
 
     ## Temporary
-    iimax = 10000
+    iimax = 100000
     A = parLapplyLB(cl, 1:iimax, function(ii, destin){
       printprogress(ii, iimax)
       a = solve(matrix(rnorm(64), ncol=8, nrow=8))
