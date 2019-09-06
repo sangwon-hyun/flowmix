@@ -48,19 +48,19 @@ cvxr_multinom <- function(y, X, lambda, exclude.from.penalty=NULL){
     stopifnot(all(exclude.from.penalty %in% (1:p)))
     v = (1:p)[-exclude.from.penalty]
   }
-  alphamat <- Variable(p, numclust)
+  alphamat <- CVXR::Variable(p, numclust)
 
   ## First component
-  obj1 = matrix_trace(t(y) %*% X %*% alphamat)
+  obj1 = CVXR::matrix_trace(t(y) %*% X %*% alphamat)
 
   ## Second component
-  obj2 <- sum(log_sum_exp(diag(rowSums(y)) %*%  X %*% alphamat, 1))
+  obj2 <- sum(CVXR::tlog_sum_exp(diag(rowSums(y)) %*%  X %*% alphamat, 1))
 
   ## Sum them
   obj <- (obj1  - obj2)  / TT- lambda * sum(abs(alphamat[v,]))
 
   ## Solve the problem
-  prob <- Problem(Maximize(obj))
+  prob <- CVXR::Problem(CVXR::Maximize(obj))
   result <- solve(prob)
   return(result$getValue(alphamat))
 }
@@ -82,13 +82,13 @@ cvxr_multinom_new <- function(y, X, lambda, exclude.from.penalty=NULL, sel_coef=
     stopifnot(all(exclude.from.penalty %in% (1:p)))
     v = (1:p)[-exclude.from.penalty]
   }
-  alphamat <- Variable(p, numclust)
+  alphamat <- CVXR::Variable(p, numclust)
 
   ## First component
-  obj1 = matrix_trace(t(y) %*% X %*% alphamat)
+  obj1 = CVXR::matrix_trace(t(y) %*% X %*% alphamat)
 
   ## Second component
-  obj2 <- sum(log_sum_exp(diag(rowSums(y)) %*%  X %*% alphamat, 1))
+  obj2 <- sum(CVXR::log_sum_exp(diag(rowSums(y)) %*%  X %*% alphamat, 1))
 
   ## Sum them
   obj <- (obj1  - obj2)  / TT - lambda * sum(abs(alphamat[v,]))
@@ -102,7 +102,7 @@ cvxr_multinom_new <- function(y, X, lambda, exclude.from.penalty=NULL, sel_coef=
     }
   }
   ## Solve the problem
-  prob <- Problem(Maximize(obj), constraints)
+  prob <- CVXR::Problem(CVXR::Maximize(obj), constraints)
   result <- solve(prob)
   return(result$getValue(alphamat))
 }

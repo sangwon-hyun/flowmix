@@ -22,10 +22,14 @@ objective_overall_cov <- function(mu, pie, sigma,
   loglikelihood_tt_precalculate <- function(tt, denslist_by_clust, pie){
 
     ## One particle's log likelihood (weighted density)
-    weighted.densities = sapply(1:numclust, function(iclust){
+    ## weighted.densities = sapply(1:numclust, function(iclust){
+    ##   return(pie[tt,iclust] * denslist_by_clust[[iclust]][[tt]])
+    ## }) ## Sapply takes most of the time.
+
+    weighted.densities = lapply(1:numclust, function(iclust){
       return(pie[tt,iclust] * denslist_by_clust[[iclust]][[tt]])
     })
-    return(sum(log(rowSums(weighted.densities))))
+    return(sum(log(Reduce("+", weighted.densities))))
   }
 
   loglik = sapply(1:TT, function(tt){

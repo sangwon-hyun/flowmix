@@ -3,6 +3,7 @@
 ##' @param ... Arguments for \code{covarem_once()}.
 ##' @param nrep Number of restarts.
 ##' @return The |covarem| class object that had the best likelihood.
+##' @export
 covarem <- function(..., nrep=5){
 
   ## Don't do many replicates if warmstartable mean exists
@@ -37,6 +38,7 @@ covarem <- function(..., nrep=5){
 ##'   coefficients to be refitted in a nonregularized way.
 ##' @return List containing fitted parameters and means and mixture weights,
 ##'   across algorithm iterations.
+##' @export
 covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
                          mn = NULL, pie_lambda = 0,
                          mean_lambda = 0, verbose = FALSE,
@@ -45,6 +47,9 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
                          sel_coef = NULL,
                          maxdev = NULL
                          ){
+
+  ## Basic checks
+  if(!is.null(maxdev)){ assert_that(maxdev!=0) } ## Preventing the maxdev=FALSE mistake.
 
   ## Setup.
   dimdat = ncol(ylist[[1]])
@@ -83,7 +88,7 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
   for(iter in 2:niter){
     if(verbose) printprogress(iter, niter, "EM iterations.", start.time = start.time)
 
-    ## Conduct E step
+    ## conduct E step
     resp <- Estep_covar(mn.list[[iter-1]],
                         sigma.list[[iter-1]],
                         pie.list[[iter-1]],

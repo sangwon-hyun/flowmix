@@ -132,9 +132,9 @@ get_cv_score <- function(ylist, X, splits, nsplit, refit,
     mc.cores = 1
   }
 
-  ## Cycle through splits, and calculate CV scroe
+  ## Cycle through splits, and calculate CV score
   all.scores = mclapply(1:nsplit, function(test.isplit){
-    get_cv_score_onesplit(test.isplit, splits, ylist, X, refit,## , refit, sel_coef,
+    get_cv_score_onesplit(test.isplit, splits, ylist, X, refit,
                           ...)
   }, mc.cores=mc.cores)
   all.scores = do.call(c, all.scores)

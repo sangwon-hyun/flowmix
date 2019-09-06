@@ -20,7 +20,8 @@ Mstep_alpha <- function(resp, X, numclust, lambda = 0, alpha = 1,
     fit = glmnet::glmnet(x = X, y = resp.sum, family = "multinomial",
                          alpha = alpha, lambda = lambda)
     ## The coefficients for the multinomial logit model are (K x (p+1))
-    alphahat = do.call(rbind, lapply(coef(fit), t))
+    alphahat = do.call(rbind,
+                       lapply(coef(fit), as.numeric))
     stopifnot(all(dim(alphahat) == c(numclust, (p+1))))
 
   } else {

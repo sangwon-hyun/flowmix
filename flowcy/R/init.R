@@ -45,18 +45,15 @@ calc_pie <- function(TT,numclust){
 ##' @param numclust Number of clusters (M).
 ##' @param TT total number of (training) time points.
 ##' @return An array of dimension (T x dimdat x M).
-init_mn <- function(data, numclust, TT, all.times.same=FALSE){
+init_mn <- function(data, numclust, TT){
 
   dimdat = ncol(data[[1]])
 
-  ## If all times are to start with the same data points,
-  if(all.times.same){isamp = sample(1:nrow(data[[1]]), numclust)} #Note, this is using the smallest nt.
-
-  ## Initialize the means
+  ## Initialize the means by randomly sampling data from each time point.
   mulist = lapply(1:TT, function(tt){
     mydata = data[[tt]]
-    if(!all.times.same){isamp = sample(1:nrow(mydata), numclust)}
-    sampled.data = mydata[isamp,,drop=FALSE]
+    isamp = sample(1:nrow(mydata), numclust)
+    sampled.data = mydata[isamp, , drop=FALSE]
     rownames(sampled.data) = paste0("clust", 1:numclust)
     return(sampled.data)
   })
@@ -64,7 +61,38 @@ init_mn <- function(data, numclust, TT, all.times.same=FALSE){
 
   ## New (T x dimdat x numclust)
   muarray = array(NA, dim=c(TT, dimdat, numclust))
-  for(iclust in 1:numclust){ muarray[,,iclust] = mulist[[iclust]] }
+  for(tt in 1:TT){
+    muarray[tt,,] = mulist[[tt]]
+  }
 
   return(muarray)
+}
+
+
+##' Initialize the covariances (naively).
+##' @param data The (nt by 3) datasets. There should be T of them.
+##' @param numclust Number of clusters (M).
+##' @param TT total number of (training) time points.
+##' @return  An array (T  by M  by dimdat by  dimdat) containing the  (dimdat by
+##'   dimdat) covariances.
+init_sigma <- function(data, numclust, TT, fac=1){
+
+  ndat = nrow(data[[1]])
+  pdat = ncol(data[[1]])
+
+  ## data
+  sigmalist = lapply(data, function(mydata){
+    ## sampled.data = mydata[sample(1:nrow(mydata), numclust),]
+    sigmas = lapply(1:numclust, function(iclust){
+      onesigma = diag(fac * rep(1, pdat))
+      colnames(onesigma) = paste0("datcol", 1:pdat)
+      rownames(onesigma) = paste0("datcol", 1:pdat)
+      return(onesigma)
+    })
+    sigmas = abind::abind(sigmas, along=0)
+    return(sigmas)
+  })
+  ## names(mulist) = 1:T
+  sigmaarray = abind::abind(sigmalist, along=0) ## T by numclust by petal length
+  return(sigmaarray)
 }

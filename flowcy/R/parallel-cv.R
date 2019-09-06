@@ -17,6 +17,8 @@ parallel_cv.covarem <- function(ylist = ylist, X = X,
                                 refit = FALSE,
                                 destin = "~",
                                 multicore.cv = FALSE,
+                                warm_start=TRUE,
+                                cl=NULL,
                                 ...){
 
   ## Printing some information about the parallelism
@@ -42,61 +44,103 @@ parallel_cv.covarem <- function(ylist = ylist, X = X,
   assert_that(nsplit >= 2)
   mysplits = cvsplit(ylist, nsplit = nsplit)
 
-  ## Run the CV
-  reslist = list()
-  start.time = Sys.time()
+  ## If warm starts are not needed, do the following:
+  if(!warm_start){
+    assert_that(!multicore.cv)
+    ## The immediate thing I can do is to pool /all/ the jobs. For now, the best
+    ## I can do is take the 12 x 12 = 144 nodes. (The next step is to also
+    ## parallelize the 5 folds as well, so that it is 144 x 5 = 720)
 
-  ## Define clumps of row numbers (Rows are alpha, columns are beta.)
-  ialpha.clumps =
-    Map(function(a,b)a:b,
-        pmin(seq(from = numfork, to = gridsize+numfork-1, by = numfork), gridsize),
-        seq(from = 1, to = gridsize, by = numfork))
+    ## Parallelize for one pair of lambda values.
+    do_one_pair = function(ind, end.ind,
+                           ## The rest of the arguments go here
+                           ylist, X, splits, nsplit, refit,
+                           beta_lambdas, alpha_lambdas, multicore.cv, ...){
+      ## if(verbose) printprogress(ind, end.ind, "CV pairs")
 
-  ## Do all of the right edge first.
-  ibeta = gridsize
-  ialphas = gridsize:1
-  move_to_up(ialphas, ibeta,
-             pie_lambdas, mean_lambdas,
-             gridsize,
-             NULL, destin, ylist, X, mysplits, nsplit, refit,
-             multicore.cv = multicore.cv,
-             ...)
+      ## Redefine which lambda indices correspond to ind in 1:gridsize^2
+      ibeta = ind - gridsize * (ind %% gridsize - 1)
+      ialpha = ind %% gridsize
 
-  for(iclump in length(ialpha.clumps):1){
+      ## The rest is similar to move_to_up() or move_to_left().
+      cvres = get_cv_score(ylist, X, splits, nsplit, refit,
+                           ## Additional arguments for covarem
+                           mean_lambda = beta_lambdas[ibeta],
+                           pie_lambda = alpha_lambdas[ialpha],
+                           multicore.cv = FALSE,
+                           ...)
 
-    ialphas = ialpha.clumps[[iclump]]
-    cat("clump", iclump, "consists of rows:", ialphas, fill=TRUE)
+      ## Get the fitted results on the entire data
+      res = covarem(ylist = ylist, X = X,
+                    mean_lambda = beta_lambdas[ibeta],
+                    pie_lambda = alpha_lambdas[ialpha],
+                    ...)
 
-    ## Traverse from right->left, from the right edge
-    new.reslists = mclapply(ialphas, function(ialpha){
-      warmstart = loadres(ialpha, gridsize, destin)
-      ## cat("Warmstart from (", ialpha, gridsize, ")", fill = TRUE)
-      move_to_left(ialpha, (gridsize-1):1,
-                   pie_lambdas, mean_lambdas,
-                   gridsize,
-                   warmstart, destin, ylist, X, mysplits,
-                   nsplit, refit,
-                   multicore.cv = multicore.cv,
-                   ...)
-    }, mc.cores = numfork)
+      saveres(res = res,
+              cvres = cvres,
+              ialpha = ialpha, ibeta = ibeta, destin = destin,
+              beta_lambdas = beta_lambdas,
+              alpha_lambdas = alpha_lambdas)
+    }
 
-    ## ## Start of experimental
-    ## onealpha <- function(ialpha){
-    ##   warmstart = loadres(ialpha, gridsize, destin)
-    ##   ## cat("Warmstart from (", ialpha, gridsize, ")", fill = TRUE)
-    ##   move_to_left(ialpha, (gridsize-1):1,
-    ##                pie_lambdas, mean_lambdas,
-    ##                gridsize,
-    ##                warmstart, destin, ylist, X, mysplits,
-    ##                nsplit, refit,
-    ##                multicore.cv = multicore.cv,
-    ##                ...)
-    ## }
-    ## new.reslists = slurm_apply(ialphas, onealpha,
-    ##                            nodes = 2, cpus_per_node = floor(numfork / 2) )
-    ## ## End of experimental.
 
-    cat(fill=TRUE)
+    ## ## ## Temporary
+    ## A = parLapplyLB(cl, 1:100000, function(ii){
+    ##   a = solve(matrix(rnorm(64), ncol=8, nrow=8))
+    ##   if(ii%%100==0){
+    ##     save(a, file=file.path(destin, paste0("somefile-", ii, ".Rdata")))
+    ##   }
+    ## })
+    ## stop("artificial stop")
+    ## ## End of temporary
+
+    ## Actually do the "brute force" parallelization
+    if(verbose){
+      cat("Doing parallelization on ", length(cl), "clusters.", fill=TRUE)
+    }
+    end.ind = gridsize^2
+    parLapplyLB(cl, 1:end.ind, do_one_pair, end.ind,
+                ## The rest of the arguments go here
+                ylist, X, mysplits, nsplit, refit, mean_lambdas,
+                pie_lambdas, multicore.cv, ...)
+
+  } else {
+
+    ## Define clumps of row numbers (Rows are alpha, columns are beta.)
+    ialpha.clumps =
+      Map(function(a,b)a:b,
+          pmin(seq(from = numfork, to = gridsize+numfork-1, by = numfork), gridsize),
+          seq(from = 1, to = gridsize, by = numfork))
+
+    ## Do all of the right edge first.
+    ibeta = gridsize
+    ialphas = gridsize:1
+    move_to_up(ialphas, ibeta,
+               pie_lambdas, mean_lambdas,
+               gridsize,
+               NULL, destin, ylist, X, mysplits, nsplit, refit,
+               multicore.cv = multicore.cv,
+               ...)
+
+    for(iclump in length(ialpha.clumps):1){
+
+      ialphas = ialpha.clumps[[iclump]]
+      cat("clump", iclump, "consists of rows:", ialphas, fill=TRUE)
+
+      ## Traverse from right->left, from the right edge
+      new.reslists = mclapply(ialphas, function(ialpha){
+        warmstart = loadres(ialpha, gridsize, destin)
+        ## cat("Warmstart from (", ialpha, gridsize, ")", fill = TRUE)
+        move_to_left(ialpha, (gridsize-1):1,
+                     pie_lambdas, mean_lambdas,
+                     gridsize,
+                     warmstart, destin, ylist, X, mysplits,
+                     nsplit, refit,
+                     multicore.cv = multicore.cv,
+                     ...)
+      }, mc.cores = numfork)
+      cat(fill=TRUE)
+    }
   }
 }
 
@@ -110,7 +154,7 @@ move_to_up <- function(ialphas, ibeta,
                        multicore.cv = FALSE,
                        ...){
     beginning = TRUE
-    assert_that(ibeta == gridsize)
+    assert_that(ibeta == gridsize) ## Check that we're on the right-most edge.
     assert_that(all(diff(ialphas) < 0)) ## Check descending order
     for(ialpha in ialphas){
       cat("(", ialpha, ibeta, ")")

@@ -19,6 +19,7 @@ covarem_getrange <- function(ylist, X=NULL, numclust, niter=100, mn=NULL, pie_la
   TT = length(ylist)
   p = ncol(X)
   warmstart = match.arg(warmstart)
+  sigma_eig_by_dim <- NULL
 
   ## Initialize.
   beta = init_beta(TT, p, dimdat, numclust)
@@ -27,11 +28,12 @@ covarem_getrange <- function(ylist, X=NULL, numclust, niter=100, mn=NULL, pie_la
     if(warmstart=="rough"){
       mn = warmstart_covar(ylist, numclust)
     } else if (warmstart=="none"){
-      mn = init_mu(lapply(ylist, cbind), numclust, TT)
+      mn = init_mn(lapply(ylist, cbind), numclust, TT)
     } else {
       stop("warmstart option not recognized")
     }
   }
+
   pie = calc_pie(TT, numclust) ## Let's just say it is all 1/K for now.
   sigma = init_sigma(ylist, numclust, TT, fac=sigma.fac) ## (T x numclust x dimdat x dimdat)
 
@@ -54,7 +56,9 @@ covarem_getrange <- function(ylist, X=NULL, numclust, niter=100, mn=NULL, pie_la
                         sigma.list[[iter-1]],
                         pie.list[[iter-1]],
                         ylist,
-                        numclust)  ## This should be (T x numclust x dimdat x dimdat)
+                        numclust,
+                        first_iter = (iter == 2)
+                        )  ## This should be (T x numclust x dimdat x dimdat)
 
     ## Conduct M step
     ## 1. Alpha
@@ -65,7 +69,8 @@ covarem_getrange <- function(ylist, X=NULL, numclust, niter=100, mn=NULL, pie_la
     ## 2. Beta
     max_lambda_beta = Mstep_beta_getrange(resp, ylist, X,
                                           mean_lambda=mean_lambda,
-                                          sigma.list[[iter-1]])
+                                          sigma.list[[iter-1]]
+                                          )
 
   }
   return(list(max_lambda_beta=max_lambda_beta,
@@ -112,7 +117,9 @@ Mstep_beta_getrange <- function(resp, ylist, X, mean_lambda=0, sigma, numclust){
   Xa = cbind(rep(1, TT), X)
 
   ## Setup
-  manip_obj = manip(ylist, X, resp, sigma, numclust)
+  manip_obj = manip(ylist, Xa, resp, sigma, numclust,
+                    first_iter = TRUE)
+
   Xtildes = manip_obj$Xtildes
   yvecs = manip_obj$yvecs
 
@@ -154,7 +161,8 @@ get_max_lambda <- function(ylist, X, numclust, maxfac=32, ...){
 
     ## Checking that the max actually zeros out.
     res = covarem(ylist=ylist, X=X, numclust=numclust,
-                  mean_lambda=max_lambda_beta, pie_lambda=max_lambda_alpha, ...)
+                  mean_lambda=max_lambda_beta,
+                  pie_lambda=max_lambda_alpha, ...)
     alpha.checks.out = all(res$alpha[,-1]==0)
     beta.checks.out = all(sapply(res$beta, function(cf){ all(cf[-1,]==0) }))
     if(alpha.checks.out & beta.checks.out) break

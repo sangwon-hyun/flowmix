@@ -11,7 +11,7 @@ cvxr_lasso <- function(y, X, lambda, exclude.from.penalty=NULL, thresh=1E-12
                        ){
   n = nrow(X)
   p = ncol(X)
-  beta <- Variable(p)
+  beta <- CVXR::Variable(p)
   loss <- sum((y - X %*% beta)^2) / (2 * n)
 
   ## Set up exclusion from penalty, if applicable.
@@ -32,8 +32,8 @@ cvxr_lasso <- function(y, X, lambda, exclude.from.penalty=NULL, thresh=1E-12
   ## }
 
   ## Perform elastic-net regression
-  obj <- sum_squares(y - X %*% beta) / (2 * n) + lambda * sum(abs(beta[v]))
-  prob <- Problem(Minimize(obj), constraints)
+  obj <- CVXR::sum_squares(y - X %*% beta) / (2 * n) + lambda * sum(abs(beta[v]))
+  prob <- CVXR::Problem(CVXR::Minimize(obj), constraints)
   result <- solve(prob, FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
   return(as.numeric(result$getValue(beta)))
 }
@@ -107,11 +107,11 @@ cvxr_lasso_newer <- function(y, X, Xorig, lambda, exclude.from.penalty=NULL, thr
   pp = p/dimdat - 1 ## The minus 1 is for the intercept
 
   ## Define the parameter
-  betamat <- Variable(rows=pp+1,
+  betamat <- CVXR::Variable(rows=pp+1,
                    cols=dimdat)
 
   ## Define the squared loss (the main part)
-  loss <- sum((y - X %*% vec(betamat))^2) / (2 * n)
+  loss <- sum((y - X %*% CVXR::vec(betamat))^2) / (2 * n)
 
   ## Set up exclusion from penalty, if applicable.
   if(is.null(exclude.from.penalty)){
@@ -122,25 +122,25 @@ cvxr_lasso_newer <- function(y, X, Xorig, lambda, exclude.from.penalty=NULL, thr
   }
 
   ## Perform elastic-net regression.
-  obj = sum_squares(y - X %*% vec(betamat)) / (2 * n)
-  if(!refit) obj = obj + lambda * sum(abs(vec(betamat)[v]))
+  obj = CVXR::sum_squares(y - X %*% CVXR::vec(betamat)) / (2 * n)
+  if(!refit) obj = obj + lambda * sum(abs(CVXR::vec(betamat)[v]))
 
   ## Setup the Xbeta penalty.
   constraints = list()
   if(!is.null(maxdev)){
     ## mymat = cbind(rep(1,dimdat))
     ## constraints = list(square(Xorig %*% betamat[-1,]) %*% mymat <= rep(maxdev^2,TT))
-    constraints = list(sum_entries(square(Xorig %*% betamat[-1,]), 1) <= rep(maxdev^2,TT))
+    constraints = list(CVXR::sum_entries(CVXR::square(Xorig %*% betamat[-1,]), 1) <= rep(maxdev^2,TT))
   }
 
   if(refit){
     sel_coef = !(sel_coef) * 1
     constraints = c(constraints,
-                    vec(betamat[-1,] * sel_coef[-1,]) == rep(0, pp*dimdat))
+                    CVXR::vec(betamat[-1,] * sel_coef[-1,]) == rep(0, pp*dimdat))
   }
 
   ## Solve the problem.
-  prob <- Problem(Minimize(obj), constraints)
+  prob <- CVXR::Problem(CVXR::Minimize(obj), constraints)
   result <- solve(prob, FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
   return(result$getValue(betamat))
 }

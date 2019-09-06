@@ -1,14 +1,3 @@
-## Synopsis: Do eigendecomposition once, use thrice, use thrice
-
-## Helper for sweep
-fastsweep <- function(y, mu){
-  mumat = matrix(mu,
-                 ncol=ncol(y),
-                 nrow=nrow(y),
-                 byrow=TRUE)
-  y - mumat
-}
-
 ##' From eigendecomposition of the sigmas, calculate the same thing as
 ##' \code{mvtnorm::dmvnorm()}.
 ##' @param y Multivariate data.
@@ -17,8 +6,11 @@ fastsweep <- function(y, mu){
 ##' @return Density vector.
 dmvnorm_fast <- function(y, mu, sigma_eig){
 
+  ## Basic checks
+  assert_that("matrix" %in% class(y))
+
   dimdat = ncol(y)
-  const = (2 * pi)^(- dimdat/2)
+  const = (2 * pi)^(-dimdat/2)
 
   ## Setup
   TT = nrow(y)
@@ -45,7 +37,7 @@ dmvnorm_fast <- function(y, mu, sigma_eig){
 
 
 
-##' Get's eigendecomposition of a matrix. Basically, \code{sigma == evecs %*% Lambdamat
+##' Gets eigendecomposition of a matrix. Basically, \code{sigma == evecs %*% Lambdamat
 ##' %*% solve(evecs)}.
 ##' @param sigma dimdat by dimdat matrix
 ##' @return List containing eigenvalues (vector), eigenvectors (matrix of
@@ -62,7 +54,7 @@ eigendecomp_sigma_barebones <- function(sigma){
 
 
 
-##' Get's eigendecomposition of a matrix. Basically, \code{sigma == evecs %*% Lambdamat
+##' Gets eigendecomposition of a matrix. Basically, \code{sigma == evecs %*% Lambdamat
 ##' %*% solve(evecs)}.
 ##' @param sigma A single (dimdat x dimdat) matrix.
 ##' @return List containing eigenvalues (vector), eigenvectors (matrix of
@@ -179,3 +171,12 @@ choldecomp_sigma_array <- function(sigma_array){
   return(chol_by_dim)
 }
 
+
+##' Helper for sweep
+fastsweep <- function(y, mu){
+  mumat = matrix(mu,
+                 ncol=ncol(y),
+                 nrow=nrow(y),
+                 byrow=TRUE)
+  y - mumat
+}
