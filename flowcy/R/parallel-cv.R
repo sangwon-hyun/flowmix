@@ -47,6 +47,10 @@ parallel_cv.covarem <- function(ylist = ylist, X = X,
   ## If warm starts are not needed, do the following:
   if(!warm_start){
     assert_that(!multicore.cv)
+    assert_that(!is.null(cl),
+                msg=paste0("When you disable warm starts, you must provide a |cl| object!",
+                "Making a simple 1-core local cluster is easy: cl=makePSOCKcluster(1)"))
+
     ## The immediate thing I can do is to pool /all/ the jobs. For now, the best
     ## I can do is take the 12 x 12 = 144 nodes. (The next step is to also
     ## parallelize the 5 folds as well, so that it is 144 x 5 = 720)
@@ -83,14 +87,15 @@ parallel_cv.covarem <- function(ylist = ylist, X = X,
               alpha_lambdas = alpha_lambdas)
     }
 
-
-    ## ## Temporary
-    A = parLapplyLB(cl, 1:100000, function(ii){
+    ## Temporary
+    iimax = 10000
+    A = parLapplyLB(cl, 1:iimax, function(ii, destin){
+      printprogress(ii, iimax)
       a = solve(matrix(rnorm(64), ncol=8, nrow=8))
-      if(ii%%100==0){
-        save(a, file=file.path(destin, paste0("somefile-", ii, ".Rdata")))
-      }
-    })
+      ## if(ii%%100==0){
+      ##   save(a, file=file.path(destin, paste0("somefile-", ii, ".Rdata")))
+      ## }
+    }, destin)
     stop("artificial stop")
     ## End of temporary
 
