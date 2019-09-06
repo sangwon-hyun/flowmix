@@ -5,7 +5,7 @@
 ##' @param nsplit Number of CV splits. Defaults to 5.
 ##' @param ... default arguments to covarem().
 ##' @return List containing (1) the set of coefficients
-parallel_cv.covarem <- function(ylist = ylist, X = X,
+parallel_cv.covarem <- function(ylist, X,
                                 mean_lambdas = NULL,
                                 pie_lambdas = NULL,
                                 max_mean_lambda = NULL,
