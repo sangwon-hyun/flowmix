@@ -201,8 +201,9 @@ predict.covarem <- function(res, newx = NULL){
     newx.a = c(1, newx)
   }
 
-  TT = length(ylist)
+  TT = nrow(X)
   numclust = res$numclust
+  dimdat = res$dimdat
 
   ## Predict the means (manually).
   newmn = lapply(1:numclust, function(iclust){
