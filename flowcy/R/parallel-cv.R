@@ -65,8 +65,8 @@ parallel_cv.covarem <- function(ylist, X,
       ## if(verbose) printprogress(ind, end.ind, "CV pairs")
 
       ## Redefine which lambda indices correspond to ind in 1:gridsize^2
-      ibeta = ind - gridsize * (ind %% gridsize - 1)
-      ialpha = ind %% gridsize
+      ialpha =  ceiling(ind/ gridsize)
+      ibeta = (ind-1) %% gridsize + 1
 
       ## ## The rest is similar to move_to_up() or move_to_left().
       ## cvres = get_cv_score(ylist, X, splits, nsplit, refit,
@@ -76,17 +76,21 @@ parallel_cv.covarem <- function(ylist, X,
       ##                      multicore.cv = FALSE,
       ##                      ...)
 
-      ## Get the fitted results on the entire data
-      res = covarem(ylist = ylist, X = X,
-                    mean_lambda = beta_lambdas[ibeta],
-                    pie_lambda = alpha_lambdas[ialpha],
-                    ...)
+      ## ## Get the fitted results on the entire data
+      ## res = covarem(ylist = ylist, X = X,
+      ##               mean_lambda = beta_lambdas[ibeta],
+      ##               pie_lambda = alpha_lambdas[ialpha],
+      ##               ...)
 
-      saveres(res = res,
-              ## cvres = cvres,
-              ialpha = ialpha, ibeta = ibeta, destin = destin,
-              beta_lambdas = beta_lambdas,
-              alpha_lambdas = alpha_lambdas)
+      ## saveres(res = res,
+      ##         ## cvres = cvres,
+      ##         ialpha = ialpha, ibeta = ibeta, destin = destin,
+      ##         beta_lambdas = beta_lambdas,
+      ##         alpha_lambdas = alpha_lambdas)
+
+      ## Tempoarary, to see if jobs go through at all.
+      filename = paste0(ialpha, "-", ibeta, ".Rdata")
+      save(ialpha, ibeta, file=file.path(destin, filename))
     }
 
     ## ## Temporary
