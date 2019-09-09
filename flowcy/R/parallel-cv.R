@@ -68,13 +68,13 @@ parallel_cv.covarem <- function(ylist, X,
       ialpha =  ceiling(ind/ gridsize)
       ibeta = (ind-1) %% gridsize + 1
 
-      ## ## The rest is similar to move_to_up() or move_to_left().
-      ## cvres = get_cv_score(ylist, X, splits, nsplit, refit,
-      ##                      ## Additional arguments for covarem
-      ##                      mean_lambda = beta_lambdas[ibeta],
-      ##                      pie_lambda = alpha_lambdas[ialpha],
-      ##                      multicore.cv = FALSE,
-      ##                      ...)
+      ## The rest is similar to move_to_up() or move_to_left().
+      cvres = get_cv_score(ylist, X, splits, nsplit, refit,
+                           ## Additional arguments for covarem
+                           mean_lambda = beta_lambdas[ibeta],
+                           pie_lambda = alpha_lambdas[ialpha],
+                           multicore.cv = FALSE,
+                           ...)
 
       ## ## Get the fitted results on the entire data
       ## res = covarem(ylist = ylist, X = X,

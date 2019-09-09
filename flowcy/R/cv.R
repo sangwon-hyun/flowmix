@@ -117,7 +117,9 @@ cvsplit<- function(ylist, nsplit = 5){
   })
 }
 
-##' Getting cross-validated test likelihood, averaged over train/test splits.
+##' Getting cross-validated test likelihood, averaged over train/test
+##' splits. Uses \code{mclapply()} if \code{is.true(multicore.cv)}, otherwise
+##' uses \code{lapply()}.
 ##' @param splits TT-lengthed list of indices.
 ##' @param ylist List of responses.
 ##' @param ... arguments to covarem.
@@ -127,17 +129,19 @@ get_cv_score <- function(ylist, X, splits, nsplit, refit,
                          ...){
   ## stopifnot(length(splits[[1]])!=nsplit) ## good check but only works if TT>1
   if(multicore.cv){
-    mc.cores = nsplit
+    ## Cycle through splits, and calculate CV score
+    all.scores = mclapply(1:nsplit, function(test.isplit){
+      get_cv_score_onesplit(test.isplit, splits, ylist, X, refit,
+                            ...)
+    }, mc.cores=nsplit)
+  all.scores = do.call(c, all.scores)
   } else {
-    mc.cores = 1
+    all.scores = lapply(1:nsplit, function(test.isplit){
+      get_cv_score_onesplit(test.isplit, splits, ylist, X, refit,
+                            ...)
+    })
   }
 
-  ## Cycle through splits, and calculate CV score
-  all.scores = mclapply(1:nsplit, function(test.isplit){
-    get_cv_score_onesplit(test.isplit, splits, ylist, X, refit,
-                          ...)
-  }, mc.cores=mc.cores)
-  all.scores = do.call(c, all.scores)
   return(list(mean=mean(all.scores), all=all.scores))
 }
 
