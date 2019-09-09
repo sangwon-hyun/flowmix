@@ -87,17 +87,18 @@ parallel_cv.covarem <- function(ylist, X,
               alpha_lambdas = alpha_lambdas)
     }
 
-    ## ## Temporary
-    ## iimax = 1000000
-    ## A = parLapplyLB(cl, 1:iimax, function(ii, destin){
-    ##   printprogress(ii, iimax)
-    ##   a = solve(matrix(rnorm(144), ncol=12, nrow=12))
-    ##   ## if(ii%%100==0){
-    ##   ##   save(a, file=file.path(destin, paste0("somefile-", ii, ".Rdata")))
-    ##   ## }
-    ## }, destin)
+    ## Temporary
+    iimax = 1000000
+    A = parLapplyLB(cl, 1:iimax, function(ii, destin){
+      printprogress(ii, iimax)
+      a = solve(matrix(rnorm(144), ncol=12, nrow=12))
+      ## if(ii%%100==0){
+      ##   save(a, file=file.path(destin, paste0("somefile-", ii, ".Rdata")))
+      ## }
+    }, destin)
     ## stop("artificial stop")
-    ## ## End of temporary
+    return()
+    ## End of temporary
 
     ## Actually do the "brute force" parallelization
     if(verbose){
