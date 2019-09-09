@@ -59,7 +59,9 @@ parallel_cv.covarem <- function(ylist, X,
     do_one_pair = function(ind, end.ind,
                            ## The rest of the arguments go here
                            ylist, X, splits, nsplit, refit,
-                           beta_lambdas, alpha_lambdas, multicore.cv, ...){
+                           beta_lambdas, alpha_lambdas, multicore.cv,
+                           gridsize, destin,
+                           ...){
       ## if(verbose) printprogress(ind, end.ind, "CV pairs")
 
       ## Redefine which lambda indices correspond to ind in 1:gridsize^2
@@ -87,18 +89,18 @@ parallel_cv.covarem <- function(ylist, X,
               alpha_lambdas = alpha_lambdas)
     }
 
-    ## Temporary
-    iimax = 1000000
-    A = parLapplyLB(cl, 1:iimax, function(ii, destin){
-      printprogress(ii, iimax)
-      a = solve(matrix(rnorm(144), ncol=12, nrow=12))
-      ## if(ii%%100==0){
-      ##   save(a, file=file.path(destin, paste0("somefile-", ii, ".Rdata")))
-      ## }
-    }, destin)
-    ## stop("artificial stop")
-    return()
-    ## End of temporary
+    ## ## Temporary
+    ## iimax = 1000000
+    ## A = parLapplyLB(cl, 1:iimax, function(ii, destin){
+    ##   printprogress(ii, iimax)
+    ##   a = solve(matrix(rnorm(144), ncol=12, nrow=12))
+    ##   ## if(ii%%100==0){
+    ##   ##   save(a, file=file.path(destin, paste0("somefile-", ii, ".Rdata")))
+    ##   ## }
+    ## }, destin)
+    ## ## stop("artificial stop")
+    ## return()
+    ## ## End of temporary
 
     ## Actually do the "brute force" parallelization
     if(verbose){
@@ -108,7 +110,7 @@ parallel_cv.covarem <- function(ylist, X,
     parLapplyLB(cl, 1:end.ind, do_one_pair, end.ind,
                 ## The rest of the arguments go here
                 ylist, X, mysplits, nsplit, refit, mean_lambdas,
-                pie_lambdas, multicore.cv, ...)
+                pie_lambdas, multicore.cv, gridsize, destin, ...)
 
   } else {
 
