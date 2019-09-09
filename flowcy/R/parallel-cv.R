@@ -26,8 +26,6 @@ parallel_cv.covarem <- function(ylist, X,
     cat("At most ", numfork * nsplit, " cores will be used.", fill = TRUE)
     cat("Output saved to ", destin, fill = TRUE)
   }
-  ## TODO: Sangwon: make it so that the warm starts are done by /any/ adjacent
-  ## existing point in the grid i.e. code in a search of (+-1, +-1) in the grid.
 
   ## Basic checks
   stopifnot(length(mean_lambdas) == length(pie_lambdas))
@@ -62,13 +60,11 @@ parallel_cv.covarem <- function(ylist, X,
                            beta_lambdas, alpha_lambdas, multicore.cv,
                            gridsize, destin,
                            ...){
-      ## if(verbose) printprogress(ind, end.ind, "CV pairs")
 
       ## Redefine which lambda indices correspond to ind in 1:gridsize^2
       ialpha =  ceiling(ind/ gridsize)
       ibeta = (ind-1) %% gridsize + 1
 
-      browser()
       ## The rest is similar to move_to_up() or move_to_left().
       cvres = get_cv_score(ylist, X, splits, nsplit, refit,
                            ## Additional arguments for covarem
@@ -89,23 +85,7 @@ parallel_cv.covarem <- function(ylist, X,
               beta_lambdas = beta_lambdas,
               alpha_lambdas = alpha_lambdas)
 
-      ## ## Tempoarary, to see if jobs go through at all.
-      ## filename = paste0(ialpha, "-", ibeta, ".Rdata")
-      ## save(ialpha, ibeta, file=file.path(destin, filename))
     }
-
-    ## ## Temporary
-    ## iimax = 1000000
-    ## A = parLapplyLB(cl, 1:iimax, function(ii, destin){
-    ##   printprogress(ii, iimax)
-    ##   a = solve(matrix(rnorm(144), ncol=12, nrow=12))
-    ##   ## if(ii%%100==0){
-    ##   ##   save(a, file=file.path(destin, paste0("somefile-", ii, ".Rdata")))
-    ##   ## }
-    ## }, destin)
-    ## ## stop("artificial stop")
-    ## return()
-    ## ## End of temporary
 
     ## Actually do the "brute force" parallelization
     if(verbose){
