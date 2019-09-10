@@ -22,18 +22,37 @@ objective_overall_cov <- function(mu, pie, sigma,
   loglikelihood_tt_precalculate <- function(tt, denslist_by_clust, pie){
 
     ## One particle's log likelihood (weighted density)
-    ## weighted.densities = sapply(1:numclust, function(iclust){
-    ##   return(pie[tt,iclust] * denslist_by_clust[[iclust]][[tt]])
-    ## }) ## Sapply takes most of the time.
-
     weighted.densities = lapply(1:numclust, function(iclust){
       return(pie[tt,iclust] * denslist_by_clust[[iclust]][[tt]])
     })
     return(sum(log(Reduce("+", weighted.densities))))
   }
 
+  ## Second helper function: Calculates one particle's log likelihood without
+  ## any pre-calculated densities.
+  loglikelihood_tt <- function(data, tt, mu, sigma, pie){
+
+    ## One particle's log likelihood (weighted density)
+    weighted.densities = sapply(1:numclust, function(iclust){
+
+      mydat = data[[tt]]
+      mypie = pie[tt,iclust]
+      mymu = mu[tt,,iclust]
+      mysigma = as.matrix(sigma[tt,iclust,,])
+      return(mypie * mvnfast::dmvn(mydat,
+                                   mu=mymu,
+                                   sigma=mysigma,
+                                   log=FALSE))
+    })
+    return(sum(log(rowSums(weighted.densities))))
+  }
+
   loglik = sapply(1:TT, function(tt){
-    loglikelihood_tt_precalculate(tt, denslist_by_clust, pie)
+    if(is.null(denslist_by_clust)){
+      return(loglikelihood_tt(data, tt, mu, sigma, pie))
+    } else {
+      return(loglikelihood_tt_precalculate(tt, denslist_by_clust, pie))
+    }
   })
 
   ## Return penalized
