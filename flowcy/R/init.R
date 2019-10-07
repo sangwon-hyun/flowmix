@@ -70,7 +70,7 @@ init_mn <- function(data, numclust, TT){
 
 
 
-##' Initialize the covariances (naively).
+##' Initialize the covariances (naively). (TODO: TT is not needed anymore)
 ##' @param data The (nt by 3) datasets. There should be T of them.
 ##' @param numclust Number of clusters (M).
 ##' @param TT total number of (training) time points.

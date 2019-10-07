@@ -21,7 +21,7 @@ covarem_getrange <- function(ylist, X=NULL, numclust, niter=100, mn=NULL, pie_la
   warmstart = match.arg(warmstart)
 
   ## Initialize.
-  beta = init_beta(TT, p, dimdat, numclust)
+  beta = init_beta(p, dimdat, numclust)
   alpha = init_alpha(dimdat, p)
   if(is.null(mn)){
     if(warmstart=="rough"){
