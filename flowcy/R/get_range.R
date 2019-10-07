@@ -19,7 +19,6 @@ covarem_getrange <- function(ylist, X=NULL, numclust, niter=100, mn=NULL, pie_la
   TT = length(ylist)
   p = ncol(X)
   warmstart = match.arg(warmstart)
-  sigma_eig_by_dim <- NULL
 
   ## Initialize.
   beta = init_beta(TT, p, dimdat, numclust)
@@ -168,5 +167,6 @@ get_max_lambda <- function(ylist, X, numclust, maxfac=32, ...){
     if(alpha.checks.out & beta.checks.out) break
     fac = fac * 2
   }
+
   return(list(beta=max_lambda_beta, alpha=max_lambda_alpha))
 }

@@ -7,22 +7,34 @@
 ##'   latent  variable $Z$  (memberships  to each  cluster)  given the  paramter
 ##'   estimates. Dimension is (T X nt x K).
 Estep_covar <- function(mn, sigma, pie, ylist, numclust,
-                        sigma_eig_by_dim=NULL,
                         denslist_by_clust=NULL,
-                        first_iter=FALSE){
+                        first_iter=FALSE,
+                        standard_gmm=FALSE,
+                        ylist_collapsed=NULL,
+                        mn_collapsed=NULL
+                        ){
 
-  TT = length(ylist)
-  ntlist = sapply(ylist, nrow)
-  resp = list()
+  if(standard_gmm){
+    assert_that(!is.null(ylist_collapsed))
+    assert_that("list" %in% class(ylist_collapsed))
+    TT = 1
+    ntlist = nrow(ylist_collapsed[[1]])
+    ylist = ylist_collapsed
+    mn =  mn_collapsed
+    rep = list()
+    ## Also collapse means, or redefine the dimension of the means.
 
-  ## Since sigma is the same across tt, only extract it once.
-  sigmalist_by_clust = lapply(1:numclust, function(iclust){
-    as.matrix(sigma[1,iclust,,])
-  })
+  } else {
+    TT = length(ylist)
+    ntlist = sapply(ylist, nrow)
+    resp = list()
+  }
 
+
+  ## Calculate the responsibilities at each time point, separately
   for(tt in 1:TT){
     y = ylist[[tt]]  ## These are nt rows of 3-variate measurements
-    densmat = matrix(NA, nrow=ntlist[tt], ncol=numclust)
+    densmat = matrix(0, nrow=ntlist[tt], ncol=numclust)
     for(iclust in 1:numclust){
 
       ## Gather mean at time tt
@@ -32,7 +44,7 @@ Estep_covar <- function(mn, sigma, pie, ylist, numclust,
       if(first_iter){
         densmat[,iclust] = mvtnorm::dmvnorm(y,
                                             mean = mu,
-                                            sigma = sigmalist_by_clust[[iclust]],
+                                            sigma = sigma[iclust,,],
                                             log=FALSE) ## TODO: change to fastmvn::dmvn()
       } else {
         densmat[,iclust] = unlist(denslist_by_clust[[iclust]][[tt]])

@@ -279,12 +279,16 @@ onese_plot <- function(isim, outputdir,
 ##' Apply the 1SE rule (results are similar to those of get_optimal_info())
 ##' @param outputdir Location of the output files. e.g. outputdir="~/output/vanilla"
 ##' @return NULL.
-onese <- function(isim, outputdir,
+onese <- function(isim=NULL, outputdir,
                        gridsize=12){
 ## outputdir="~/repos/flowcy/output/vanilla"
 
   ## Load data
-  destin = file.path(outputdir, paste0("isim-", isim))
+  if(!is.null(isim)){
+    destin = file.path(outputdir, paste0("isim-", isim))
+  } else {
+    destin = outputdir
+  }
 
   ## Gather the degrees of freedom
   dfmat = aggregateres_df(gridsize, destin)
@@ -304,7 +308,7 @@ onese <- function(isim, outputdir,
                arr.ind = TRUE)
   if(nrow(inds) > 0){
 
-    ## Pick the minimum CV error that is most sparsimonious.
+    ## Pick the minimum CV error that is most parsimonious.
     all.df = apply(inds, 1, function(myind){dfmat[myind[1],myind[2]]})
     inds = inds[which(all.df==min(all.df)),,drop=FALSE]
     all.cvscores = apply(inds, 1, function(myind){cvscoremat[myind[1],myind[2]]})

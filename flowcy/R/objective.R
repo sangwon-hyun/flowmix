@@ -10,14 +10,13 @@ objective_overall_cov <- function(mu, pie, sigma,
                                   data,
                                   pie_lambda=0, mean_lambda=0,
                                   alpha=0, beta=0,
-                                  sigma_eig_by_dim=NULL,
                                   denslist_by_clust=NULL
                                   ){
 
   ## Basic checks
   stopifnot(dim(mu) == c(TT, dimdat, numclust))
 
-  ## Helper function: Calculates one particle's log likelihood using
+  ## 1. Helper function: Calculates one particle's log likelihood using
   ## precalculated data densities.
   loglikelihood_tt_precalculate <- function(tt, denslist_by_clust, pie){
 
@@ -28,10 +27,9 @@ objective_overall_cov <- function(mu, pie, sigma,
     return(sum(log(Reduce("+", weighted.densities))))
   }
 
-  ## Second helper function: Calculates one particle's log likelihood without
+  ## 2. Second helper function: Calculates one particle's log likelihood without
   ## any pre-calculated densities.
   loglikelihood_tt <- function(data, tt, mu, sigma, pie){
-
     ## One particle's log likelihood (weighted density)
     weighted.densities = sapply(1:numclust, function(iclust){
 

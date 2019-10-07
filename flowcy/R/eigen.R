@@ -37,8 +37,9 @@ dmvnorm_fast <- function(y, mu, sigma_eig){
 
 
 
-##' Gets eigendecomposition of a matrix. Basically, \code{sigma == evecs %*% Lambdamat
-##' %*% solve(evecs)}.
+##' Gets eigendecomposition of a matrix. Basically, \code{sigma == evecs \%*\%
+##' Lambdamat \%*\% solve(evecs)}. (For Justin: see this
+##' https://rdrr.io/cran/Rd2roxygen/man/reformat_code.html)
 ##' @param sigma dimdat by dimdat matrix
 ##' @return List containing eigenvalues (vector), eigenvectors (matrix of
 ##'   eigenvectors as columns)
@@ -48,14 +49,16 @@ eigendecomp_sigma_barebones <- function(sigma){
   eig = eigen(sigma)
 
   ## Gather and return results
-  sigma_eig <- list(values=eig$values, vectors=eig$vectors)
+  sigma_eig <- list(values = eig$values, vectors = eig$vectors)
   return(sigma_eig)
 }
 
 
 
-##' Gets eigendecomposition of a matrix. Basically, \code{sigma == evecs %*% Lambdamat
-##' %*% solve(evecs)}.
+##' (Wrapper for \code{eigendecomp_sigma_barebones()}) Gets eigendecomposition
+##' of a matrix. Basically, \code{sigma == evecs \%*\% Lambdamat \%*\%
+##' solve(evecs)}. (For Justin: see this
+##' https://rdrr.io/cran/Rd2roxygen/man/reformat_code.html)
 ##' @param sigma A single (dimdat x dimdat) matrix.
 ##' @return List containing eigenvalues (vector), eigenvectors (matrix of
 ##'   eigenvectors as columns)
@@ -137,21 +140,20 @@ inverse_sigma_half_from_eig <- function(sigma_eig){
   (sigma_eig$vectors %*% diag(1/sqrt(sigma_eig$values)) %*% t(sigma_eig$vectors))
 } ## TODO Test this.
 
-##' From a (TT x numclust x dimdat x dimdat) array whose [tt,ii,,]'th entry is
+##' From a (numclust x dimdat x dimdat) array whose [ii,,]'th entry is
 ##' the (dimdat x dimdat) covariance matrix, do eigendecompositions.
-##' @param sigma_array (TT x numclust x dimdat x dimdat) array
-##' @return TT length list of (numclust length list of eigendecompositions).
+##' @param sigma_array (numclust x dimdat x dimdat) array
+##' @return |numclust| lengthed list of eigendecompositions.
 eigendecomp_sigma_array <- function(sigma_array){
 
-  TT = dim(sigma_array)[1]
-  numclust = dim(sigma_array)[2]
+  numclust = dim(sigma_array)[1]
 
   ## Only need to calculate once because sigmas are the same across tt=1:TT
-  eig_by_dim = lapply(1:numclust, function(idim){
-    eigendecomp_sigma(sigma_array[1, idim, , ])
+  eig_by_clust = lapply(1:numclust, function(idim){
+    eigendecomp_sigma(sigma_array[idim, , ])
   })
 
-  return(eig_by_dim)
+  return(eig_by_clust)
 }
 
 
@@ -165,10 +167,10 @@ choldecomp_sigma_array <- function(sigma_array){
   numclust = dim(sigma_array)[2]
 
   ## Only need to calculate once because sigmas are the same across tt=1:TT
-  chol_by_dim = lapply(1:numclust, function(idim){
+  chol_by_clust = lapply(1:numclust, function(idim){
     choldecomp_sigma(sigma_array[1, idim, , ])
   })
-  return(chol_by_dim)
+  return(chol_by_clust)
 }
 
 

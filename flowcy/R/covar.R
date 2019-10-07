@@ -4,7 +4,7 @@
 ##' @param nrep Number of restarts.
 ##' @return The |covarem| class object that had the best likelihood.
 ##' @export
-covarem <- function(..., nrep=5){
+covarem <- function(..., nrep = 5){
 
   ## Don't do many replicates if warmstartable mean exists
   dots <- list(...)
@@ -45,22 +45,35 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
                          warmstart  =  c("none", "rough"), sigma.fac = 1, tol = 1E-6,
                          refit = FALSE, ## EXPERIMENTAL FEATURE.
                          sel_coef = NULL,
-                         maxdev = NULL
+                         maxdev = NULL,
+                         standard_gmm=FALSE ## Experimental feature.
                          ){
 
   ## Basic checks
   if(!is.null(maxdev)){ assert_that(maxdev!=0) } ## Preventing the maxdev=FALSE mistake.
+  assert_that(!(is.data.frame(ylist[[1]])))
+
+
+  if(standard_gmm){
+    ylist_collapsed = list(do.call(rbind, ylist))
+    mn_collapsed = list(apply(mn, 2, rbind))
+    TT = 1
+  } else {
+    ylist_collapsed = NULL
+    mn_collapsed = NULL
+    TT = length(ylist)
+  }
+
 
   ## Setup.
   dimdat = ncol(ylist[[1]])
-  TT = length(ylist)
   p = ncol(X)
   warmstart = match.arg(warmstart)
-  sigma_eig_by_dim <- NULL
+  sigma_eig_by_clust <- NULL
   denslist_by_clust <- NULL
 
   ## Initialize.
-  beta = init_beta(TT, p, dimdat, numclust)
+  beta = init_beta(p, dimdat, numclust)
   alpha = init_alpha(dimdat, p)
   if(is.null(mn)){
     if(warmstart == "rough"){
@@ -78,25 +91,29 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
   beta.list = alpha.list = sigma.list = pie.list = mn.list = list()
   objectives = rep(NA, niter)
   objectives[1] = +1E20 ## Fake
-  beta.list[[1]] = beta ## beta.list: Each element is a (T x p+1 x 3 x K) array
-  alpha.list[[1]] = alpha ## alpha.list: Each element is a T by p+1 array
-  mn.list[[1]] = mn  ## (T x dimdat x numclust)
-  sigma.list[[1]] = sigma
+  beta.list[[1]] = beta ## beta.list: Each element is a (p+1 x 3 x dimdat) array
+  alpha.list[[1]] = alpha ## alpha.list: Each element is a dimdat by (p+1) array
+  ## mn.list[[1]] = mn  ## (T x dimdat x numclust)
+  ## sigma.list[[1]] = sigma
   pie.list[[1]] = pie
+
 
   start.time = Sys.time()
   for(iter in 2:niter){
     if(verbose) printprogress(iter, niter, "EM iterations.", start.time = start.time)
 
     ## conduct E step
-    resp <- Estep_covar(mn.list[[iter-1]],
-                        sigma.list[[iter-1]],
+    resp <- Estep_covar(## mn.list[[iter-1]],
+                        mn,
+                        ## sigma.list[[iter-1]],
+                        sigma,
                         pie.list[[iter-1]],
                         ylist,
                         numclust,
-                        sigma_eig_by_dim = sigma_eig_by_dim,
                         denslist_by_clust = denslist_by_clust,
-                        first_iter = (iter == 2)
+                        first_iter = (iter == 2),
+                        standard_gmm,
+                        ylist_collapsed
                         )  ## This should be (T x numclust x dimdat x dimdat)
 
     ## Conduct M step
@@ -111,28 +128,38 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
 
     ## 2. Beta
     res.beta = Mstep_beta(resp, ylist, X, mean_lambda = mean_lambda,
-                          sigma.list[[iter-1]], refit = refit,
+                          ## sigma.list[[iter-1]],
+                          sigma,
+                          refit = refit,
                           sel_coef = sel_coef, maxdev = maxdev,
-                          sigma_eig_by_dim = sigma_eig_by_dim,
+                          sigma_eig_by_clust = sigma_eig_by_clust,
                           first_iter = (iter == 2))
     beta.list[[iter]] = res.beta$beta
-    mn.list[[iter]]    = res.beta$mns
+    ## mn.list[[iter]]   = res.beta$mns
+    mn = res.beta$mns
 
     ## 3. Sigma
-    sigma.list[[iter]] <- Mstep_sigma_covar(resp,
-                                            ylist,
-                                            mn.list[[iter]],
-                                            numclust)
+    ## sigma.list[[iter]] <-
+    sigma = Mstep_sigma_covar(resp,
+                              ylist,
+                              ## mn.list[[iter]],
+                              mn,
+                              numclust)
 
     ## 3. (Continue) Decompose the sigmas.
-    sigma_eig_by_dim <- eigendecomp_sigma_array(sigma.list[[iter]])
-    denslist_by_clust <- make_denslist_eigen(ylist, mn.list[[iter]], TT, dimdat,
-                                                         numclust, sigma_eig_by_dim)
+    sigma_eig_by_clust <- eigendecomp_sigma_array(sigma)##sigma.list[[iter]])
+    denslist_by_clust <- make_denslist_eigen(ylist,
+                                             ## mn.list[[iter]],
+                                             mn,
+                                             TT, dimdat,
+                                             numclust, sigma_eig_by_clust)
 
     ## Calculate the objectives
-    objectives[iter] = objective_overall_cov(mn.list[[iter]],
+    objectives[iter] = objective_overall_cov(mn,
+                                             ## mn.list[[iter]],
                                              pie.list[[iter]],
-                                             sigma.list[[iter]],
+                                             ## sigma.list[[iter]],
+                                             sigma,
                                              TT,
                                              dimdat,
                                              numclust,
@@ -141,7 +168,6 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
                                              mean_lambda = mean_lambda,
                                              alpha = res.alpha$alpha,
                                              beta = res.beta$beta,
-                                             sigma_eig_by_dim = sigma_eig_by_dim,
                                              denslist_by_clust = denslist_by_clust)
 
     ## Check convergence
@@ -160,9 +186,11 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
   return(structure(list(alpha = alpha.list[[iter]],
                         ## alpha.fit=res.alpha$fit,
                         beta = beta,
-                        mn = mn.list[[iter]],
+                        ## mn = mn.list[[iter]],
+                        mn = mn,
                         pie = pie.list[[iter]],
-                        sigma = sigma.list[[iter]],
+                        ## sigma = sigma.list[[iter]],
+                        sigma = sigma,
                         objectives = objectives[1:iter],
                         final.iter = iter,
                         ## Above is output, below are data/algorithm settings.
@@ -178,6 +206,22 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
                         niter = niter
                         ), class = "covarem"))
 }
+
+
+## Some tests to add
+## object is the result of having run covarem() or covarem_once().
+check_size <- function(obj){
+  assert_that(check_beta_size(res$beta, p, dimdat, numclust))
+  assert_that(check_alpha_size(res$alpha, p, dimdat))
+}
+
+check_beta_size <- function(beta, p, dimdat, numclust){
+  all.equal(dim(beta), c(p+1, dimdat, numclust))
+}
+check_alpha_size <- function(alpha, p, dimdat){
+  all.equal(dim(alpha), c(dimdat, p+1))
+}
+
 
 
 ##' Prediction: given  new X's,  generate a set of means and pies (and return
@@ -238,23 +282,20 @@ predict.covarem <- function(res, newx = NULL){
 ##' @param dimdat dimension of data.
 ##' @param numclust number of clusters.
 ##' @param TT number of time points
-##' @param sigma_eig_by_dim Result of running
+##' @param sigma_eig_by_clust Result of running
 ##'   \code{eigendecomp_sigma_array(sigma.list[[iter]])}.
 ##' @return numclust-lengthed list of TT-lengthed.
 make_denslist_eigen <- function(ylist, mu,
                           TT, dimdat, numclust,
-                          sigma_eig_by_dim){
+                          sigma_eig_by_clust){
 
   ## Basic checks
-  assert_that(!is.null(sigma_eig_by_dim))
+  assert_that(!is.null(sigma_eig_by_clust))
 
   ## Calculate densities
   lapply(1:numclust, function(iclust){
-
-    mysigma_eig = sigma_eig_by_dim[[iclust]]
+    mysigma_eig = sigma_eig_by_clust[[iclust]]
     lapply(1:TT,function(tt){
-
-      ## Calculate weighted density
       return(dmvnorm_fast(ylist[[tt]],
                           mu[tt,,iclust],
                           sigma_eig=mysigma_eig))

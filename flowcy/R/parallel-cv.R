@@ -40,7 +40,10 @@ parallel_cv.covarem <- function(ylist, X,
 
   ## Create CV split indices
   assert_that(nsplit >= 2)
-  mysplits = cvsplit(ylist, nsplit = nsplit)
+  mysplits = cvsplit(ylist, nsplit = nsplit) ## Too big for my liking; it
+                                             ## because hundreds of megabytes
+                                             ## with T=4000; but OK sure for
+                                             ## now. TODO: make MUCH smaller
 
   ## If warm starts are not needed, do the following:
   if(!warm_start){
@@ -65,6 +68,10 @@ parallel_cv.covarem <- function(ylist, X,
       ialpha =  ceiling(ind/ gridsize)
       ibeta = (ind-1) %% gridsize + 1
 
+      ## Check whether this version has been done already.
+      already_done = check(ialpha, ibeta)
+      if(already_done) return(NULL)
+
       ## The rest is similar to move_to_up() or move_to_left().
       cvres = get_cv_score(ylist, X, splits, nsplit, refit,
                            ## Additional arguments for covarem
@@ -72,6 +79,32 @@ parallel_cv.covarem <- function(ylist, X,
                            pie_lambda = alpha_lambdas[ialpha],
                            multicore.cv = FALSE,
                            ...)
+
+
+      ## Temporary, for debugging
+      cvres = get_cv_score(ylist, X, mysplits, nsplit, refit,
+                           numclust = 2,
+                           ## Additional arguments for covarem
+                           mean_lambda = 0.5,
+                           pie_lambda = 100,
+                           multicore.cv = FALSE,
+                           verbose=TRUE,
+                           nrep=1,
+                           maxdev=0.5)
+
+      res = covarem(ylist = ylist, X = X,
+                    mean_lambda = mean_lambdas[ibeta],
+                    pie_lambda = pie_lambdas[ialpha],
+                    numclust=3,
+                    verbose=TRUE,
+                    maxdev=0.5,
+                    nrep=1)
+      ## end of temporary
+
+      ## This will take the amount of time it take an algorithm x 5.
+      ## Supposedly, the least regularized version is hardest to solve i.e. the
+      ## regression solver crashes.
+
 
       ## ## Get the fitted results on the entire data
       res = covarem(ylist = ylist, X = X,
@@ -84,6 +117,8 @@ parallel_cv.covarem <- function(ylist, X,
               ialpha = ialpha, ibeta = ibeta, destin = destin,
               beta_lambdas = beta_lambdas,
               alpha_lambdas = alpha_lambdas)
+
+      return(NULL)
 
     }
 
@@ -111,7 +146,8 @@ parallel_cv.covarem <- function(ylist, X,
     move_to_up(ialphas, ibeta,
                pie_lambdas, mean_lambdas,
                gridsize,
-               NULL, destin, ylist, X, mysplits, nsplit, refit,
+               NULL, ## warmstarts
+               destin, ylist, X, mysplits, nsplit, refit,
                multicore.cv = multicore.cv,
                ...)
 
@@ -138,7 +174,8 @@ parallel_cv.covarem <- function(ylist, X,
 }
 
 
-##' Should be the same as move_to_left() but with different direction.
+##' Should be the same as move_to_left() but with different direction.  (UPDATE:
+##' The maximally regularized node uses a standard GMM).
 move_to_up <- function(ialphas, ibeta,
                        alpha_lambdas, beta_lambdas,
                        gridsize,
@@ -146,24 +183,34 @@ move_to_up <- function(ialphas, ibeta,
                        ylist, X, splits, nsplit, refit,
                        multicore.cv = FALSE,
                        ...){
-    beginning = TRUE
+    beginning = TRUE ## Flag for whether thi is the maximally regularized node.
     assert_that(ibeta == gridsize) ## Check that we're on the right-most edge.
     assert_that(all(diff(ialphas) < 0)) ## Check descending order
+
+
     for(ialpha in ialphas){
       cat("(", ialpha, ibeta, ")")
-      mywarmstart = (if(beginning){warmstart} else {
-                                              ## cat("Warmstart from (", ialpha + 1, ibeta, ")", fill = TRUE)
-                                              loadres(ialpha+1, ibeta, destin)
-                                            })
+
+
+      ## New addition: the maximally regularized node (ibeta==gridsize &
+      ## ialpha==gridsize) is using a standard GMM. NOT DONE YET!!
+      ## i.e. |standard_gmm| doesn't do anything yet.
+      if(beginning){
+        standard_gmm = TRUE
+        mywarmstart = warmstart ## Temporary
+      } else {
+        standard_gmm = FALSE
+        loadres(ialpha+1, ibeta, destin)
+      }
 
       ## Change to cvres!!
       cvres = get_cv_score(ylist, X, splits, nsplit, refit,
-                         ## Additional arguments for covarem
-                         mean_lambda = beta_lambdas[ibeta],
-                         pie_lambda = alpha_lambdas[ialpha],
-                         mn = mywarmstart$mn,
-                         multicore.cv = multicore.cv,
-                         ...)
+                           ## Additional arguments for covarem
+                           mean_lambda = beta_lambdas[ibeta],
+                           pie_lambda = alpha_lambdas[ialpha],
+                           mn = mywarmstart$mn,
+                           multicore.cv = multicore.cv,
+                           ...)
 
       ## Get the fitted results on the entire data
       res = covarem(ylist = ylist, X = X,
@@ -336,9 +383,15 @@ getres <- function(ialpha, ibeta, destin){
 ##'   result.
 ##' @return Array containing /all/ CV scores. Dimension is gridsize x gridsize x
 ##'   numfold.
-get_optimal_info <- function(isim, outputdir="~/repos/flowcy/output/vanilla",
+get_optimal_info <- function(isim=NULL, outputdir="~/repos/flowcy/output/vanilla",
                              gridsize=12, excludecorner=FALSE){
-  destin = file.path(outputdir, paste0("isim-", isim))
+  if(!is.null(isim)){
+    destin = file.path(outputdir, paste0("isim-", isim))
+  } else {
+    destin = outputdir
+  }
+  ## TODO: eventually, get rid of the isim altogether. The outputdir that
+  ## contains all the "3-5.Rdata" type files should be provided.
 
   ## Collect CV score matrix
   cvscoremat = aggregateres(gridsize, destin)
@@ -352,7 +405,14 @@ get_optimal_info <- function(isim, outputdir="~/repos/flowcy/output/vanilla",
   lambda_alpha = alpha_lambdas[ind[1]]
   lambda_beta = beta_lambdas[ind[2]]
 
+  ## Also calculate the minimum index
+  ind.min = which(cvscoremat==min(cvscoremat, na.rm=TRUE), arr.ind=TRUE)
+
   return(list(param = c(lambda_alpha, lambda_beta),
-              res=res,
-              cvscoremat=cvscoremat))
+              res = res,
+              ind.min = ind.min,
+              alpha_lambdas = alpha_lambdas,
+              beta_lambdas = beta_lambdas,
+              cvscoremat = cvscoremat))
 }
+

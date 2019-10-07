@@ -1,3 +1,5 @@
+##' Conducts the M step for estimating the coefficients for the population
+##' weights.
 ##' @param resp Is an (T x nt x K) array.
 ##' @param X Covariate matrix (T x dimdat).
 ##' @return The multinomial logit model coefficients. A matrix of dimension (K x
@@ -79,19 +81,14 @@ Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
   }
   rm(resid.rows)
 
-  ## Reformat (new)
-  sigma_array = array(NA, dim=c(TT, numclust, dimdat, dimdat))
-  sigmas_by_dim = vars
+  ## Make into an array
+  sigma_array = array(NA, dim=c(numclust, dimdat, dimdat))
   for(iclust in 1:numclust){
-    for(tt in 1:TT){
-      sigma_array[tt,iclust,,] = vars[[iclust]]
-   }
+      sigma_array[iclust,,] = vars[[iclust]]
   }
 
   ## Basic check
-  stopifnot(all(dim(sigma_array) == c(TT, numclust, dimdat, dimdat)))
-
-  ## Return |K| of them.
+  stopifnot(all(dim(sigma_array) == c(numclust, dimdat, dimdat)))
   return(sigma_array)
 }
 
@@ -107,13 +104,14 @@ mtsqrt_inv <- function(a){
 ##' The M step of beta, using a particular lasso regression formulation.
 ##' @param maxdev The desired maximum radius of the fitted means from beta0k.
 ##' @param sel_coef Sparsity pattern. Only active when refit=TRUE.
+##' @param sigma (numclust x dimdat x dimdat) matrix.
 ##' @return Result of M step; a |numclust| length list of (p+1)x(d) matrices,
 ##'   each containing the estimated coefficients for the mean estimation.
 Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
                        refit = NULL,
                        sel_coef = NULL,
                        maxdev = NULL,
-                       sigma_eig_by_dim=NULL,
+                       sigma_eig_by_clust=NULL,
                        first_iter=FALSE
                        ){
 
@@ -123,12 +121,14 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
   dimdat = ncol(ylist[[1]])
   ntlist = sapply(ylist, nrow)
   p = ncol(X)
-
   Xa = cbind(1, X)
+  if(!is.null(sigma)){
+    assert_that(all.equal(dim(sigma), c(numclust, dimdat, dimdat)))
+  }
 
   ## Setup
   manip_obj = manip(ylist, Xa, resp, sigma, numclust,
-                    sigma_eig_by_dim = sigma_eig_by_dim,
+                    sigma_eig_by_clust = sigma_eig_by_clust,
                     first_iter = first_iter)
   Xtildes = manip_obj$Xtildes
   yvecs = manip_obj$yvecs
@@ -184,24 +184,24 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
 ##' separately for each cluster).
 ##' @return 3 (or dimdat) |numclust|-length lists.
 manip <- function(ylist, X, resp, sigma, numclust,
-                  sigma_eig_by_dim=NULL,
+                  sigma_eig_by_clust=NULL,
                   first_iter=FALSE){
 
   ntlist = sapply(ylist, nrow)
   dimdat = ncol(ylist[[1]])
   TT = nrow(X)
   resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
-  sigma.inv.halves = array(NA, dim=dim(sigma)[-1])
+  sigma.inv.halves = array(NA, dim=dim(sigma))
 
   if(first_iter){
     ## Old (original) slow way
     for(iclust in 1:numclust){
-      sigma.inv.halves[iclust,,] = mtsqrt_inv(sigma[1,iclust,,])
+      sigma.inv.halves[iclust,,] = mtsqrt_inv(sigma[iclust,,])
     }
   } else {
     ## New way
     for(iclust in 1:numclust){
-      sigma.inv.halves[iclust,,] = sigma_eig_by_dim[[iclust]]$inverse_sigma_half
+      sigma.inv.halves[iclust,,] = sigma_eig_by_clust[[iclust]]$inverse_sigma_half
     }
   }
 

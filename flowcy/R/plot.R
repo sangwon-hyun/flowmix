@@ -166,8 +166,8 @@ plot2d.covarem <- function(obj, ylist, ask=TRUE, show.fewer=NULL,
       lines(obj$X[,ii], col=ii, lwd=lwd[ii], type='l')
     }
     abline(v=tt, col='green')
-    legend("topright", col=1:p, lwd=lwd, lty=1, legend=c("Salinity",
-                                                         "SST", "Iron",
+    legend("topright", col=1:p, lwd=lwd, lty=1, legend=c("SST", "Salinity",
+                                                         "Iron",
                                                          "Phosphorus",
                                                          "Chlorophyll"))
   }
@@ -195,8 +195,8 @@ add_table <- function(obj){
     return(vec)
   }))
   rownames(betas) = c("Intercept", "",
-                      "Salinity", "",
                      "SST", "",
+                      "Salinity", "",
                      "Iron", "",
                      "Phosphorus", "",
                      "Chlorophyll", "")
@@ -225,8 +225,8 @@ add_table <- function(obj){
                   rep("grey80",4)), nrow=6, ncol=4,
                 byrow=TRUE)
   rownames(alphas) = c("Intercept",
-                      "Salinity",
                      "SST",
+                      "Salinity",
                      "Iron",
                      "Phosphorus",
                      "Chlorophyll")
@@ -339,8 +339,8 @@ get_table <- function(res){
     return(vec)
   }))
   rownames(betas) = c("Intercept", "",
-                      "Salinity", "",
                      "SST", "",
+                      "Salinity", "",
                      "Iron", "",
                      "Phosphorus", "",
                      "Chlorophyll", "")
@@ -355,8 +355,8 @@ get_table <- function(res){
                   rep("grey80",4)), nrow=6, ncol=4,
                 byrow=TRUE)
   rownames(alphas) = c("Intercept",
-                      "Salinity",
                      "SST",
+                      "Salinity",
                      "Iron",
                      "Phosphorus",
                      "Chlorophyll")
@@ -409,3 +409,160 @@ get_table <- function(res){
 ##   }
 ##   graphics.off()
 ## }
+
+
+
+##' Only in the 3d case, make series of plots.
+##' @param show.fewer NULL by default. Otherwise the indices of the time points
+##'   whose plots are to be shown.
+##' @param obj Result of running covarem().
+##' @param ylist List of responses.
+##' @return Nothing
+plot3d.covarem <- function(obj, ylist, ask=TRUE, show.fewer=NULL,
+                           show.xb.constraint=FALSE
+                           ## maxdev=NULL## Temporary addition.
+                           ){
+
+  ## Basic checks
+  assert_that(obj$dimdat==3)
+
+  ## Collect plot ranges
+  all.y = do.call(rbind, ylist)
+  ## ylim = range(all.y[,2])
+  ## xlim = range(all.y[,1])
+
+  ## Extract numclust (eventually from somewhere else)
+  mns = obj$mn
+  numclust = obj$numclust
+  TT = obj$TT
+  p = ncol(obj$X)
+
+  ## General plot settings
+  cols = RColorBrewer::brewer.pal(numclust, "Set3")
+
+  ## Eventually extract TT some other way.
+  if(!is.null(show.fewer)){
+    TTrange = show.fewer
+    assert_that(all(TTrange <= TT))
+    assert_that(all(TTrange >= 1))
+  } else { TTrange = 1:TT }
+
+  if(ask)par(ask=TRUE)
+  ## par(mfrow=c(1,3))
+  ## m = matrix(c(1, 1, 2,2, 3,3, 4, 4, 6, 6,
+  ##              1, 1, 2,2, 3,3, 5, 5, 7, 7),
+  ##            nrow = 2, ncol = 10, byrow=TRUE)
+  ## layout(m)
+  par(mar=c(3,2,4,1))
+  par(mfrow=c(1,4))
+  for(tt in TTrange){
+
+    ## 1. Add main plot of data and fitted means
+
+    for(jj in 1:3){
+      ind = list(1:2, 2:3, c(3,1))[[jj]]
+      ## y[,ind] = clean_edge(y[,ind])
+      y = ylist[[tt]][,ind]
+
+
+      ylim = range(all.y[,ind[2]])
+      xlim = range(all.y[,ind[1]])
+
+    ## Create empty plot
+    main0 = paste0("time ", tt, " out of ", TT)
+    plot(NA, ylim=ylim, xlim=xlim, cex=3, ylab="", xlab="", main=main0)
+
+    ## Add datapoints
+    points(y, col='grey90', pch=16, cex=.5)
+
+    ## Begin temporary
+    if(show.xb.constraint){
+
+      ## (Temporary addition) Plot together all the centers.
+      for(kk in 1:numclust){
+        points(x=mns[1:TT,ind[1],kk],
+               y=mns[1:TT,ind[2],kk], col='grey60', pch=16, cex=0.5)
+      }
+
+      ## Also add circle around beta0k whose radius to maxdev.
+      for(kk in 1:numclust){
+        beta0list = lapply(obj$beta, function(betamat){
+          betamat[1,]
+        })
+        points(x=beta0list[[kk]][ind[1]],
+                y=beta0list[[kk]][ind[2]], col="blue", pch=16)
+        plotrix::draw.circle(x=beta0list[[kk]][ind[1]],
+                             y=beta0list[[kk]][ind[2]],
+                             radius=obj$maxdev,
+                             border="blue", lwd=2)
+      }
+    }
+    ## End of temporary
+
+    ## Collect pies
+    pies = lapply(1:numclust, function(iclust){  obj$pie[,iclust] })
+
+    ## Add fitted means
+    for(kk in 1:numclust){
+      points(x=mns[tt,ind[1],kk],
+             y=mns[tt,ind[2],kk],
+             col='red', pch=1, cex=pies[[kk]][tt]*10)
+
+      text(x=mns[tt,ind[1],kk],
+           y=mns[tt,ind[2],kk],
+           labels=kk,
+           col='red', pch=16, cex=pies[[kk]][tt]*5)
+    }
+
+    ## Add legend
+    legend("bottomright",
+           col=c("black", "red", "blue", "grey40"),
+           pch=c(16,16,16, 16),
+           legend = c("truth", "fitted", "intercept", "other fitted"))
+
+    for(kk in 1:numclust){
+      lines(ellipse::ellipse(x = obj$sigma[tt, kk,ind,ind],
+                             centre = mns[tt,ind, kk]
+                             ), lwd=1/2, col='red', lty=2)
+    }
+    }
+
+    ## ## 2. Pies right now.
+    ## pies.right.now = sapply(1:numclust, function(iclust){pies[[iclust]][[tt]]})
+    ## names(pies.right.now) = paste("Clust", 1:numclust)
+    ## barplot(pies.right.now,
+    ##         col = cols,
+    ##         lwd = 1,
+    ##         ylim = c(0, 1),
+    ##         main = paste0("Cluster prob. at time ", tt)
+    ##         )##, lwd=2, type='o', pch=toString(iclust))
+
+    ## ## 3. Plot pies
+    ## for(pp in 1:2){
+    ## plot(NA, xlim=c(0,TT), ylim=c(0,1.4), main="Cluster probs.",
+    ##      ylab = "Mixture probability", xlab="time, t=1,..,T")
+    ## for(iclust in 1:numclust){
+    ##   lines(pies[[iclust]], col=cols[iclust], lwd=2, type='o', pch=toString(iclust))
+    ## }
+    ## abline(v=tt, col='green')
+    ## }
+
+    ## 4. Add table
+    ## add_table(obj)
+
+    ## 5. Plot covariates
+    ylim.cov=range(obj$X)*1.5
+    plot(NA, xlim=c(0,TT*1.3), ylim=ylim.cov, main="Covariates",
+         ylab = "Environmental covariates", xlab="time, t=1,..,T")
+    lwd = c(3,3,0.5,0.5,0.5)
+    for(ii in p:1){
+      lines(obj$X[,ii], col=ii, lwd=lwd[ii], type='l')
+    }
+    abline(v=tt, col='green')
+    legend("topright", col=1:p, lwd=lwd, lty=1, legend=c("SST", "Salinity",
+                                                         "Iron",
+                                                         "Phosphorus",
+                                                         "Chlorophyll"))
+  }
+  par(ask=FALSE)
+}
