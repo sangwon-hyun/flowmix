@@ -69,7 +69,7 @@ parallel_cv.covarem <- function(ylist, X,
       ibeta = (ind-1) %% gridsize + 1
 
       ## Check whether this version has been done already.
-      already_done = checkres(ialpha, ibeta, destin){
+      already_done = checkres(ialpha, ibeta, destin)
       if(already_done) return(NULL)
 
       ## The rest is similar to move_to_up() or move_to_left().
