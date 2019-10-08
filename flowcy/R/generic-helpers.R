@@ -111,3 +111,13 @@ myplot <- function(mytable, chl_topcode=NULL,
        cex=1,
        ...)
 }
+
+
+
+## Helper function to logarithmically space out R.  |length| values linear on
+## the log scale from |to| down to |from|.  TODO: Write this in:
+## "lambda.min.ratio=ifelse(nobs<nvars,1e-2,1e-4)".
+logspace <- function(max, min=NULL, min.ratio = 1E-4, length){
+  if(is.null(min)) min = max * min.ratio
+  matlab::logspace(log10(min), log10(max), length)
+}
