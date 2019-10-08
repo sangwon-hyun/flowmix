@@ -245,7 +245,7 @@ predict.covarem <- function(res, newx = NULL){
     newx.a = c(1, newx)
   }
 
-  TT = nrow(X)
+  TT = nrow(newx) ## This used to be nrow(X)..
   numclust = res$numclust
   dimdat = res$dimdat
 
