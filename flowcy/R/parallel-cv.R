@@ -69,7 +69,7 @@ parallel_cv.covarem <- function(ylist, X,
       ibeta = (ind-1) %% gridsize + 1
 
       ## Check whether this version has been done already.
-      already_done = check(ialpha, ibeta)
+      already_done = checkres(ialpha, ibeta, destin){
       if(already_done) return(NULL)
 
       ## The rest is similar to move_to_up() or move_to_left().
@@ -80,33 +80,7 @@ parallel_cv.covarem <- function(ylist, X,
                            multicore.cv = FALSE,
                            ...)
 
-
-      ## Temporary, for debugging
-      cvres = get_cv_score(ylist, X, mysplits, nsplit, refit,
-                           numclust = 2,
-                           ## Additional arguments for covarem
-                           mean_lambda = 0.5,
-                           pie_lambda = 100,
-                           multicore.cv = FALSE,
-                           verbose=TRUE,
-                           nrep=1,
-                           maxdev=0.5)
-
-      res = covarem(ylist = ylist, X = X,
-                    mean_lambda = mean_lambdas[ibeta],
-                    pie_lambda = pie_lambdas[ialpha],
-                    numclust=3,
-                    verbose=TRUE,
-                    maxdev=0.5,
-                    nrep=1)
-      ## end of temporary
-
-      ## This will take the amount of time it take an algorithm x 5.
-      ## Supposedly, the least regularized version is hardest to solve i.e. the
-      ## regression solver crashes.
-
-
-      ## ## Get the fitted results on the entire data
+      ## Get the fitted results on the entire data
       res = covarem(ylist = ylist, X = X,
                     mean_lambda = beta_lambdas[ibeta],
                     pie_lambda = alpha_lambdas[ialpha],
@@ -278,6 +252,13 @@ loadres <- function(ialpha, ibeta, destin){
 saveres <- function(res, cvres, ialpha, ibeta, destin, alpha_lambdas, beta_lambdas){
   filename = paste0(ialpha, "-", ibeta, ".Rdata")
   save(res, cvres, alpha_lambdas, beta_lambdas, file=file.path(destin, filename))
+}
+
+##' Helper to see if CV results for (ialpha, ibeta), saved in |destin|, have
+##' already been run (i.e. by seeing if the file exists)
+checkres <- function(ialpha, ibeta, destin){
+  filename = paste0(ialpha, "-", ibeta, ".Rdata")
+  return(file.exists(file=file.path(destin, filename)))
 }
 
 
