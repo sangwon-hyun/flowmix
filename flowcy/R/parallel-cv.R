@@ -19,12 +19,13 @@ parallel_cv.covarem <- function(ylist, X,
                                 multicore.cv = FALSE,
                                 warm_start=TRUE,
                                 cl=NULL,
+                                tester=FALSE,
                                 ...){
 
   ## Printing some information about the parallelism
   if(verbose==TRUE){
     if(warm_start) cat("At most ", numfork * nsplit, " cores will be used.", fill = TRUE)
-    cat("Output saved to ", destin, fill = TRUE)
+    cat("Parallel CV output saved to ", destin, fill = TRUE)
   }
 
   ## Basic checks
@@ -69,6 +70,7 @@ parallel_cv.covarem <- function(ylist, X,
       ibeta = (ind-1) %% gridsize + 1
 
       ## Check whether this version has been done already.
+      if(verbose) cat("ialpha, ibeta are:", ialpha, ibeta, "are run", Sys.time(), fill=TRUE)
       already_done = checkres(ialpha, ibeta, destin)
       if(already_done) return(NULL)
 
@@ -132,19 +134,20 @@ parallel_cv.covarem <- function(ylist, X,
       cat("Brute force parallelizing on ", length(cl), "cores.", fill=TRUE)
     }
     end.ind = gridsize^2
-    ## ## temporary feature
-    ## if(testing){
-    ##   lapply(1:end.ind, do_one_pair, end.ind,
-    ##             ## The rest of the arguments go here
-    ##             ylist, X, mysplits, nsplit, refit, mean_lambdas,
-    ##             pie_lambdas, multicore.cv, gridsize, destin, ...)
-    ## } else {
-    ##   ## End of temporary check
-
-    parLapplyLB(cl, 1:end.ind, do_one_pair, end.ind,
+    ## temporary feature
+    if(tester){
+      lapply(1:end.ind, do_one_pair, end.ind,
                 ## The rest of the arguments go here
                 ylist, X, mysplits, nsplit, refit, mean_lambdas,
                 pie_lambdas, multicore.cv, gridsize, destin, ...)
+    } else {
+      ## End of temporary check
+
+    parallel::parLapplyLB(cl, 1:end.ind, do_one_pair, end.ind,
+                ## The rest of the arguments go here
+                ylist, X, mysplits, nsplit, refit, mean_lambdas,
+                pie_lambdas, multicore.cv, gridsize, destin, ...)
+      }
   } else {
 
     ## Define clumps of row numbers (Rows are alpha, columns are beta.)
