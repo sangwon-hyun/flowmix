@@ -174,6 +174,7 @@ get_cv_score_onesplit <- function(test.isplit, splits, ylist, X, refit, ...){##,
     ylist[[tt]][-ind,]
   })
 
+  ## browser()
   ## Run algorithm on training data, evaluate on test data.
   res.train = covarem(ylist.train, X,  refit = FALSE, ...)
 

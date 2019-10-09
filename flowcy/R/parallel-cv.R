@@ -132,11 +132,19 @@ parallel_cv.covarem <- function(ylist, X,
       cat("Brute force parallelizing on ", length(cl), "cores.", fill=TRUE)
     }
     end.ind = gridsize^2
+    ## ## temporary feature
+    ## if(testing){
+    ##   lapply(1:end.ind, do_one_pair, end.ind,
+    ##             ## The rest of the arguments go here
+    ##             ylist, X, mysplits, nsplit, refit, mean_lambdas,
+    ##             pie_lambdas, multicore.cv, gridsize, destin, ...)
+    ## } else {
+    ##   ## End of temporary check
+
     parLapplyLB(cl, 1:end.ind, do_one_pair, end.ind,
                 ## The rest of the arguments go here
                 ylist, X, mysplits, nsplit, refit, mean_lambdas,
                 pie_lambdas, multicore.cv, gridsize, destin, ...)
-
   } else {
 
     ## Define clumps of row numbers (Rows are alpha, columns are beta.)

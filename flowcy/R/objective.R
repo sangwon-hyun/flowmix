@@ -36,7 +36,7 @@ objective_overall_cov <- function(mu, pie, sigma,
       mydat = data[[tt]]
       mypie = pie[tt,iclust]
       mymu = mu[tt,,iclust]
-      mysigma = as.matrix(sigma[tt,iclust,,])
+      mysigma = as.matrix(sigma[iclust,,])
       return(mypie * mvnfast::dmvn(mydat,
                                    mu=mymu,
                                    sigma=mysigma,
