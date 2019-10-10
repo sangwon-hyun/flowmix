@@ -70,7 +70,8 @@ parallel_cv.covarem <- function(ylist, X,
       ibeta = (ind-1) %% gridsize + 1
 
       ## Check whether this version has been done already.
-      if(verbose) cat("ialpha, ibeta are:", ialpha, ibeta, "are run", Sys.time(), fill=TRUE)
+      if(verbose) cat("ialpha, ibeta are:", ialpha, ibeta, "are attempted.", fill=TRUE)
+      print(Sys.time())
       already_done = checkres(ialpha, ibeta, destin)
       if(already_done) return(NULL)
 
@@ -103,8 +104,7 @@ parallel_cv.covarem <- function(ylist, X,
       ##               ...)
       ## ## END of temporary
 
-
-
+      tryCatch({
       ## The rest is similar to move_to_up() or move_to_left().
       cvres = get_cv_score(ylist, X, splits, nsplit, refit,
                            ## Additional arguments for covarem
@@ -124,7 +124,13 @@ parallel_cv.covarem <- function(ylist, X,
               ialpha = ialpha, ibeta = ibeta, destin = destin,
               beta_lambdas = beta_lambdas,
               alpha_lambdas = alpha_lambdas)
-
+      }, error = function(err) {
+        err$message = paste(err$message,
+                            "\n(No file will be saved for the lambdas ",
+                            alpha_lambdas[ialpha],", ", beta_lambdas[ibeta],
+                            " whose indices are", ialpha,", ", ibeta, " .)",sep="")
+        cat(err$message, fill=TRUE)
+        warning(err)})
       return(NULL)
 
     }
@@ -136,7 +142,7 @@ parallel_cv.covarem <- function(ylist, X,
     end.ind = gridsize^2
     ## temporary feature
     if(tester){
-      lapply(1:end.ind, do_one_pair, end.ind,
+      lapply(end.ind:1, do_one_pair, end.ind,
                 ## The rest of the arguments go here
                 ylist, X, mysplits, nsplit, refit, mean_lambdas,
                 pie_lambdas, multicore.cv, gridsize, destin, ...)
