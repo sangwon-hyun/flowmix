@@ -143,7 +143,7 @@ parallel_cv.covarem <- function(ylist, X,
     } else {
       ## End of temporary check
 
-    parallel::parLapplyLB(cl, 1:end.ind, do_one_pair, end.ind,
+    parallel::parLapplyLB(cl, end.ind:1, do_one_pair, end.ind,
                 ## The rest of the arguments go here
                 ylist, X, mysplits, nsplit, refit, mean_lambdas,
                 pie_lambdas, multicore.cv, gridsize, destin, ...)
