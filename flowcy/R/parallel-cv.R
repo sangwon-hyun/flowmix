@@ -57,6 +57,12 @@ parallel_cv.covarem <- function(ylist, X,
     ## I can do is take the 12 x 12 = 144 nodes. (The next step is to also
     ## parallelize the 5 folds as well, so that it is 144 x 5 = 720)
 
+    ## Save data once
+    save(ylist, X,
+         ## beta_lambdas, alpha_lambdas,
+         ## destin, gridsize, splits, nsplit,
+         file=file.path(destin, "data.Rdata"))
+
     ## Parallelize for one pair of lambda values.
     do_one_pair = function(ind, end.ind,
                            ## The rest of the arguments go here
@@ -65,13 +71,15 @@ parallel_cv.covarem <- function(ylist, X,
                            gridsize, destin,
                            ...){
 
+      ## Temporary
+      start.time = Sys.time()
+
       ## Redefine which lambda indices correspond to ind in 1:gridsize^2
       ialpha =  ceiling(ind/ gridsize)
       ibeta = (ind-1) %% gridsize + 1
 
       ## Check whether this version has been done already.
       if(verbose) cat("ialpha, ibeta are:", ialpha, ibeta, "are attempted.", fill=TRUE)
-      print(Sys.time())
       already_done = checkres(ialpha, ibeta, destin)
       if(already_done) return(NULL)
 
@@ -119,11 +127,19 @@ parallel_cv.covarem <- function(ylist, X,
                     pie_lambda = alpha_lambdas[ialpha],
                     ...)
 
+      ## Temporary
+      end.time = Sys.time()
+      format(end.time-start.time, "sec")
+      lapsetime = round(difftime(Sys.time(), start.time,
+                                 units = "secs"), 0)
+      ## End of temporary
+
       saveres(res = res,
               cvres = cvres,
               ialpha = ialpha, ibeta = ibeta, destin = destin,
               beta_lambdas = beta_lambdas,
-              alpha_lambdas = alpha_lambdas)
+              alpha_lambdas = alpha_lambdas,
+              lapsetime = lapsetime)
       }, error = function(err) {
         err$message = paste(err$message,
                             "\n(No file will be saved for the lambdas ",
@@ -297,9 +313,13 @@ loadres <- function(ialpha, ibeta, destin){
 }
 
 ##' Helper to save parallelized CV results, saved in |destin|.
-saveres <- function(res, cvres, ialpha, ibeta, destin, alpha_lambdas, beta_lambdas){
+saveres <- function(res, cvres, ialpha, ibeta, destin, alpha_lambdas, beta_lambdas,
+                    lapsetime## Temporary.
+                    ){
   filename = paste0(ialpha, "-", ibeta, ".Rdata")
-  save(res, cvres, alpha_lambdas, beta_lambdas, file=file.path(destin, filename))
+  save(res, cvres, alpha_lambdas, beta_lambdas,
+       lapsetime, ## Temporary.
+       file=file.path(destin, filename))
 }
 
 ##' Helper to see if CV results for (ialpha, ibeta), saved in |destin|, have
@@ -323,11 +343,15 @@ aggregateres <- function(gridsize, destin){
       filename = paste0(ialpha, "-", ibeta, ".Rdata")
 
       ## Check that results exist
-      assert_that(file.exists(file = file.path(destin, filename)))
-
-      ## Load CV score and insert in matrix
-      load(file = file.path(destin, filename))
-      cvscoremat[ialpha, ibeta] = cvres$mean
+      file_exists = file.exists(file = file.path(destin, filename))
+      ## assert_that(file_exists)
+      if(!file_exists){
+        cat(filename, "doesn't exist.", fill=TRUE)
+      } else {
+        ## Load CV score and insert in matrix
+        load(file = file.path(destin, filename))
+        cvscoremat[ialpha, ibeta] = cvres$mean
+      }
     }
   }
   return(cvscoremat)
@@ -344,11 +368,17 @@ aggregateres_df <- function(gridsize, destin){
   for(ialpha in 1:gridsize){
     for(ibeta in 1:gridsize){
       filename = paste0(ialpha, "-", ibeta, ".Rdata")
-      assert_that(file.exists(file = file.path(destin, filename)))
+
+      file_exists = file.exists(file = file.path(destin, filename))
+      if(!file_exists){
+        cat(filename, "doesn't exist.", fill=TRUE)
+      } else {
+      ## assert_that(file.exists(file = file.path(destin, filename)))
       load(file = file.path(destin, filename))
       mydf = do.call(sum, lapply(res$beta, function(mybeta){
         sum(mybeta[-1,]!=0)})) + sum(res$alpha[,-1]!=0)
       dfmat[ialpha, ibeta] = mydf
+      }
     }
   }
   return(dfmat)
@@ -445,3 +475,37 @@ get_optimal_info <- function(isim=NULL, outputdir="~/repos/flowcy/output/vanilla
               cvscoremat = cvscoremat))
 }
 
+
+
+
+
+##' Helper function to get the "cl" object, which is an object of class
+##' c("SOCKcluster", "cluster").
+##' @param numcores NULL, in which case it identifies (almost) /all/ the cores
+##'   available to use, and spans them.
+##' @return An object of class "cluster" and "SOCKcluster".
+get_cl <- function(numcores=NULL){
+
+  ## Obtain all the cores from all the machines available to the master node,
+  ## and span them.
+  if(is.null(numcores)){
+    nodeNames = strsplit(system("scontrol show hostname $SLURM_NODELIST | paste -d, -s", intern=TRUE),
+                           ",")[[1]]
+    mycommand = "sinfo -o '%40N %c' --Node --long | grep "
+    numCores = sapply(nodeNames, function(mynodename){
+      mystring = system(paste0(mycommand, mynodename), intern=TRUE)
+      return(as.numeric(strsplit(mystring, "\\s+")[[1]][2]))
+    })
+    machines = do.call(c, unname(Map(function(a,b){rep(a, b-1 )}, nodeNames, unname(numCores))))
+    cat("Identifying and allocating", numCores, "cores on",
+        length(nodeNames), "nodes (computers) named", nodeNames, fill = TRUE)
+    ## Print setting into output stream /and/ a file
+    cl = parallel::makePSOCKcluster(machines)
+
+  ## Just span a few cores on the current machine.
+  } else {
+    assert_that(is.numeric(numcores))
+    cl = parallel::makePSOCKcluster(numcores)
+  }
+  return(cl)
+}

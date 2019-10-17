@@ -123,7 +123,7 @@ cvsplit<- function(ylist, nsplit = 5){
 ##' @param splits TT-lengthed list of indices.
 ##' @param ylist List of responses.
 ##' @param ... arguments to covarem.
-##' @return Cross validated test likelihood, scalar-valued.
+#' @return Cross validated test likelihood, scalar-valued.
 get_cv_score <- function(ylist, X, splits, nsplit, refit,
                          multicore.cv = FALSE,
                          ...){
@@ -174,7 +174,6 @@ get_cv_score_onesplit <- function(test.isplit, splits, ylist, X, refit, ...){##,
     ylist[[tt]][-ind,]
   })
 
-  ## browser()
   ## Run algorithm on training data, evaluate on test data.
   res.train = covarem(ylist.train, X,  refit = FALSE, ...)
 
