@@ -99,8 +99,14 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
 
 
   start.time = Sys.time()
+
+  ## Timing /each/ iteration!
+  lapse_times_per_iter = rep(NA, niter)
+
   for(iter in 2:niter){
     if(verbose) printprogress(iter, niter, "EM iterations.", start.time = start.time)
+
+    start_time_per_iter = Sys.time()
 
     ## conduct E step
     resp <- Estep_covar(## mn.list[[iter-1]],
@@ -173,7 +179,14 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
     ## Check convergence
     if(check_converge_rel(objectives[iter-1],
                           objectives[iter], tol = tol)) break
+
+    lapse_time_per_iter = round(difftime(Sys.time(), start_time_per_iter,
+                               units = "secs"), 0)
+    lapse_times_per_iter[iter-1] = lapse_time_per_iter
   }
+  ## if(any(is.na(lapse_times_per_iter))){
+  ##   lapse_times_per_iter = lapse_times_per_iter[which(!is.na(lapse_times_per_iter))]
+  ## }
 
   ## Threshold (now that we're using CVXR for beta)
   beta = beta.list[[iter]]
@@ -203,7 +216,8 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
                         mean_lambda = mean_lambda,
                         maxdev=maxdev,
                         refit=refit,
-                        niter = niter
+                        niter = niter,
+                        lapse_times_per_iter = lapse_times_per_iter, ## An experimental result.
                         ), class = "covarem"))
 }
 

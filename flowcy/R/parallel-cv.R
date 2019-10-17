@@ -129,7 +129,6 @@ parallel_cv.covarem <- function(ylist, X,
 
       ## Temporary
       end.time = Sys.time()
-      format(end.time-start.time, "sec")
       lapsetime = round(difftime(Sys.time(), start.time,
                                  units = "secs"), 0)
       ## End of temporary
