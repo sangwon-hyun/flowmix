@@ -184,9 +184,9 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
                                units = "secs"), 0)
     lapse_times_per_iter[iter-1] = lapse_time_per_iter
   }
-  ## if(any(is.na(lapse_times_per_iter))){
-  ##   lapse_times_per_iter = lapse_times_per_iter[which(!is.na(lapse_times_per_iter))]
-  ## }
+  if(any(is.na(lapse_times_per_iter))){
+    lapse_times_per_iter = lapse_times_per_iter[which(!is.na(lapse_times_per_iter))]
+  }
 
   ## Threshold (now that we're using CVXR for beta)
   beta = beta.list[[iter]]
@@ -217,7 +217,7 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
                         maxdev=maxdev,
                         refit=refit,
                         niter = niter,
-                        lapse_times_per_iter = lapse_times_per_iter, ## An experimental result.
+                        lapse_times_per_iter = lapse_times_per_iter ## An experimental result.
                         ), class = "covarem"))
 }
 
