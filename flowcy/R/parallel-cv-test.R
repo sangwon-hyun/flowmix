@@ -113,14 +113,8 @@ parallel_cv2.covarem <- function(ylist, X,
                 msg=paste0("When you disable warm starts, you must provide a |cl| object!",
                 "Making a simple 1-core local cluster is easy: cl=makePSOCKcluster(1)"))
 
-    ## The immediate thing I can do is to pool /all/ the jobs. For now, the best
-    ## I can do is take the 12 x 12 = 144 nodes. (The next step is to also
-    ## parallelize the 5 folds as well, so that it is 144 x 5 = 720)
-
     ## Save data once
     save(ylist, X,
-         ## beta_lambdas, alpha_lambdas,
-         ## destin, gridsize, splits, nsplit,
          file=file.path(destin, "data.Rdata"))
 
     ## Parallelize for one pair of lambda values.
@@ -156,7 +150,6 @@ parallel_cv2.covarem <- function(ylist, X,
       lapsetime = round(difftime(Sys.time(), start.time,
                                  units = "secs"), 0)
       ## End of temporary
-
       saveres(res = res,
               ialpha = ialpha, ibeta = ibeta, destin = destin,
               beta_lambdas = beta_lambdas,
@@ -170,7 +163,6 @@ parallel_cv2.covarem <- function(ylist, X,
         cat(err$message, fill=TRUE)
         warning(err)})
       return(NULL)
-
     }
 
     ## Actually do the "brute force" parallelization
@@ -180,55 +172,15 @@ parallel_cv2.covarem <- function(ylist, X,
     end.ind = gridsize^2
     ## temporary feature
     if(tester){
-      lapply(end.ind:1, do_one_pair, end.ind,
-                ## The rest of the arguments go here
-                ylist, X, mysplits, nsplit, refit, mean_lambdas,
-                pie_lambdas, multicore.cv, gridsize, destin, ...)
+      stop("Don't use tester.")
     } else {
       ## End of temporary check
-
-    parallel::parLapplyLB(cl, end.ind:1, do_one_pair, end.ind,
-                ## The rest of the arguments go here
-                ylist, X, mysplits, nsplit, refit, mean_lambdas,
-                pie_lambdas, multicore.cv, gridsize, destin, ...)
+      parallel::parLapplyLB(cl, end.ind:1, do_one_pair, end.ind,
+                            ## The rest of the arguments go here
+                            ylist, X, mysplits, nsplit, refit, mean_lambdas,
+                            pie_lambdas, multicore.cv, gridsize, destin, ...)
       }
   } else {
-
-    ## Define clumps of row numbers (Rows are alpha, columns are beta.)
-    ialpha.clumps =
-      Map(function(a,b)a:b,
-          pmin(seq(from = numfork, to = gridsize+numfork-1, by = numfork), gridsize),
-          seq(from = 1, to = gridsize, by = numfork))
-
-    ## Do all of the right edge first.
-    ibeta = gridsize
-    ialphas = gridsize:1
-    move_to_up(ialphas, ibeta,
-               pie_lambdas, mean_lambdas,
-               gridsize,
-               NULL, ## warmstarts
-               destin, ylist, X, mysplits, nsplit, refit,
-               multicore.cv = multicore.cv,
-               ...)
-
-    for(iclump in length(ialpha.clumps):1){
-
-      ialphas = ialpha.clumps[[iclump]]
-      cat("clump", iclump, "consists of rows:", ialphas, fill=TRUE)
-
-      ## Traverse from right->left, from the right edge
-      new.reslists = mclapply(ialphas, function(ialpha){
-        warmstart = loadres(ialpha, gridsize, destin)
-        ## cat("Warmstart from (", ialpha, gridsize, ")", fill = TRUE)
-        move_to_left(ialpha, (gridsize-1):1,
-                     pie_lambdas, mean_lambdas,
-                     gridsize,
-                     warmstart, destin, ylist, X, mysplits,
-                     nsplit, refit,
-                     multicore.cv = multicore.cv,
-                     ...)
-      }, mc.cores = numfork)
-      cat(fill=TRUE)
-    }
+    stop("Don't use warmstart")
   }
 }
