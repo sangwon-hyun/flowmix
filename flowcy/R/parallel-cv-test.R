@@ -82,7 +82,7 @@ parallel_cv2.covarem <- function(ylist, X,
 
   ## Printing some information about the parallelism
   if(verbose==TRUE){
-    if(warm_start) cat("At most ", numfork * nsplit, " cores will be used.", fill = TRUE)
+    cat("At most ", numfork * nsplit, " cores will be used.", fill = TRUE)
     cat("Parallel CV output saved to ", destin, fill = TRUE)
   }
 
