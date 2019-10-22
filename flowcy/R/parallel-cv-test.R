@@ -77,9 +77,7 @@ parallel_cv2.covarem <- function(ylist, X,
                                 refit = FALSE,
                                 destin = "~",
                                 multicore.cv = FALSE,
-                                warm_start=TRUE,
                                 cl=NULL,
-                                tester=FALSE,
                                 ...){
 
   ## Printing some information about the parallelism
@@ -107,7 +105,6 @@ parallel_cv2.covarem <- function(ylist, X,
                                              ## now. TODO: make MUCH smaller
 
   ## If warm starts are not needed, do the following:
-  if(!warm_start){
     assert_that(!multicore.cv)
     assert_that(!is.null(cl),
                 msg=paste0("When you disable warm starts, you must provide a |cl| object!",
@@ -170,17 +167,4 @@ parallel_cv2.covarem <- function(ylist, X,
       cat("Brute force parallelizing on ", length(cl), "cores.", fill=TRUE)
     }
     end.ind = gridsize^2
-    ## temporary feature
-    if(tester){
-      stop("Don't use tester.")
-    } else {
-      ## End of temporary check
-      parallel::parLapplyLB(cl, end.ind:1, do_one_pair, end.ind,
-                            ## The rest of the arguments go here
-                            ylist, X, mysplits, nsplit, refit, mean_lambdas,
-                            pie_lambdas, multicore.cv, gridsize, destin, ...)
-      }
-  } else {
-    stop("Don't use warmstart")
-  }
 }
