@@ -166,5 +166,11 @@ parallel_cv2.covarem <- function(ylist, X,
     if(verbose){
       cat("Brute force parallelizing on ", length(cl), "cores.", fill=TRUE)
     }
+
     end.ind = gridsize^2
+    parallel::parLapplyLB(cl, end.ind:1, do_one_pair, end.ind,
+                ## The rest of the arguments go here
+                ylist, X, mysplits, nsplit, refit, mean_lambdas,
+                pie_lambdas, multicore.cv, gridsize, destin, ...)
+
 }
