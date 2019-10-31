@@ -83,35 +83,6 @@ parallel_cv.covarem <- function(ylist, X,
       already_done = checkres(ialpha, ibeta, destin)
       if(already_done) return(NULL)
 
-
-
-      ## ## ## START of temporary (for debugging)
-      ## nsplit = 3
-      ## numclust = 4
-      ## splits = cvsplit(ylist, nsplit = nsplit)
-      ## maxres = list(alpha=0.619, beta=3500) ## Testing for interactive sessions
-      ## alpha_lambdas = mylogspace(from=0.01, to=maxres$alpha, length=gridsize)
-      ## beta_lambdas = mylogspace(from=0.01, to=maxres$beta, length=gridsize)
-      ## ialpha=4
-      ## ibeta=4
-      ## la()
-      ## refit=FALSE
-      ## cvres = get_cv_score(ylist, Xscaled, splits, nsplit, refit,
-      ##                      ## Additional arguments for covarem
-      ##                      mean_lambda = beta_lambdas[ibeta],
-      ##                      pie_lambda = alpha_lambdas[ialpha],
-      ##                      multicore.cv = FALSE, maxdev=0.5,
-      ##                      nrep=1,
-      ##                      numclust=numclust,
-      ##                      niter=4)
-
-      ## ## Get the fitted results on the entire data
-      ## res = covarem(ylist = ylist, X = X,
-      ##               mean_lambda = beta_lambdas[ibeta],
-      ##               pie_lambda = alpha_lambdas[ialpha],
-      ##               ...)
-      ## ## END of temporary
-
       tryCatch({
       ## The rest is similar to move_to_up() or move_to_left().
       cvres = get_cv_score(ylist, X, splits, nsplit, refit,

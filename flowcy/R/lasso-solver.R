@@ -142,5 +142,7 @@ cvxr_lasso_newer <- function(y, X, Xorig, lambda, exclude.from.penalty=NULL, thr
   ## Solve the problem.
   prob <- CVXR::Problem(CVXR::Minimize(obj), constraints)
   result <- solve(prob, FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
-  return(result$getValue(betamat))
+  betahat <- result$getValue(betamat)
+
+  return(betahat)
 }

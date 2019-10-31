@@ -90,3 +90,9 @@ init_sigma <- function(data, numclust, TT, fac=1){
   sigmas = abind::abind(sigmas, along=0)
   return(sigmas)
 }
+
+
+##' (Probably not needed) T-length list of (nt x dimdat)
+init_resp <- function(ntlist, dimdat){
+  lapply(ntlist, function(nt) matrix(0, nrow=nt, ncol=dimdat))
+}

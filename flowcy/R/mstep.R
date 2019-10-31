@@ -13,8 +13,7 @@ Mstep_alpha <- function(resp, X, numclust, lambda = 0, alpha = 1,
   p = ncol(X)
 
   ## Calculate the summed responsibilities
-  resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
-
+  resp.sum <- t(sapply(resp, colSums)) ## (T x numclust)
   stopifnot(dim(resp) == c(TT, numclust))
 
   ## Fit the model, possibly with some regularization
@@ -45,7 +44,7 @@ Mstep_alpha <- function(resp, X, numclust, lambda = 0, alpha = 1,
   stopifnot(all(piehat >= 0))
   ## This should be dimension (T x K)
 
-  return(list(pie = piehat, alpha = alphahat))##, fit=fit))
+  return(list(pie = piehat, alpha = alphahat))
 }
 
 
@@ -56,9 +55,13 @@ Mstep_alpha <- function(resp, X, numclust, lambda = 0, alpha = 1,
 ##' @param mn are the fitted means
 ##' @return (TT x numclust x dimdat x dimdat) array.
 Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
+
+  ## Find some sizes
   TT = length(ylist)
   ntlist = sapply(ylist, nrow)
   dimdat = ncol(ylist[[1]])
+  cs = c(0, cumsum(ntlist))
+  irows.list = lapply(1:TT, function(tt){irows = (cs[tt] + 1):cs[tt + 1]})
 
   ## Set up empty residual matrix (to be reused)
   resid.rows = matrix(NA, nrow = sum(ntlist), ncol=dimdat)
@@ -68,9 +71,8 @@ Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
 
     ## Calculate all the residuals, and weight them.
     for(tt in 1:TT){
-      irows = (cs[tt]+1):cs[tt+1]
       row.to.subtract = mn[tt,,iclust]
-      resid.rows[irows,] = sqrt(resp[[tt]][,iclust]) *
+      resid.rows[irows.list[[tt]],] = sqrt(resp[[tt]][,iclust]) *
         sweep(ylist[[tt]], 2, rbind(row.to.subtract))
     }
 
@@ -122,8 +124,9 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
   ntlist = sapply(ylist, nrow)
   p = ncol(X)
   Xa = cbind(1, X)
+  dimsigma = dim(sigma)
   if(!is.null(sigma)){
-    assert_that(all.equal(dim(sigma), c(numclust, dimdat, dimdat)))
+    assert_that(all.equal(dimsigma, c(numclust, dimdat, dimdat)))
   }
 
   ## Setup
@@ -148,19 +151,45 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
       ## Unravel to obtain the coef and fitted response
       betahat = matrix(res$b, ncol=dimdat)
     } else {
-      ## If applicable, restrict the fitted means to be close to \beta0k.
-      betahat = cvxr_lasso_newer(X = Xtildes[[iclust]],
-                                 Xorig = X,
-                                 y = yvecs[[iclust]],
-                                 lambda = mean_lambda,
-                                 exclude.from.penalty = exclude.from.penalty,
-                                 maxdev = maxdev,
-                                 dimdat = dimdat,
-                                 numclust = numclust,
-                                 refit = refit,
-                                 sel_coef = sel_coef$beta[[iclust]]
-                                 )
+
+      ## ## TEMPORARY
+      ## ## First do glmnet.
+      ##   res =  solve_lasso(x = Xtildes[[iclust]], y = yvecs[[iclust]], lambda = mean_lambda,
+      ##                      intercept = FALSE,
+      ##                      exclude.from.penalty = exclude.from.penalty)
+
+      ## ## Unravel to obtain the coef and fitted response
+      ## betahat = matrix(res$b, ncol=dimdat)
+      ## slack = 1E-5 ## Just in case
+      ## xb = sqrt(rowSums((X %*% betahat[-1,])^2))
+
+      ## if(any(xb > maxdev + slack)){
+      ##   print("using CVXR")
+
+        ## If applicable, restrict the fitted means to be close to \beta0k.
+        ## b = microbenchmark({
+        betahat = cvxr_lasso_newer(X = Xtildes[[iclust]],
+                                   Xorig = X,
+                                   y = yvecs[[iclust]],
+                                   lambda = mean_lambda,
+                                   exclude.from.penalty = exclude.from.penalty,
+                                   maxdev = maxdev,
+                                   dimdat = dimdat,
+                                   numclust = numclust,
+                                   refit = refit,
+                                   sel_coef = sel_coef$beta[[iclust]]
+                                   )
+
+      ## } ## Ending bracket of of TEMPORARY
       betahat[which(abs(betahat) < 1E-8, arr.ind = TRUE)] = 0
+
+      ## Temporary
+      xb = sqrt(rowSums((X %*% betahat[-1,])^2))
+      slack = 1E-5
+      assert_that(max(xb) <= 0.5 + slack)
+      ## print(max(xb))## <= 0.5)
+      ## End of Temporary
+
     }
     yhat = Xa %*% betahat
     assert_that(all(dim(betahat) == c(p+1,dimdat)))
@@ -187,6 +216,7 @@ manip <- function(ylist, X, resp, sigma, numclust,
                   sigma_eig_by_clust=NULL,
                   first_iter=FALSE){
 
+  ## Make some quantities
   ntlist = sapply(ylist, nrow)
   dimdat = ncol(ylist[[1]])
   TT = nrow(X)
@@ -194,26 +224,21 @@ manip <- function(ylist, X, resp, sigma, numclust,
   sigma.inv.halves = array(NA, dim=dim(sigma))
 
   if(first_iter){
-    ## Old (original) slow way
     for(iclust in 1:numclust){
       sigma.inv.halves[iclust,,] = mtsqrt_inv(sigma[iclust,,])
     }
   } else {
-    ## New way
     for(iclust in 1:numclust){
       sigma.inv.halves[iclust,,] = sigma_eig_by_clust[[iclust]]$inverse_sigma_half
     }
   }
 
   ## Pre-calculate response and covariates to feed into lasso.
-  emptymat = matrix(NA, nrow = dimdat, ncol = TT)
+  emptymat = matrix(0, nrow = dimdat, ncol = TT)
   Ytildes = list()
   for(iclust in 1:numclust){
-    cs = c(0, cumsum(ntlist))
     for(tt in 1:TT){
-      irows = (cs[tt] + 1):cs[tt + 1]
-      wt.y = resp[[tt]][, iclust]  * ylist[[tt]]
-      emptymat[,tt] = colSums(wt.y)
+      emptymat[,tt] = colSums(resp[[tt]][, iclust] * ylist[[tt]])
     }
     Ytildes[[iclust]] = emptymat
   }
