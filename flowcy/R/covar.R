@@ -122,12 +122,12 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
 
     ## conduct E step
     ## if(iter==3) browser()
-    e1$resp <- Estep_covar(e1$mn,
-                           e1$sigma,
-                           e1$pie,
+    resp <- Estep_covar(mn,
+                           sigma,
+                           pie,
                            ylist,
                            numclust,
-                           denslist_by_clust = e1$denslist_by_clust,
+                           denslist_by_clust = denslist_by_clust,
                            first_iter = (iter == 2),
                            standard_gmm,
                            ylist_collapsed)  ## This should be (T x numclust x dimdat x dimdat)
