@@ -52,9 +52,8 @@ init_mn <- function(data, numclust, TT){
   ## Initialize the means by randomly sampling data from each time point.
   mulist = lapply(1:TT, function(tt){
     mydata = data[[tt]]
-    isamp = sample(1:nrow(mydata), numclust)
-    sampled.data = mydata[isamp, , drop=FALSE]
-    rownames(sampled.data) = paste0("clust", 1:numclust)
+    nt = nrow(mydata)
+    sampled.data = mydata[sample(1:nt, numclust), , drop=FALSE]
     return(sampled.data)
   })
   names(mulist) = 1:TT
@@ -65,6 +64,7 @@ init_mn <- function(data, numclust, TT){
     muarray[tt,,] = mulist[[tt]]
   }
 
+  gc()
   return(muarray)
 }
 

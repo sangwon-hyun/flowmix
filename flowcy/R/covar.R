@@ -1,4 +1,4 @@
-##' Main function for covariate EM. Does covariate EM with |nrep| restarts (5 by
+
 ##' default).
 ##' @param ... Arguments for \code{covarem_once()}.
 ##' @param nrep Number of restarts.
@@ -47,26 +47,15 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
                          warmstart  =  c("none", "rough"), sigma.fac = 1, tol = 1E-6,
                          refit = FALSE, ## EXPERIMENTAL FEATURE.
                          sel_coef = NULL,
-                         maxdev = NULL,
-                         standard_gmm=FALSE ## Experimental feature.
+                         maxdev = NULL
                          ){
 
   ## Basic checks
   if(!is.null(maxdev)){ assert_that(maxdev!=0) } ## Preventing the maxdev=FALSE mistake.
-  assert_that(!(is.data.frame(ylist[[1]])))
-
-
-  if(standard_gmm){
-    ylist_collapsed = list(do.call(rbind, ylist))
-    mn_collapsed = list(apply(mn, 2, rbind))
-    TT = 1
-  } else {
-    ylist_collapsed = NULL
-    mn_collapsed = NULL
-    TT = length(ylist)
-  }
+  ## assert_that(!(is.data.frame(ylist[[1]])))
 
   ## Setup.
+  TT = length(ylist)
   dimdat = ncol(ylist[[1]])
   p = ncol(X)
   warmstart = match.arg(warmstart)
@@ -81,56 +70,27 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
   }
   ntlist = sapply(ylist, nrow)
 
-  ## Initialize /in this environment/. <-  todo: try passing the environment
-  ## e1 <- rlang::env(beta = init_beta(p, dimdat, numclust),
-  ##               alpha = init_alpha(dimdat, p),
-  ##               mn = mn,
-  ##               pie = calc_pie(TT, numclust), ## Let's just say it is all 1/K for now.
-  ##               sigma = init_sigma(ylist, numclust, TT, fac=sigma.fac), ## (T x numclust x dimdat x dimdat)
-  ##               sigma_eig_by_clust = 1,
-  ##               denslist_by_clust= 1,
-  ##               resp = init_resp(ntlist, dimdat))
-
-  ## Initialize alpha and beta
+  ## Initialize some things
+  pie = calc_pie(TT, numclust) ## Let's just say it is all 1/K for now.
+  denslist_by_clust <- NULL
   objectives = c(+1E20, rep(NA, niter-1))
+  sigma = init_sigma(ylist, numclust, TT, fac=sigma.fac) ## (T x numclust x dimdat x dimdat)
+  sigma_eig_by_clust = NULL
   start.time = Sys.time()
 
-  ## Temporary: timing /each/ iteration!
-  lapse_times_per_iter = rep(NA, niter)
-
-  ## ## Temporary: make plots of cluster means
-  ## pdf("plots.pdf", width=30, height=10)
-  ## matt = matrix(1:18*2, byrow=FALSE, nrow=3, ncol=6*2)
-  ## layout(mat=matt)
-
-  ## Initialize
-  ## denslist_by_clust <- NULL
-
   for(iter in 2:niter){
-    if(verbose) printprogress(iter, niter, "EM iterations.", start.time = start.time)
-
-    ## ## Temporary: make plots of cluster means
-    ## some.of.all.y = all.y[sample(1:nrow(all.y), avg.num.rows),]
-    ## for(iis in list(1:2, 2:3, c(3,1))){
-    ##   plot(some.of.all.y[,iis], type='p',cex=0.1)
-    ##   mymean = mn[1,iis,]
-    ##   points(x=mymean[1,], y=mymean[2,], col='red', pch=16)
-    ## }
-    ## ## End of temporary
+    if(verbose) printprogress(iter-1, niter-1, "EM iterations.", start.time = start.time)
 
     start_time_per_iter = Sys.time()
 
     ## conduct E step
-    ## if(iter==3) browser()
     resp <- Estep_covar(mn,
                            sigma,
                            pie,
                            ylist,
                            numclust,
                            denslist_by_clust = denslist_by_clust,
-                           first_iter = (iter == 2),
-                           standard_gmm,
-                           ylist_collapsed)  ## This should be (T x numclust x dimdat x dimdat)
+                           first_iter = (iter == 2))  ## This should be (T x numclust x dimdat x dimdat)
 
 
     ## Conduct M step
@@ -145,7 +105,8 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
     rm(res.alpha)
 
     ## 2. Beta
-    res.beta = Mstep_beta(resp, ylist, X, mean_lambda = mean_lambda,
+    res.beta = Mstep_beta(resp, ylist, X,
+                          mean_lambda = mean_lambda,
                           sigma,
                           refit = refit,
                           sel_coef = sel_coef, maxdev = maxdev,
@@ -189,13 +150,6 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
     ## Check convergence
     if(check_converge_rel(objectives[iter-1],
                           objectives[iter], tol = tol)) break
-
-    lapse_time_per_iter = round(difftime(Sys.time(), start_time_per_iter,
-                               units = "secs"), 0)
-    lapse_times_per_iter[iter-1] = lapse_time_per_iter
-  }
-  if(any(is.na(lapse_times_per_iter))){
-    lapse_times_per_iter = lapse_times_per_iter[which(!is.na(lapse_times_per_iter))]
   }
 
   ## Threshold (now that we're using CVXR for beta)
@@ -222,8 +176,7 @@ covarem_once <- function(ylist, X = NULL, numclust, niter = 100,
                         mean_lambda = mean_lambda,
                         maxdev=maxdev,
                         refit=refit,
-                        niter = niter,
-                        lapse_times_per_iter = lapse_times_per_iter ## An experimental result.
+                        niter = niter
                         ), class = "covarem"))
 }
 
@@ -312,10 +265,10 @@ make_denslist_eigen <- function(ylist, mu,
   ## Basic checks
   assert_that(!is.null(sigma_eig_by_clust))
 
-  ## Calculate densities
+  ## Calculate densities (note to self: nested for loop poses no problems)
   lapply(1:numclust, function(iclust){
-    mysigma_eig = sigma_eig_by_clust[[iclust]]
-    lapply(1:TT,function(tt){
+    mysigma_eig <- sigma_eig_by_clust[[iclust]]
+      lapply(1:TT,function(tt){
       return(dmvnorm_fast(ylist[[tt]],
                           mu[tt,,iclust],
                           sigma_eig=mysigma_eig))

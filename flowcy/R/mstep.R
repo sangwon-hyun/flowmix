@@ -64,9 +64,11 @@ Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
   irows.list = lapply(1:TT, function(tt){irows = (cs[tt] + 1):cs[tt + 1]})
 
   ## Set up empty residual matrix (to be reused)
-  resid.rows = matrix(NA, nrow = sum(ntlist), ncol=dimdat)
+  resid.rows = matrix(0, nrow = sum(ntlist), ncol=dimdat) ## trying env
   cs = c(0, cumsum(ntlist))
-  vars = list()
+  vars <- vector(mode = "list", numclust)
+  resp.grandsums = rowSums(sapply(1:TT, function(tt){ colSums(resp[[tt]]) }))
+
   for(iclust in 1:numclust){
 
     ## Calculate all the residuals, and weight them.
@@ -77,9 +79,8 @@ Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
     }
 
     ## Calculate the covariance matrix
-    resp.grandsum = sum(unlist(sapply(1:TT, function(tt){ resp[[tt]][,iclust] })))
-    myvar = crossprod(resid.rows, resid.rows) / resp.grandsum
-    vars[[iclust]] = myvar
+    myvar = crossprod(resid.rows, resid.rows) / resp.grandsums[iclust]
+    vars[[iclust]] = myvar ##NEXT UP!! Work on this.
   }
   rm(resid.rows)
 
@@ -184,9 +185,9 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
       betahat[which(abs(betahat) < 1E-8, arr.ind = TRUE)] = 0
 
       ## Temporary
-      xb = sqrt(rowSums((X %*% betahat[-1,])^2))
-      slack = 1E-5
-      assert_that(max(xb) <= 0.5 + slack)
+      ## xb = sqrt(rowSums((X %*% betahat[-1,])^2))
+      ## slack = 1E-5
+      ## assert_that(max(xb) <= 0.5 + slack)
       ## print(max(xb))## <= 0.5)
       ## End of Temporary
 

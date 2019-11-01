@@ -8,54 +8,31 @@
 ##'   given the parameter estimate. T-length list of (nt x dimdat)
 Estep_covar <- function(mn, sigma, pie, ylist, numclust,
                         denslist_by_clust=NULL,
-                        first_iter=FALSE,
-                        standard_gmm=FALSE,
-                        ylist_collapsed=NULL,
-                        mn_collapsed=NULL
+                        first_iter=FALSE
                         ){
 
-  ## Incomplete!
-  if(standard_gmm){
-    assert_that(!is.null(ylist_collapsed))
-    assert_that("list" %in% class(ylist_collapsed))
-    TT = 1
-    ntlist = nrow(ylist_collapsed[[1]])
-    ylist = ylist_collapsed
-    mn =  mn_collapsed
-    rep = list()
-    ## Also collapse means, or redefine the dimension of the means.
-
-  } else {
-    TT = length(ylist)
-    ntlist = sapply(ylist, nrow)
-    resp = list()
-  }
+  TT = length(ylist)
+  ntlist = sapply(ylist, nrow)
+  resp = list() ## Next up: try to /not/ do this.
 
   calculate_dens <- function(iclust, tt, y, mn, sigma, denslist_by_clust, first_iter){
-    ## Gather mean at time tt
-    mu = mn[tt,,iclust]
-    ## Calculate the density
+    mu <- mn[tt,,iclust] ## No problem with memory leak here.
     if(first_iter){
-      dens = mvnfast::dmvn(y, mu, sigma[iclust,,], log = FALSE)
+      dens = mvnfast::dmvn(y, mu = mu, sigma[iclust,,], log = FALSE)
     } else {
       dens = unlist(denslist_by_clust[[iclust]][[tt]])
     }
-    ## if(any(is.nan(densmat[,iclust]))) browser()
-    return(dens)
+    return(dens) ## old
   }
 
   ## Calculate the responsibilities at each time point, separately
-  for(tt in 1:TT){
+  ncol.pie = ncol(pie)
+  for( tt in 1:TT){
     densmat <- sapply(1:numclust, calculate_dens,
                       tt, ylist[[tt]], mn, sigma, denslist_by_clust, first_iter)
-    piemat <- matrix(pie[tt,], nrow=ntlist[tt], ncol=ncol(pie), byrow=TRUE)
-    ## assert_that(all(dim(piemat)==dim(densmat)))
-    wt.densmat <- piemat * densmat
+    wt.densmat <- matrix(pie[tt,], nrow=ntlist[tt], ncol=ncol.pie, byrow=TRUE) * densmat
     wt.densmat <- wt.densmat / rowSums(wt.densmat)
-
-    ## make sure this is a row-wise operation
-    resp[[tt]] = wt.densmat
+    resp[[tt]] <- wt.densmat
   }
-
   return(resp)
 }
