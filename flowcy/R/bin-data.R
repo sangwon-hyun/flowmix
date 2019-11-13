@@ -52,7 +52,7 @@ make_midpoints <- function(grid){
 
 
 ##' Make a matrix of (x,y,z,count).
-make_y_binned <- function(y, gridsize, counts){
+make_ybin <- function(y, gridsize, counts){
   d = gridsize
   mat = matrix(0, nrow=d^3, ncol=4)
   mm = 1
