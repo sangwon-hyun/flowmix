@@ -59,7 +59,6 @@ make_y_binned <- function(y, gridsize, counts){
   for(ii in 1:d){
     for(jj in 1:d){
       for(kk in 1:d){
-        print(mm)
         ## Make the c(3 coordinates, count)
         mat[mm,] = c(midpoints[[1]][ii],
                      midpoints[[2]][jj],
