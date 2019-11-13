@@ -8,9 +8,7 @@ make_counts <- function(y, grid){
   nn = length(grid[[1]])-1
   counts = array(0, dim=c(nn,nn,nn))
   ## ugly triple loop
-  start.time=Sys.time()
   for(ii in 1:nn){
-    printprogress(ii, nn, start.time=start.time)
     for(jj in 1:nn){
     ## printprogress((ii-1)*nn + jj, nn^2, start.time=start.time)
       for(kk in 1:nn){
