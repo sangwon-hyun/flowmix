@@ -45,7 +45,7 @@ make_counts <- function(y, grid){
   nn = length(grid[[1]])-1
   counts = array(0, dim=c(nn,nn,nn))
   for(ii in 1:nt){
-    printprogress(ii, nt)
+    ## printprogress(ii, nt)
     ijk = identify_box(grid, y[ii,])
     counts[ijk[1], ijk[2], ijk[3]]= counts[ijk[1], ijk[2], ijk[3]] + 1
   }
