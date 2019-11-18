@@ -9,7 +9,7 @@
 ##' @param pie_lambda lambda for lasso for pie.
 ##' @return List containing fitted parameters and means and mixture weights,
 ##'   across algorithm iterations.
-covarem_getrange <- function(ylist, X=NULL, numclust, niter=100, mn=NULL, pie_lambda=0,
+covarem_getrange <- function(ylist, X=NULL, numclust, niter=1000, mn=NULL, pie_lambda=0,
                              mean_lambda=0, verbose=FALSE,
                              warmstart = c("none", "rough"), sigma.fac=1, tol=1E-6){
 

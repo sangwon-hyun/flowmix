@@ -18,8 +18,7 @@ covarem <- function(..., nrep = 5){
 
   ## Pick the best one and return
   objlist = lapply(reslist, function(res){ res$obj[-1]})
-  ii = which.
-min(sapply(objlist, min))
+  ii = which.min(sapply(objlist, min))
   return(reslist[[ii]])
 }
 
