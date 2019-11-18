@@ -1,38 +1,35 @@
-##' A very rough warmstarts for covariate EM.
-##' @param ylist list of data.
-##' @param numclust number of clusters desired.
-##' @return An array of dimension (T x dimdat x numclust).
-warmstart_covar <- function(ylist, numclust){
+##' Temporary helper function for printing memory
+mymem <- function(msg){
+  if(!is.null(msg))print(msg)
+  print(gc()["Vcells","(Mb)"])
+}
 
-  dimdat = ncol(ylist[[1]])
-  TT = length(ylist)
-
-  ## Collapse all the data
-  all.y = do.call(rbind, ylist)
-
-  ## Run k-means once on collapsed data.
-  ## obj = kmeans(all.y, numclust)
-  ## numclust = 5
-  avg.num.rows = round(mean(sapply(ylist,nrow)))
-  ## par(mfrow=c(5,5))
-  ## for(ii in 25:1){
-  ##   print(ii)
-  ##   set.seed(ii)
-  some.of.all.y = all.y[sample(1:nrow(all.y), avg.num.rows),]
-  obj = kmeans(some.of.all.y, numclust, algorithm="MacQueen")
-    ## rm(obj)
-
-
-  ## ## Plot the results (temporary)
-  ## plot(some.of.all.y[,1:2], type='p',cex=0.1)
-  ## points(obj$centers[,1:2], col='red', pch=16)
-  ##   }
-
-  ## Repeat it TT times and return it
-  centres = array(NA, dim=c(TT, dimdat, numclust))
+##' Trim data so that both the list of binned responses and counts don't have
+##' any zeros.
+trim <- function(ybin_list, counts_list){
+  assert_that(identical(sapply(ybin_list, nrow),
+                        sapply(counts_list, length)))
   for(tt in 1:TT){
-    centres[tt,,] = t(obj$centers)
+
+    counts = counts_list[[tt]]
+    ybin = ybin_list[[tt]]
+
+    ## Trim both if necessary
+    if(any(counts==0)){
+      inds = which(counts==0)
+      ybin_list[[tt]] = ybin[-which(counts==0), ]
+      counts_list[[tt]] = counts[-which(counts==0)]
+    }
   }
-  stopifnot(dim(centres) == c(TT, dimdat, numclust)) ## Unnecessary, but still.
-  return(centres)
+  return(list(ybin_list= ybin_list, counts_list=counts_list))
+}
+
+
+##' Helper to check whether ylist and countslist have been trimmed of zero
+##' (e.g. using \code{trim()}).
+check_trim <- function(ylist, countslist){
+  assert_that(all.equal(sapply(ylist, nrow),
+                        sapply(countslist, length))==TRUE)
+  num_zeros_in_counts = sapply(countslist,function(a) sum(a==0))
+  assert_that(all(num_zeros_in_counts==0))
 }

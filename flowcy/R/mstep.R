@@ -6,24 +6,44 @@
 ##'   (p+1)).
 Mstep_alpha <- function(resp, X, numclust, lambda = 0, alpha = 1,
                         refit = FALSE,
-                        sel_coef = NULL
+                        sel_coef = NULL,
+                        bin = FALSE ##temporary
                         ){
 
   TT = nrow(X)
   p = ncol(X)
 
   ## Calculate the summed responsibilities
-  resp.sum <- t(sapply(resp, colSums)) ## (T x numclust)
+  if(bin) resp.sum = t(sapply(resp, Matrix::colSums)) ## (T x numclust)
+  if(!bin) resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
+
+  ## Temporary: eventually make into sparse Matrix, but for now, CVXR doesn't
+  ## take sparse Matrix.
+  resp.sum = as.matrix(resp.sum)
   stopifnot(dim(resp) == c(TT, numclust))
 
   ## Fit the model, possibly with some regularization
   if(!refit){
-    fit = glmnet::glmnet(x = X, y = resp.sum, family = "multinomial",
-                         alpha = alpha, lambda = lambda)
-    ## The coefficients for the multinomial logit model are (K x (p+1))
-    alphahat = do.call(rbind,
-                       lapply(coef(fit), as.numeric))
-    stopifnot(all(dim(alphahat) == c(numclust, (p+1))))
+    ## ## TODO: wrap a try-catch around this; catch this precise message and end
+    ## ## the entire algorithm by returning a flag or NULL, when this happens.
+    ## browser()
+    ## fit = glmnet::glmnet(x = X, y = resp.sum, family = "multinomial",
+    ##                      alpha = alpha, lambda = lambda) ## This
+    ## ## Question: why isn't the weight of n_t becing used?
+
+    ## ## The coefficients for the multinomial logit model are (K x (p+1))
+    ## alphahat = do.call(rbind,
+    ##                    lapply(coef(fit), as.numeric))
+    ## stopifnot(all(dim(alphahat) == c(numclust, (p + 1))))
+
+    ## Until we find an equivalence between glmnet and cvxr, use cvxr (slow but
+    ## correct):
+    Xa = cbind(1, X)
+    alphahat = cvxr_multinom_new(X = Xa, y = resp.sum, lambda = 0,
+                                 exclude = 1)
+    alphahat[which(abs(alphahat) < 1E-8, arr.ind = TRUE)] = 0
+    alphahat = t(as.matrix(alphahat))
+    stopifnot(all(dim(alphahat) == c(numclust, (p + 1))))
 
   } else {
     Xa = cbind(1, X)
@@ -54,7 +74,8 @@ Mstep_alpha <- function(resp, X, numclust, lambda = 0, alpha = 1,
 ##' list of (dimdat x dimdat) matrices.
 ##' @param mn are the fitted means
 ##' @return (TT x numclust x dimdat x dimdat) array.
-Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
+Mstep_sigma_covar <- function(resp, ylist, mn, numclust,
+                              bin=FALSE ){ ## Temporary
 
   ## Find some sizes
   TT = length(ylist)
@@ -67,7 +88,12 @@ Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
   resid.rows = matrix(0, nrow = sum(ntlist), ncol=dimdat) ## trying env
   cs = c(0, cumsum(ntlist))
   vars <- vector(mode = "list", numclust)
-  resp.grandsums = rowSums(sapply(1:TT, function(tt){ colSums(resp[[tt]]) }))
+  if(bin){
+    resp.grandsums = Matrix::rowSums(sapply(1:TT, function(tt){ Matrix::colSums(resp[[tt]]) }))
+  }
+  if(!bin){
+    resp.grandsums = rowSums(sapply(1:TT, function(tt){ colSums(resp[[tt]]) }))
+  }
 
   for(iclust in 1:numclust){
 
@@ -115,7 +141,8 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
                        sel_coef = NULL,
                        maxdev = NULL,
                        sigma_eig_by_clust=NULL,
-                       first_iter=FALSE
+                       first_iter=FALSE,
+                       bin = FALSE
                        ){
 
   ## Preliminaries
@@ -133,7 +160,8 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
   ## Setup
   manip_obj = manip(ylist, Xa, resp, sigma, numclust,
                     sigma_eig_by_clust = sigma_eig_by_clust,
-                    first_iter = first_iter)
+                    first_iter = first_iter,
+                    bin = bin) ## Temporry
   Xtildes = manip_obj$Xtildes
   yvecs = manip_obj$yvecs
 
@@ -215,13 +243,15 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
 ##' @return 3 (or dimdat) |numclust|-length lists.
 manip <- function(ylist, X, resp, sigma, numclust,
                   sigma_eig_by_clust=NULL,
-                  first_iter=FALSE){
+                  first_iter=FALSE,
+                  bin = FALSE){ ## temporary
 
   ## Make some quantities
   ntlist = sapply(ylist, nrow)
   dimdat = ncol(ylist[[1]])
   TT = nrow(X)
-  resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
+  if(bin) resp.sum = t(sapply(resp, Matrix::colSums)) ## (T x numclust)
+  if(!bin) resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
   sigma.inv.halves = array(NA, dim=dim(sigma))
 
   if(first_iter){

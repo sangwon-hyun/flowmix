@@ -39,13 +39,25 @@ calc_pie <- function(TT,numclust){
 }
 
 
+##' Mean is initialized here.
+init_mn <- function(ylist, numclust, TT, dimdat, warmstart=  c("none", "rough")){
+  warmstart = match.arg(warmstart)
+  if(warmstart == "rough"){
+    return(init_mn_warmstart(ylist, numclust))
+  } else if (warmstart == "none"){
+    return(init_mn_naive(lapply(ylist, cbind), numclust, TT))
+  } else {
+    stop("warmstart option not recognized")
+  }
+}
+
 ##' Initialize the cluster centers (naively).
 ##'  @param data  A T-length list of (nt  by 3) datasets.  There should  be T of
 ##'   such datasets. 3 is actually \code{mulen}.
 ##' @param numclust Number of clusters (M).
 ##' @param TT total number of (training) time points.
 ##' @return An array of dimension (T x dimdat x M).
-init_mn <- function(data, numclust, TT){
+init_mn_naive <- function(data, numclust, TT){
 
   dimdat = ncol(data[[1]])
 
@@ -66,6 +78,44 @@ init_mn <- function(data, numclust, TT){
 
   gc()
   return(muarray)
+}
+##' A very rough warmstarts for covariate EM.
+##' @param ylist list of data.
+##' @param numclust number of clusters desired.
+##' @return An array of dimension (T x dimdat x numclust).
+init_mn_warmstart <- function(ylist, numclust){
+
+  dimdat = ncol(ylist[[1]])
+  TT = length(ylist)
+
+  ## Collapse all the data
+  all.y = do.call(rbind, ylist)
+
+  ## Run k-means once on collapsed data.
+  ## obj = kmeans(all.y, numclust)
+  ## numclust = 5
+  avg.num.rows = round(mean(sapply(ylist,nrow)))
+  ## par(mfrow=c(5,5))
+  ## for(ii in 25:1){
+  ##   print(ii)
+  ##   set.seed(ii)
+  some.of.all.y = all.y[sample(1:nrow(all.y), avg.num.rows),]
+  obj = kmeans(some.of.all.y, numclust, algorithm="MacQueen")
+    ## rm(obj)
+
+
+  ## ## Plot the results (temporary)
+  ## plot(some.of.all.y[,1:2], type='p',cex=0.1)
+  ## points(obj$centers[,1:2], col='red', pch=16)
+  ##   }
+
+  ## Repeat it TT times and return it
+  centres = array(NA, dim=c(TT, dimdat, numclust))
+  for(tt in 1:TT){
+    centres[tt,,] = t(obj$centers)
+  }
+  stopifnot(dim(centres) == c(TT, dimdat, numclust)) ## Unnecessary, but still.
+  return(centres)
 }
 
 
@@ -96,3 +146,5 @@ init_sigma <- function(data, numclust, TT, fac=1){
 init_resp <- function(ntlist, dimdat){
   lapply(ntlist, function(nt) matrix(0, nrow=nt, ncol=dimdat))
 }
+
+

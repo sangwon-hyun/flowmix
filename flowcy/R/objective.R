@@ -7,10 +7,12 @@
 ##' @param beta linear coefficients for regression on mean.
 objective_overall_cov <- function(mu, pie, sigma,
                                   TT, dimdat, numclust,
-                                  data,
+                                  ylist,
                                   pie_lambda=0, mean_lambda=0,
                                   alpha=0, beta=0,
-                                  denslist_by_clust=NULL
+                                  denslist_by_clust=NULL,
+                                  countslist=NULL,
+                                  iter##temporary
                                   ){
 
   ## Basic checks
@@ -18,22 +20,23 @@ objective_overall_cov <- function(mu, pie, sigma,
 
   ## 1. Helper function: Calculates one particle's log likelihood using
   ## precalculated data densities.
-  loglikelihood_tt_precalculate <- function(tt, denslist_by_clust, pie){
+  loglikelihood_tt_precalculate <- function(tt, denslist_by_clust, pie, countslist=NULL){
 
     ## One particle's log likelihood (weighted density)
     weighted.densities = lapply(1:numclust, function(iclust){
       return(pie[tt,iclust] * denslist_by_clust[[iclust]][[tt]])
     })
-    return(sum(log(Reduce("+", weighted.densities))))
+    if(!is.null(countslist))counts = countslist[[tt]] else counts = 1
+    return(sum(log(Reduce("+", weighted.densities)) * counts))
   }
 
   ## 2. Second helper function: Calculates one particle's log likelihood without
   ## any pre-calculated densities.
-  loglikelihood_tt <- function(data, tt, mu, sigma, pie){
+  loglikelihood_tt <- function(ylist, tt, mu, sigma, pie, countlist=NULL){
     ## One particle's log likelihood (weighted density)
     weighted.densities = sapply(1:numclust, function(iclust){
 
-      mydat = data[[tt]]
+      mydat = ylist[[tt]]
       mypie = pie[tt,iclust]
       mymu = mu[tt,,iclust]
       mysigma = as.matrix(sigma[iclust,,])
@@ -42,14 +45,17 @@ objective_overall_cov <- function(mu, pie, sigma,
                                    sigma=mysigma,
                                    log=FALSE))
     })
-    return(sum(log(rowSums(weighted.densities))))
+    if(!is.null(countslist)) counts = countslist[[tt]] else counts = 1
+    return(sum(log(rowSums(weighted.densities)) * counts))
   }
 
+  ## Calculate the log likelihood
   loglik = sapply(1:TT, function(tt){
+
     if(is.null(denslist_by_clust)){
-      return(loglikelihood_tt(data, tt, mu, sigma, pie))
+      (loglikelihood_tt(ylist, tt, mu, sigma, pie, countslist))
     } else {
-      return(loglikelihood_tt_precalculate(tt, denslist_by_clust, pie))
+      (loglikelihood_tt_precalculate(tt, denslist_by_clust, pie, countslist))
     }
   })
 

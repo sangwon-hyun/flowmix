@@ -35,7 +35,7 @@ solve_multinom <- function(y, X, lambda, intercept,
 
 ##' Solves, using CVXR, the l1-penalized multinom problem:
 ##' \deqn{ \frac{1}{n} \sum_{i=1}^n \sum_{k=1}^K y_{ik} ( x_i^T \alpha_k) -
-##' \log \left( \sum_{l=1}^K \exp ( x^T \alpha_l) \right)
+##' \sum_{k=1}^K y_{ik}\cdot \log \left( \sum_{l=1}^K \exp ( x^T \alpha_l) \right)
 ##' - \lambda \sum_{l=1}^K \left(\| \alpha_l \|_1 \right)}
 cvxr_multinom <- function(y, X, lambda, exclude.from.penalty=NULL){
 
@@ -54,7 +54,7 @@ cvxr_multinom <- function(y, X, lambda, exclude.from.penalty=NULL){
   obj1 = CVXR::matrix_trace(t(y) %*% X %*% alphamat)
 
   ## Second component
-  obj2 <- sum(CVXR::tlog_sum_exp(diag(rowSums(y)) %*%  X %*% alphamat, 1))
+  obj2 <- sum(CVXR::log_sum_exp(diag(rowSums(y)) %*%  X %*% alphamat, 1))
 
   ## Sum them
   obj <- (obj1  - obj2)  / TT- lambda * sum(abs(alphamat[v,]))

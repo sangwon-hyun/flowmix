@@ -31,8 +31,8 @@ dmvnorm_fast <- function(y, mu, sigma_eig){
   ## Twice as fast as regular RowSums(), which is supposed to be fast itself
   ## resid.prods = Rfast::rowsums(transformed_resids * transformed_resids)
   resid.prods = rowSums(transformed_resids * transformed_resids)
-
-  return(const * mydet^(-1/2) * exp(-1/2 * resid.prods))
+  dens = const * mydet^(-1/2) * exp(-1/2 * resid.prods)
+  return(dens)
 }
 
 
@@ -75,8 +75,7 @@ eigendecomp_sigma <- function(sigma){
                     sigma_half = sigma_half_from_eig(sigma_eig0),
                     inverse_sigma_half = inverse_sigma_half_from_eig(sigma_eig0),
                     sigma_inv = sigma_inv_from_eig(sigma_eig0),
-                    sigma = sigma
-                    )
+                    sigma = sigma)
   return(sigma_eig)
 }
 
