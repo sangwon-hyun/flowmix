@@ -18,7 +18,7 @@ trim <- function(ybin_list, counts_list){
     if(any(counts==0)){
       inds = which(counts==0)
       ybin_list[[tt]] = ybin[-which(counts==0), ]
-      counts_list[[tt]] = counts[-which(counts==0)]
+      counts_list[[tt]] = as.numeric(counts[-which(counts==0)])
     }
   }
   return(list(ybin_list= ybin_list, counts_list=counts_list))
