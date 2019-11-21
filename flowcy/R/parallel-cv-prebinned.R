@@ -19,7 +19,8 @@ parallel_cv_prebinned.covarem <- function(ylist, X,
                                 destin = "~",
                                 cl=NULL,
                                 tester = FALSE,
-                                dat.grid = NULL,
+                                train_ybin_list_by_split,
+                                train_counts_list_by_split,
                                 ...){
 
   ## Printing some information about the parallelism
@@ -49,6 +50,8 @@ parallel_cv_prebinned.covarem <- function(ylist, X,
                          ylist, X, splits, nsplit, refit,
                          beta_lambdas, alpha_lambdas,
                          gridsize, destin,
+                         train_ybin_list_by_split,
+                         train_counts_list_by_split,
                          ...){
 
     ## Redefine which lambda indices correspond to ind in 1:gridsize^2
@@ -63,11 +66,11 @@ parallel_cv_prebinned.covarem <- function(ylist, X,
     ## tryCatch({
     ## The rest is similar to move_to_up() or move_to_left().
     cvres = get_cv_score(ylist, X, splits, nsplit, refit,
+                         train_ybin_list_by_split,
+                         train_counts_list_by_split,
                          ## Additional arguments for covarem
                          mean_lambda = beta_lambdas[ibeta],
                          pie_lambda = alpha_lambdas[ialpha],
-                         test_ybin_list_by_split,
-                         test_counts_list_by_split,
                          ...)
 
     ## Get the fitted results on the entire data
@@ -105,7 +108,10 @@ parallel_cv_prebinned.covarem <- function(ylist, X,
     parallel::parLapplyLB(cl, end.ind:1, do_one_pair, end.ind,
                           ## The rest of the arguments go here
                           ylist, X, splits, nsplit, refit, mean_lambdas,
-                          pie_lambdas, gridsize, destin, ...)
+                          pie_lambdas, gridsize, destin,
+                          train_ybin_list_by_split,
+                          train_counts_list_by_split,
+                          ...)
   }
 }
 
