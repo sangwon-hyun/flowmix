@@ -102,7 +102,7 @@ parallel_cv_prebinned.covarem <- function(ylist, X,
   if(tester){
     lapply(end.ind:1, do_one_pair, end.ind,
            ## The rest of the arguments go here
-           ylist, X, mysplits, nsplit, refit, mean_lambdas, pie_lambdas,
+           ylist, X, splits, nsplit, refit, mean_lambdas, pie_lambdas,
            gridsize, destin, ...)
   } else {
     parallel::parLapplyLB(cl, end.ind:1, do_one_pair, end.ind,
