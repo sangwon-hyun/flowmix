@@ -146,6 +146,65 @@ get_cv_score <- function(ylist, X, splits, nsplit, refit,
   return(list(mean=mean(all.scores), all=all.scores))
 }
 
+
+
+##' (For prebinned data) Inner function for calculating cross-validated test
+##' likelihood for one train/test split.  Specifically, it takes the set of
+##' splitted indices for all times in 1:TT, trains on (1:nsplit)[-isplit], tests
+##' on splits
+##' @param splits TT-lengthed list of indices.
+##' @param test.split The split (out of 1:nsplit) to use for test.
+##' @param ylist List of BINNED responses.
+##' @param counts_list List of BINNED counts.
+##' @param train_ybin_list_by_split nsplit lengthed list of binend responses of
+##'   the training data.
+##' @param train_counts_list_by_split
+##' @param refit (experimental), defaults to FALSE. If TRUE, then the refitted
+##'   non-regularized solutions (with only a user-specified set of active
+##'   coefficients) are calculated.
+##' @param ... arguments to covarem
+##' @return One split's test likelihood.
+get_cv_score_onesplit_prebinned <- function(test.isplit, splits, ylist, X, refit,
+                                            counts_list,
+                                            train_counts_list_by_split,
+                                            train_ybin_list_by_split,
+                                            ...){##, refit=FALSE,...){
+
+  TT = length(ylist)
+  dimdat = ncol(ylist[[1]])
+  myargs = list(...)
+  numclust = myargs$numclust ## might work, might not.
+
+  ## Obtain train and test data according to test split
+  ylist.test = lapply(1:TT, function(tt){
+    ind = splits[[tt]][[test.isplit]]
+    ylist[[tt]][ind,]
+  })
+
+  ## Run algorithm on training BINNED data, evaluate on test data.
+  res.train = covarem(ylist = train_ybin_list_by_split[[test.isplit]],
+                      X = X,
+                      counts_list = train_counts_list_by_split[[test.isplit]],
+                      refit = FALSE, ...)
+  assert_that_(!refit)
+  sel_coef = NULL
+
+  ## Assign mn and pie
+  pred = predict.covarem(res.train)
+  stopifnot(all(pred$newpie >= 0))
+
+  ## Calculate objective (penalized likelihood)
+  objective_overall_cov(pred$newmn,
+                        pred$newpie,
+                        pred$sigma,
+                        TT, dimdat, numclust,
+                        ylist.test,
+                        pie_lambda = 0,
+                        mean_lambda = 0,
+                        alpha = res.train$alpha,
+                        beta = res.train$beta)
+}
+
 ##' Inner  function  for calculating  cross-validated  test  likelihood for  one
 ##' train/test split.   Specifically, it takes  the set of splitted  indices for
 ##' all times in 1:TT, trains on (1:nsplit)[-isplit], tests on splits
@@ -173,6 +232,7 @@ get_cv_score_onesplit <- function(test.isplit, splits, ylist, X, refit, ...){##,
     ind = splits[[tt]][[test.isplit]]
     ylist[[tt]][-ind,]
   })
+
 
   ## Run algorithm on training data, evaluate on test data.
   res.train = covarem(ylist.train, X,  refit = FALSE, ...)

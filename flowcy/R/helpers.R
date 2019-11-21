@@ -4,24 +4,38 @@ mymem <- function(msg){
   print(gc()["Vcells","(Mb)"])
 }
 
+
+##' Trim single cytogram so that both the list of binned responses and counts
+##' don't have any zeros.
+##' @param ybin Binned data (assumed to be d^3 lengthed)
+##' @param counts Counts of binned data (assumed to be d^3 lengthed)
+trim_one_cytogram <- function(ybin, counts){
+  ## Trim both if necessary
+  if(any(counts==0)){
+    inds = which(counts==0)
+    ybin = ybin[-which(counts==0), ]
+    counts = as.numeric(counts[-which(counts==0)])
+  }
+  return(list(ybin = ybin, counts = counts))
+}
+
 ##' Trim data so that both the list of binned responses and counts don't have
 ##' any zeros.
+##' @param ybin_list List of binned data (assumed to be d^3 lengthed)
+##' @param counts_list Counts of binned data (assumed to be d^3 lengthed)
+##'
+##' @return Trimmed data, each of different length.
 trim <- function(ybin_list, counts_list){
   assert_that(identical(sapply(ybin_list, nrow),
                         sapply(counts_list, length)))
+  TT = length(ybin_list)
   for(tt in 1:TT){
-
-    counts = counts_list[[tt]]
-    ybin = ybin_list[[tt]]
-
-    ## Trim both if necessary
-    if(any(counts==0)){
-      inds = which(counts==0)
-      ybin_list[[tt]] = ybin[-which(counts==0), ]
-      counts_list[[tt]] = as.numeric(counts[-which(counts==0)])
-    }
+    obj <- trim_one_cytogram(ybin_list[[tt]], counts_list[[tt]])
+    ybin_list[[tt]] <- obj$ybin ## ybin[-which(counts==0), ]
+    counts_list[[tt]] <- obj$counts ## as.numeric(counts[-which(counts==0)])
   }
-  return(list(ybin_list= ybin_list, counts_list=counts_list))
+  return(list(ybin_list = ybin_list,
+              counts_list = counts_list))
 }
 
 

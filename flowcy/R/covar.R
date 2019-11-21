@@ -42,6 +42,7 @@ covarem <- function(..., nrep = 5){
 ##'
 ##' @export
 covarem_once <- function(ylist, X,
+                         ## ylist_orig,## temporary
                          countslist = NULL,
                          numclust, niter = 100,
                          mn = NULL, pie_lambda = 0,
@@ -50,7 +51,8 @@ covarem_once <- function(ylist, X,
                          refit = FALSE, ## EXPERIMENTAL FEATURE.
                          sel_coef = NULL,
                          maxdev = NULL,
-                         bin = FALSE ## Temporary, to mark whether binning happened.
+                         manual.bin = FALSE,
+                         manual.grid = NULL
                          ){
   ## Basic checks
   if(!is.null(maxdev)){ assert_that(maxdev!=0) } ## Preventing the maxdev=FALSE mistake.
@@ -62,6 +64,7 @@ covarem_once <- function(ylist, X,
   p = ncol(X)
   if(is.null(mn)) mn = init_mn(ylist, numclust, TT, dimdat, warmstart)
   ntlist = sapply(ylist, nrow)
+  bin = !is.null(countslist)
 
   ## Initialize some objects
   pie = calc_pie(TT, numclust) ## Let's just say it is all 1/K for now.
@@ -69,6 +72,26 @@ covarem_once <- function(ylist, X,
   objectives = c(+1E20, rep(NA, niter-1))
   sigma = init_sigma(ylist, numclust, TT, fac=sigma.fac) ## (T x numclust x dimdat x dimdat)
   sigma_eig_by_clust = NULL
+
+  ## If binning manual,
+  if(manual.bin){
+    assert_that(!is.null(manual.grid))
+    bin = TRUE
+
+    ## Bin data
+    cat("binning started", fill=TRUE)
+    print(Sys.time())
+    ## reslist = lapply(ylist, bin_one_cytogram, manual.grid)
+    start.time1 = Sys.time()
+    reslist = lapply(1:TT, function(tt){
+      if(tt %% 100==0)printprogress(tt, TT, "binning", start.time = start.time1, fill=TRUE)
+      bin_one_cytogram(ylist[[tt]], manual.grid)})
+    ylist = lapply(reslist, function(res) res$ybin)
+    countslist = lapply(reslist, function(res) res$counts)
+    print(Sys.time())
+    cat("binning ended", fill=TRUE)
+  }
+  ## Endof alternative
 
 
   ## Temporary: Also, if we are using binned counts, make sure that ylist and
@@ -81,18 +104,16 @@ covarem_once <- function(ylist, X,
 
     start_time_per_iter = Sys.time()
 
-    ## Conduct E step
     resp <- Estep_covar(mn, sigma, pie,
                         ylist = ylist,
                         numclust,
                         denslist_by_clust = denslist_by_clust,
                         first_iter = (iter == 2),
-                        bin = bin,
                         countslist = countslist)
 
     ## If countslist is provided, further weight them.
     if(!is.null(countslist)){
-      resp = Map(function(myresp, mycount){
+      resp <- Map(function(myresp, mycount){
         myresp * mycount
       }, resp, countslist)
     }
@@ -152,8 +173,28 @@ covarem_once <- function(ylist, X,
                                              beta = beta,
                                              denslist_by_clust = denslist_by_clust,
                                              countslist,
-                                             iter)
-    ## plot(objectives[2:50], type='o') ##temporary
+                                             iter ## Temporary
+                                             ## ylist_orig ## Temporary
+                                             )
+
+    ## Make plots
+    ## browser()
+    par(mfrow=c(1,2))
+    if(!is.null(countslist)){
+      cex = (countslist[[1]]/max(countslist[[1]]))*5+.5
+    } else {
+      cex = .5
+    }
+
+    plot(x=ylist[[1]][,1],
+            y=ylist[[1]][,2], pch=16, col='grey50',
+            cex = cex,
+            type='p')
+    points(x=mn[1,1,],
+              y=mn[1,2,],
+              pch="+", col='red', cex = pie[1,]*5)
+    plot(objectives[2:50], type='o') ##temporary
+    ## profvis::pause(5)
 
     ## Check convergence
     if(check_converge_rel(objectives[iter-1],
@@ -287,4 +328,3 @@ make_denslist_eigen <- function(ylist, mu,
     })
   })
 }
-

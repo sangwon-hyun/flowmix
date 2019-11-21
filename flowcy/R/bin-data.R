@@ -42,7 +42,7 @@ make_counts <- function(y, grid){
 
   ## Cycle through all rows
   nt = nrow(y)
-  nn = length(grid[[1]])-1
+  nn = length(grid[[1]]) - 1
   counts = array(0, dim=c(nn,nn,nn))
   for(ii in 1:nt){
     ## printprogress(ii, nt)
@@ -78,7 +78,8 @@ make_midpoints <- function(grid){
 
 
 ##' Make a matrix of (x,y,z,count).
-make_ybin <- function(y, gridsize, counts, midpoints){
+make_ybin <- function(y, counts, midpoints){
+  gridsize = length(midpoints[[1]])
   d = gridsize
   mat = matrix(0, nrow=d^3, ncol=4)
   mm = 1
@@ -95,4 +96,46 @@ make_ybin <- function(y, gridsize, counts, midpoints){
     }
   }
   return(mat)
+}
+
+
+##' Main function for binning a cytogram (y).
+##' @param y nt by dimdat matrix.
+##' @param manual.grid grid, produced using \code{make_grid()}.
+##'
+##' @return List containing *trimmed* ybin (a x 3) and counts (a).
+bin_one_cytogram <- function(y, manual.grid){
+  midpoints <- flowcy::make_midpoints(manual.grid)  ## Obtain the midpoints of each box (d x d x d array)
+  counts <- make_counts(y, manual.grid) ## Count the points in each of the boxes (d x d x d array)
+  ybin_all <- make_ybin(y, counts, midpoints) ## Aggregate all of this into a (d^3 x 4 array)
+  ybin <- ybin_all[,1:3]
+  counts <- ybin_all[,4]
+  obj = trim_one_cytogram(ybin = ybin, counts = counts)
+  return(list(ybin = obj$ybin,
+              counts = obj$counts))
+}
+
+
+##' Main function for binning a cytogram (y).
+##' @param ylist TT lengthed list of (nt by dimdat) matrices.
+##' @param manual.grid grid, produced using \code{make_grid()}.
+##'
+##' @return List containing *trimmed* ybin (a x 3) and counts (a).
+bin_many_cytograms <- function(ylist, manual.grid, verbose=FALSE, mc.cores=1){
+
+  TT = length(ylist)
+  if(verbose) cat(fill=TRUE)
+
+  ## Bin each cytogram
+  reslist = parallel::mclapply(1:TT, function(tt){
+    if(verbose & (tt %% 50 ==0 )) printprogress(tt, TT, "binning")
+    bin_one_cytogram(ylist[[tt]], manual.grid)
+  }, mc.cores=mc.cores)
+
+  ## Gather results and return
+  ybin_list = lapply(reslist, function(res) res$ybin)
+  counts_list = lapply(reslist, function(res) res$counts)
+  if(verbose) cat(fill=TRUE)
+  return(list(ybin_list = ybin_list,
+              counts_list = counts_list))
 }

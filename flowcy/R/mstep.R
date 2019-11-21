@@ -206,8 +206,7 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
                                    dimdat = dimdat,
                                    numclust = numclust,
                                    refit = refit,
-                                   sel_coef = sel_coef$beta[[iclust]]
-                                   )
+                                   sel_coef = sel_coef$beta[[iclust]])
 
       ## } ## Ending bracket of of TEMPORARY
       betahat[which(abs(betahat) < 1E-8, arr.ind = TRUE)] = 0
