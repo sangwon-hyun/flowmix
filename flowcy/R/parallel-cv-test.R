@@ -129,6 +129,9 @@ parallel_cv2.covarem <- function(ylist, X,
       ialpha =  ceiling(ind/ gridsize)
       ibeta = (ind-1) %% gridsize + 1
 
+      ## Set seed.
+      set.seed(ind)
+
       ## Check whether this version has been done already.
       if(verbose) cat("ialpha, ibeta are:", ialpha, ibeta, "are attempted.", fill=TRUE)
       already_done = checkres(ialpha, ibeta, destin)
