@@ -157,6 +157,7 @@ get_cv_score <- function(ylist, X, splits, nsplit, refit,
 get_cv_score_prebinned <- function(ylist, X, splits, nsplit, refit,
                                    train_ybin_list_by_split,
                                    train_counts_list_by_split,
+                                   ylist_orig,
                                    multicore.cv = FALSE,
                                    ...){
 
@@ -168,6 +169,7 @@ get_cv_score_prebinned <- function(ylist, X, splits, nsplit, refit,
       get_cv_score_onesplit_prebinned(test.isplit, splits, ylist, X, refit,
                                       train_ybin_list_by_split,
                                       train_counts_list_by_split,
+                                      ylist_orig,
                                       ...)
     }, mc.cores=nsplit)
   } else {
@@ -175,6 +177,7 @@ get_cv_score_prebinned <- function(ylist, X, splits, nsplit, refit,
       get_cv_score_onesplit_prebinned(test.isplit, splits, ylist, X, refit,
                                       train_ybin_list_by_split,
                                       train_counts_list_by_split,
+                                      ylist_orig,
                                       ...)
     })
   }
@@ -203,6 +206,7 @@ get_cv_score_onesplit_prebinned <- function(test.isplit, splits, ylist, X, refit
                                             counts_list,
                                             train_counts_list_by_split,
                                             train_ybin_list_by_split,
+                                            ylist_orig,
                                             ...){##, refit=FALSE,...){
 
   TT = length(ylist)
@@ -213,7 +217,7 @@ get_cv_score_onesplit_prebinned <- function(test.isplit, splits, ylist, X, refit
   ## Obtain train and test data according to test split
   ylist.test = lapply(1:TT, function(tt){
     ind = splits[[tt]][[test.isplit]]
-    ylist[[tt]][ind,]
+    ylist_orig[[tt]][ind,]
   })
 
   ## Run algorithm on training BINNED data, evaluate on test data.

@@ -21,6 +21,7 @@ parallel_cv_prebinned.covarem <- function(ylist, X,
                                 tester = FALSE,
                                 train_ybin_list_by_split,
                                 train_counts_list_by_split,
+                                ylist_orig,
                                 ...){
 
   ## Printing some information about the parallelism
@@ -52,6 +53,7 @@ parallel_cv_prebinned.covarem <- function(ylist, X,
                          gridsize, destin,
                          train_ybin_list_by_split,
                          train_counts_list_by_split,
+                         ylist_orig,
                          ...){
 
     ## Redefine which lambda indices correspond to ind in 1:gridsize^2
@@ -71,6 +73,7 @@ parallel_cv_prebinned.covarem <- function(ylist, X,
                                    ## Additional arguments for covarem
                                    mean_lambda = beta_lambdas[ibeta],
                                    pie_lambda = alpha_lambdas[ialpha],
+                                   ylist_orig,
                                    ...)
 
     ## Get the fitted results on the entire data
