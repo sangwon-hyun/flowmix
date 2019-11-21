@@ -66,12 +66,12 @@ parallel_cv_prebinned.covarem <- function(ylist, X,
     ## tryCatch({
     ## The rest is similar to move_to_up() or move_to_left().
     cvres = get_cv_score_prebinned(ylist, X, splits, nsplit, refit,
-                         train_ybin_list_by_split,
-                         train_counts_list_by_split,
-                         ## Additional arguments for covarem
-                         mean_lambda = beta_lambdas[ibeta],
-                         pie_lambda = alpha_lambdas[ialpha],
-                         ...)
+                                   train_ybin_list_by_split,
+                                   train_counts_list_by_split,
+                                   ## Additional arguments for covarem
+                                   mean_lambda = beta_lambdas[ibeta],
+                                   pie_lambda = alpha_lambdas[ialpha],
+                                   ...)
 
     ## Get the fitted results on the entire data
     res = covarem(ylist = ylist, X = X,
