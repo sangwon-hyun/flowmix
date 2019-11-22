@@ -52,7 +52,8 @@ covarem_once <- function(ylist, X,
                          sel_coef = NULL,
                          maxdev = NULL,
                          manual.bin = FALSE,
-                         manual.grid = NULL
+                         manual.grid = NULL,
+                         countslist_overwrite = NULL
                          ){
   ## Basic checks
   if(!is.null(maxdev)){ assert_that(maxdev!=0) } ## Preventing the maxdev=FALSE mistake.
@@ -92,6 +93,8 @@ covarem_once <- function(ylist, X,
     cat("binning ended", fill=TRUE)
   }
   ## Endof alternative
+
+  if(!is.null(countslist_overwrite))countslist = countslist_overwrite ## The least elegant solution I can think of..
 
 
   ## Temporary: Also, if we are using binned counts, make sure that ylist and

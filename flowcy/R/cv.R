@@ -155,32 +155,22 @@ get_cv_score <- function(ylist, X, splits, nsplit, refit,
 ##' @param ... arguments to covarem.
 #' @return Cross validated test likelihood, scalar-valued.
 get_cv_score_prebinned <- function(ylist, X, splits, nsplit, refit,
+                                   counts_list,
                                    train_ybin_list_by_split,
                                    train_counts_list_by_split,
                                    ylist_orig,
-                                   multicore.cv = FALSE,
                                    ...){
 
   ## stopifnot(length(splits[[1]])!=nsplit) ## good check but only works if TT>1
+  all.scores = lapply(1:nsplit, function(test.isplit){
+    get_cv_score_onesplit_prebinned(test.isplit, splits, ylist, X, refit,
+                                    counts_list,
+                                    train_ybin_list_by_split,
+                                    train_counts_list_by_split,
+                                    ylist_orig,
+                                    ...)
+  })
 
-  if(multicore.cv){
-    ## Cycle through splits, and calculate CV score
-    all.scores = mclapply(1:nsplit, function(test.isplit){
-      get_cv_score_onesplit_prebinned(test.isplit, splits, ylist, X, refit,
-                                      train_ybin_list_by_split,
-                                      train_counts_list_by_split,
-                                      ylist_orig,
-                                      ...)
-    }, mc.cores=nsplit)
-  } else {
-    all.scores = lapply(1:nsplit, function(test.isplit){
-      get_cv_score_onesplit_prebinned(test.isplit, splits, ylist, X, refit,
-                                      train_ybin_list_by_split,
-                                      train_counts_list_by_split,
-                                      ylist_orig,
-                                      ...)
-    })
-  }
   all.scores = do.call(c, all.scores)
   return(list(mean=mean(all.scores), all=all.scores))
 }
@@ -204,8 +194,8 @@ get_cv_score_prebinned <- function(ylist, X, splits, nsplit, refit,
 ##' @return One split's test likelihood.
 get_cv_score_onesplit_prebinned <- function(test.isplit, splits, ylist, X, refit,
                                             counts_list,
-                                            train_counts_list_by_split,
                                             train_ybin_list_by_split,
+                                            train_counts_list_by_split,
                                             ylist_orig,
                                             ...){##, refit=FALSE,...){
 
@@ -223,8 +213,9 @@ get_cv_score_onesplit_prebinned <- function(test.isplit, splits, ylist, X, refit
   ## Run algorithm on training BINNED data, evaluate on test data.
   res.train = covarem(ylist = train_ybin_list_by_split[[test.isplit]],
                       X = X,
-                      counts_list = train_counts_list_by_split[[test.isplit]],
+                      countslist_overwrite = train_counts_list_by_split[[test.isplit]],
                       refit = FALSE, ...)
+  browser()
   assert_that_(!refit)
   sel_coef = NULL
 

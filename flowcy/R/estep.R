@@ -63,7 +63,7 @@ Estep_covar <- function(mn, sigma, pie, ylist=NULL,
       wt.densmat <- matrix(pie[tt,], nrow = ntlist[tt], ncol=ncol.pie, byrow=TRUE) * densmat
       wt.densmat <- wt.densmat / rowSums(wt.densmat)
     } else {
-      wt.densmat <- Matrix(pie[tt,], nrow = ntlist[tt], ncol=ncol.pie, byrow=TRUE) * densmat
+      wt.densmat <- Matrix::Matrix(pie[tt,], nrow = ntlist[tt], ncol=ncol.pie, byrow=TRUE) * densmat
       a = Matrix::rowSums(wt.densmat)
       wt.densmat <- wt.densmat / a
     }
