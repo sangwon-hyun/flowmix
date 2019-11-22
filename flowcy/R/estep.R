@@ -43,7 +43,6 @@ Estep_covar <- function(mn, sigma, pie, ylist=NULL,
                         ## Rest of arguments:
                         tt, ylist_tt, mn, sigma,
                         denslist_by_clust, first_iter,
-                        counts = countslist[[tt]],
                         bin = bin)
     } else {
       denslist <- lapply(1:numclust,
