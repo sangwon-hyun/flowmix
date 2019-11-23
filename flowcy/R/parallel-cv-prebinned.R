@@ -65,7 +65,7 @@ parallel_cv_prebinned.covarem <- function(ylist, X,
     already_done = checkres(ialpha, ibeta, destin)
     if(already_done) return(NULL)
 
-    ## tryCatch({
+    tryCatch({
     ## The rest is similar to move_to_up() or move_to_left().
     cvres = get_cv_score_prebinned(ylist, X, splits, nsplit, refit,
                                    counts_list,
@@ -90,13 +90,13 @@ parallel_cv_prebinned.covarem <- function(ylist, X,
             beta_lambdas = beta_lambdas,
             alpha_lambdas = alpha_lambdas,
             lapsetime = lapsetime)
-    ## }, error = function(err) {
-    ##   err$message = paste(err$message,
-    ##                       "\n(No file will be saved for the lambdas ",
-    ##                       alpha_lambdas[ialpha],", ", beta_lambdas[ibeta],
-    ##                       " whose indices are", ialpha,", ", ibeta, " .)",sep="")
-    ##   cat(err$message, fill=TRUE)
-      ## warning(err)})
+    }, error = function(err) {
+      err$message = paste(err$message,
+                          "\n(No file will be saved for the lambdas ",
+                          alpha_lambdas[ialpha],", ", beta_lambdas[ibeta],
+                          " whose indices are", ialpha,", ", ibeta, " .)",sep="")
+      cat(err$message, fill=TRUE)
+      warning(err)})
     return(NULL)
 
   }
