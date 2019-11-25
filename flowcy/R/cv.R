@@ -215,8 +215,7 @@ get_cv_score_onesplit_prebinned <- function(test.isplit, splits, ylist, X, refit
                       X = X,
                       countslist_overwrite = train_counts_list_by_split[[test.isplit]],
                       refit = FALSE, ...)
-  browser()
-  assert_that_(!refit)
+  assert_that(!refit)
   sel_coef = NULL
 
   ## Assign mn and pie
