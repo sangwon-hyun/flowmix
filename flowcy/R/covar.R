@@ -53,7 +53,7 @@ covarem_once <- function(ylist, X,
                          maxdev = NULL,
                          manual.bin = FALSE,
                          manual.grid = NULL,
-                         countslist_overwrite = NULL,
+                         countslist_overwrite = NULL
                          ## ridge = FALSE,
                          ## ridge_lambda = 0
                          ){
