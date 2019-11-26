@@ -54,8 +54,8 @@ covarem_once <- function(ylist, X,
                          manual.bin = FALSE,
                          manual.grid = NULL,
                          countslist_overwrite = NULL,
-                         ridge = FALSE,
-                         ridge_lambda = 0
+                         ## ridge = FALSE,
+                         ## ridge_lambda = 0
                          ){
   ## Basic checks
   if(!is.null(maxdev)){ assert_that(maxdev!=0) } ## Preventing the maxdev=FALSE mistake.
@@ -66,6 +66,7 @@ covarem_once <- function(ylist, X,
   dimdat = ncol(ylist[[1]])
   p = ncol(X)
   if(is.null(mn)) mn = init_mn(ylist, numclust, TT, dimdat, warmstart)
+  if(!is.null(mn)) orig.mn = mn
   ntlist = sapply(ylist, nrow)
   bin = !is.null(countslist)
 
@@ -144,9 +145,9 @@ covarem_once <- function(ylist, X,
                           sel_coef = sel_coef, maxdev = maxdev,
                           sigma_eig_by_clust = sigma_eig_by_clust,
                           first_iter = (iter == 2),
-                          ridge = ridge,
-                          ridge_lambda = ridge_lambda,
-                          ridge_pie = pie,
+                          ## ridge = ridge,
+                          ## ridge_lambda = ridge_lambda,
+                          ## ridge_pie = pie,
                           bin = bin)
     mn = res.beta$mns
     beta = res.beta$beta
@@ -183,51 +184,62 @@ covarem_once <- function(ylist, X,
                                              denslist_by_clust = denslist_by_clust,
                                              countslist = countslist)
 
-    ## ########################
-    ## ## Make plots ##########
-    ## ########################
-    ## ## browser()
-    ## par(mfrow=c(1,2))
-    ## if(!is.null(countslist)){
-    ##   cex = (countslist[[1]]/max(countslist[[1]]))*5+.5
-    ## } else {
-    ##   cex = .5
-    ## }
-    ## ylist_collapsed = do.call(rbind, ylist)
-    ## ntsum = nrow(ylist_collapsed)
-    ## ylist_collapsed = ylist_collapsed[sample(1:ntsum, 10000),]
-    ## plot(x = ylist_collapsed[,1],
-    ##      y = ylist_collapsed[,2],
-    ##      pch=16,
-    ##      ## col='grey80',
-    ##      col=rgb(0,0,0,0.1),
-    ##      cex = cex,
-    ##      type='p')
-    ## tt = 1
-    ## points(x=ylist[[tt]][,1],
-    ##        y=ylist[[tt]][,2], pch=16,
-    ##        col='grey50',
-    ##         cex = cex,
-    ##         type='p')
+    ########################
+    ## Make plots ##########
+    ########################
+    ## browser()
+    par(mfrow=c(1,2))
+    if(!is.null(countslist)){
+      cex = (countslist[[1]]/max(countslist[[1]]))*5+.5
+    } else {
+      cex = .5
+    }
+    ylist_collapsed = do.call(rbind, ylist)
+    ntsum = nrow(ylist_collapsed)
+    ylist_collapsed = ylist_collapsed[sample(1:ntsum, 10000),]
+    plot(x = ylist_collapsed[,1],
+         y = ylist_collapsed[,2],
+         pch=16,
+         ## col='grey80',
+         col=rgb(0,0,0,0.1),
+         cex = cex,
+         type='p')
+    tt = 1
+    points(x=ylist[[tt]][,1],
+           y=ylist[[tt]][,2], pch=16,
+           col='grey50',
+            cex = cex,
+            type='p')
 
-    ## ## for(iclust in 1:numclust){
-    ## ##   x = mn[,1, iclust]
-    ## ##   y = mn[,2, iclust]
-    ## ##   points(x=as.numeric(x), y=as.numeric(y),col=iclust)
-    ## ## }
-    ## cols = 1:numclust
-    ## points(x=mn[tt,1,],
-    ##        y=mn[tt,2,],
-    ##        pch="x", col=cols,
-    ##        cex = pie[1,]/max(pie[1,])*10)
-
-    ## for(kk in 1:numclust){
-    ##   lines(ellipse::ellipse(x = sigma[kk,,],
-    ##                          centre = mn[tt,, kk]
-    ##                          ), lwd=1, col=cols[kk], lty=1)
+    ## for(iclust in 1:numclust){
+    ##   x = mn[,1, iclust]
+    ##   y = mn[,2, iclust]
+    ##   points(x=as.numeric(x), y=as.numeric(y),col=iclust)
     ## }
-    ## plot(objectives[2:50], type='o') ##temporary
-    ## ## End of plotting  ##########
+    cols = 1:numclust
+    points(x=mn[tt,1,],
+           y=mn[tt,2,],
+           pch="x", col=cols,
+           cex = pie[1,]/max(pie[1,])*10)
+
+    for(tt in 1:TT){
+    points(x=mn[tt,1,],
+           y=mn[tt,2,],
+           pch=16, col="blue",
+           cex = .3)
+    points(x=orig.mn[tt,1,],
+           y=orig.mn[tt,2,],
+           pch=16, col="red",
+           cex = .3)
+    }
+
+    for(kk in 1:numclust){
+      lines(ellipse::ellipse(x = sigma[kk,,],
+                             centre = mn[tt,, kk]
+                             ), lwd=1, col=cols[kk], lty=1)
+    }
+    plot(objectives[2:50], type='o') ##temporary
+    ## End of plotting  ##########
 
     ## Check convergence
     if(check_converge_rel(objectives[iter-1],
