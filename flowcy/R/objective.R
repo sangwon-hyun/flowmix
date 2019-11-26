@@ -11,7 +11,7 @@ objective_overall_cov <- function(mu, pie, sigma,
                                   pie_lambda=0, mean_lambda=0,
                                   alpha=0, beta=0,
                                   denslist_by_clust=NULL,
-                                  countslist=NULL,
+                                  countslist=NULL
                                   ){
 
 
