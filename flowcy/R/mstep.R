@@ -39,7 +39,7 @@ Mstep_alpha <- function(resp, X, numclust, lambda = 0, alpha = 1,
     ## Until we find an equivalence between glmnet and cvxr, use cvxr (slow but
     ## correct):
     Xa = cbind(1, X)
-    alphahat = cvxr_multinom_new(X = Xa, y = resp.sum, lambda = 0,
+    alphahat = cvxr_multinom(X = Xa, y = resp.sum, lambda = 0,
                                  exclude = 1)
     alphahat[which(abs(alphahat) < 1E-8, arr.ind = TRUE)] = 0
     alphahat = t(as.matrix(alphahat))
