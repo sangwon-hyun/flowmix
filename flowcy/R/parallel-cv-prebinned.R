@@ -56,6 +56,9 @@ parallel_cv_prebinned.covarem <- function(ylist, X,
                          ylist_orig,
                          ...){
 
+    ## Temporary
+    start.time = Sys.time()
+
     ## Redefine which lambda indices correspond to ind in 1:gridsize^2
     ialpha =  ceiling(ind/ gridsize)
     ibeta = (ind-1) %% gridsize + 1
@@ -83,6 +86,12 @@ parallel_cv_prebinned.covarem <- function(ylist, X,
                   mean_lambda = beta_lambdas[ibeta],
                   pie_lambda = alpha_lambdas[ialpha],
                   ...)
+
+    ## Temporary
+    end.time = Sys.time()
+    lapsetime = round(difftime(Sys.time(), start.time,
+                               units = "secs"), 0)
+    ## End of temporary
 
     saveres(res = res,
             cvres = cvres,
