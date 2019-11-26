@@ -40,16 +40,18 @@ calc_pie <- function(TT,numclust){
 
 
 ##' Mean is initialized here.
-init_mn <- function(ylist, numclust, TT, dimdat, warmstart=  c("none", "rough")){
+init_mn <- function(ylist, numclust, TT, dimdat, warmstart=  c("none", "rough"), countslist=NULL){
   warmstart = match.arg(warmstart)
   if(warmstart == "rough"){
-    return(init_mn_warmstart(ylist, numclust))
+    return(init_mn_warmstart(ylist, numclust, countslist))
   } else if (warmstart == "none"){
-    return(init_mn_naive(lapply(ylist, cbind), numclust, TT))
+    return(init_mn_naive(lapply(ylist, cbind), numclust, TT, countslist))
   } else {
     stop("warmstart option not recognized")
   }
 }
+
+
 
 ##' Initialize the cluster centers (naively).
 ##'  @param data  A T-length list of (nt  by 3) datasets.  There should  be T of
@@ -57,18 +59,28 @@ init_mn <- function(ylist, numclust, TT, dimdat, warmstart=  c("none", "rough"))
 ##' @param numclust Number of clusters (M).
 ##' @param TT total number of (training) time points.
 ##' @return An array of dimension (T x dimdat x M).
-init_mn_naive <- function(data, numclust, TT){
+init_mn_naive <- function(data, numclust, TT, countslist){
 
   dimdat = ncol(data[[1]])
+
+  ## Flatten the countslist
+  countslist_flattened = countslist
+  for(tt in 1:TT){
+    thresh = quantile(countslist_flattened[[tt]], 0.6)
+    countslist_flattened[[tt]][which(countslist_flattened[[tt]] >= thresh)] = thresh
+  }
+
 
   ## Initialize the means by randomly sampling data from each time point.
   mulist = lapply(1:TT, function(tt){
     mydata = data[[tt]]
     nt = nrow(mydata)
-    sampled.data = mydata[sample(1:nt, numclust), , drop=FALSE]
+    rows = sample(1:nt, numclust,
+                  prob = countslist_flattened[[tt]]/sum(countslist_flattened[[tt]]))
+    sampled.data = mydata[rows, , drop=FALSE]
     return(sampled.data)
   })
-  names(mulist) = 1:TT
+
 
   ## New (T x dimdat x numclust)
   muarray = array(NA, dim=c(TT, dimdat, numclust))
@@ -94,15 +106,11 @@ init_mn_warmstart <- function(ylist, numclust){
   ## Run k-means once on collapsed data.
   ## obj = kmeans(all.y, numclust)
   ## numclust = 5
-  avg.num.rows = round(mean(sapply(ylist,nrow)))
-  ## par(mfrow=c(5,5))
-  ## for(ii in 25:1){
-  ##   print(ii)
-  ##   set.seed(ii)
+  avg.num.rows = round(mean(sapply(ylist, nrow)))
   some.of.all.y = all.y[sample(1:nrow(all.y), avg.num.rows),]
   obj = kmeans(some.of.all.y, numclust, algorithm="MacQueen")
-    ## rm(obj)
 
+  ## New: warm start from truncated counts
 
   ## ## Plot the results (temporary)
   ## plot(some.of.all.y[,1:2], type='p',cex=0.1)

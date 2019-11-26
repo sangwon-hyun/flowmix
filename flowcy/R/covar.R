@@ -47,15 +47,17 @@ covarem_once <- function(ylist, X,
                          numclust, niter = 100,
                          mn = NULL, pie_lambda = 0,
                          mean_lambda = 0, verbose = FALSE,
-                         warmstart  =  c("none", "rough"), sigma.fac = 1, tol = 1E-3,
+                         warmstart  =  c("none", "rough"), sigma.fac = 1, tol = 1E-5,
                          refit = FALSE, ## EXPERIMENTAL FEATURE.
                          sel_coef = NULL,
                          maxdev = NULL,
                          manual.bin = FALSE,
                          manual.grid = NULL,
-                         countslist_overwrite = NULL
+                         countslist_overwrite = NULL,
                          ## ridge = FALSE,
                          ## ridge_lambda = 0
+                                             plot=FALSE,
+                                             plotdir = "~/Desktop"
                          ){
   ## Basic checks
   if(!is.null(maxdev)){ assert_that(maxdev!=0) } ## Preventing the maxdev=FALSE mistake.
@@ -65,7 +67,7 @@ covarem_once <- function(ylist, X,
   TT = length(ylist)
   dimdat = ncol(ylist[[1]])
   p = ncol(X)
-  if(is.null(mn)) mn = init_mn(ylist, numclust, TT, dimdat, warmstart)
+  if(is.null(mn)) mn = init_mn(ylist, numclust, TT, dimdat, warmstart, countslist)
   if(!is.null(mn)) orig.mn = mn
   ntlist = sapply(ylist, nrow)
   bin = !is.null(countslist)
@@ -187,7 +189,7 @@ covarem_once <- function(ylist, X,
     ## Make plots ##########
     ########################
     ## browser()
-    par(mfrow=c(1,2))
+    if(plot){
     if(!is.null(countslist)){
       cex = (countslist[[1]]/max(countslist[[1]]))*5+.5
     } else {
@@ -196,19 +198,34 @@ covarem_once <- function(ylist, X,
     ylist_collapsed = do.call(rbind, ylist)
     ntsum = nrow(ylist_collapsed)
     ylist_collapsed = ylist_collapsed[sample(1:ntsum, 10000),]
-    plot(x = ylist_collapsed[,1],
-         y = ylist_collapsed[,2],
-         pch=16,
-         ## col='grey80',
-         col=rgb(0,0,0,0.1),
-         cex = cex,
-         type='p')
+    png(file=file.path(plotdir,
+                       paste0("iteration-", iter, ".png")), width=1200, height=1200)
+    par(mfrow=c(2,2))
+    dimslist = list(1:2,2:3,c(3,1))
+    for(dims in dimslist){
+    ## plot(x = ylist_collapsed[,dims[1]],
+    ##      y = ylist_collapsed[,dims[2]],
+    ##      pch=16,
+    ##      ## col='grey80',
+    ##      col=rgb(0,0,0,0.1),
+    ##      cex = cex,
+    ##      type='p')
     tt = 1
-    points(x=ylist[[tt]][,1],
-           y=ylist[[tt]][,2], pch=16,
-           col='grey50',
-            cex = cex,
-            type='p')
+      Names = c("fsc_small", "chl_small","pe")
+    plot(x=ylist[[tt]][,dims[1]],
+           y=ylist[[tt]][,dims[2]],
+           ## col='grey50',
+           col=rgb(0,0,0,0.1),
+           pch=16,
+           cex = cex,
+           ## col='pink',
+         type='p',
+         xlab = Names[dims[1]],
+         ylab = Names[dims[2]],
+         cex.lab=1.5,
+         cex.axis=1.5
+         )
+
 
     ## for(iclust in 1:numclust){
     ##   x = mn[,1, iclust]
@@ -216,29 +233,35 @@ covarem_once <- function(ylist, X,
     ##   points(x=as.numeric(x), y=as.numeric(y),col=iclust)
     ## }
     cols = 1:numclust
-    points(x=mn[tt,1,],
-           y=mn[tt,2,],
-           pch="x", col=cols,
-           cex = pie[1,]/max(pie[1,])*10)
+    points(x=mn[tt,dims[1],],
+           y=mn[tt,dims[2],],
+           pch=4, col=cols,
+           ## cex = pie[1,]/max(pie[1,])*10)
+           cex = log(pie[1,]/max(pie[1,]) + 1)*3)
 
     for(tt in 1:TT){
-    points(x=mn[tt,1,],
-           y=mn[tt,2,],
-           pch=16, col="blue",
+      for(kk in 1:numclust){
+    points(x=mn[tt,dims[1],kk],
+           y=mn[tt,dims[2],kk],
+           pch=16, col=cols[kk],
            cex = .3)
-    points(x=orig.mn[tt,1,],
-           y=orig.mn[tt,2,],
-           pch=16, col="red",
-           cex = .3)
+      }
     }
 
     for(kk in 1:numclust){
-      lines(ellipse::ellipse(x = sigma[kk,,],
-                             centre = mn[tt,, kk]
+      lines(ellipse::ellipse(x = sigma[kk,dims,dims],
+                             centre = mn[tt,dims, kk]
                              ), lwd=1, col=cols[kk], lty=1)
     }
-    plot(objectives[2:50], type='o') ##temporary
+    }
+
+    plot(objectives[2:50], type= 'o',
+         ylab = "Objective Value", xlab = "EM Iteration",
+         cex.lab = 1.5,
+         cex.axis = 1.5) ##temporary
     ## End of plotting  ##########
+    graphics.off()
+    }
 
     ## Check convergence
     if(check_converge_rel(objectives[iter-1],
