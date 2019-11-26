@@ -181,8 +181,7 @@ covarem_once <- function(ylist, X,
                                              alpha = alpha,
                                              beta = beta,
                                              denslist_by_clust = denslist_by_clust,
-                                            countslist,
-                                             )
+                                             countslist = countslist)
 
     ## ########################
     ## ## Make plots ##########
