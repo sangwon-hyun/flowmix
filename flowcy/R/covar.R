@@ -135,7 +135,6 @@ covarem_once <- function(ylist, X,
     pie = res.alpha$pie
     alpha = res.alpha$alpha
     rm(res.alpha)
-    print(round(head(pie),3)) ## temporary
 
     ## 2. Beta
     res.beta = Mstep_beta(resp, ylist, X,
