@@ -1,7 +1,7 @@
 ## Synopsis: these are the specific, scale-consistent multinom lasso solvers used
 ## internally in this package.
 
-##' Solves the l1-penalized multinom problem:
+##' (DOESN'T solve right problem) Solves the l1-penalized multinom problem:
 ##' \deqn{ \frac{1}{n} \sum_{i=1}^n
 ##' \sum_{k=1}^K y_{ik} (\alpha_{0k} + x_i^T \alpha_k) - (\sum{k=1^K} y_{ik}) \log \left(
 ##' \sum_{l=1}^K \exp ( \alpha_{0l} + x^T \alpha_l) \right) - \lambda
@@ -33,11 +33,11 @@ solve_multinom <- function(y, X, lambda, intercept,
     return(as.matrix(do.call(cbind,coef(fit))))
 }
 
-##' Solves, using CVXR, the l1-penalized multinom problem:
-##' \deqn{ \frac{1}{n} \sum_{i=1}^n \sum_{k=1}^K y_{ik} ( x_i^T \alpha_k) -
-##' \sum_{k=1}^K y_{ik}\cdot \log \left( \sum_{l=1}^K \exp ( x^T \alpha_l) \right)
-##' - \lambda \sum_{l=1}^K \left(\| \alpha_l \|_1 \right)}
-cvxr_multinom <- function(y, X, lambda, exclude.from.penalty=NULL){
+##' (NEW! Now handles the refitting) Solves, using CVXR, the l1-penalized
+##' multinom problem: \deqn{ \frac{1}{n} \sum_{i=1}^n \sum_{k=1}^K y_{ik} (
+##' x_i^T \alpha_k) - \log \left( \sum_{l=1}^K \exp ( x^T \alpha_l) \right) -
+##' \lambda \sum_{l=1}^K \left(\| \alpha_l \|_1 \right)}
+cvxr_multinom <- function(y, X, lambda, exclude.from.penalty=NULL, sel_coef=NULL){
 
   ## Setup
   numclust = ncol(y)
@@ -51,44 +51,10 @@ cvxr_multinom <- function(y, X, lambda, exclude.from.penalty=NULL){
   alphamat <- CVXR::Variable(p, numclust)
 
   ## First component
-  obj1 = CVXR::matrix_trace(t(y) %*% X %*% alphamat)
+  obj1 = CVXR::sum_entries(CVXR::mul_elemwise(y, (X %*% alphamat)))
 
   ## Second component
-  obj2 <- sum(CVXR::log_sum_exp(diag(rowSums(y)) %*%  X %*% alphamat, 1))
-
-  ## Sum them
-  obj <- (obj1  - obj2)  / TT- lambda * sum(abs(alphamat[v,]))
-
-  ## Solve the problem
-  prob <- CVXR::Problem(CVXR::Maximize(obj))
-  result <- solve(prob)
-  return(result$getValue(alphamat))
-}
-
-
-
-##' (NEW and TEMPORARY VERSION!! Intended only for the refitting) Solves, using
-##' CVXR, the l1-penalized multinom problem: \deqn{ \frac{1}{n} \sum_{i=1}^n
-##' \sum_{k=1}^K y_{ik} ( x_i^T \alpha_k) - \log \left( \sum_{l=1}^K \exp ( x^T
-##' \alpha_l) \right) - \lambda \sum_{l=1}^K \left(\| \alpha_l \|_1 \right)}
-cvxr_multinom_new <- function(y, X, lambda, exclude.from.penalty=NULL, sel_coef=NULL){
-
-  ## Setup
-  numclust = ncol(y)
-  TT = nrow(X)
-  p = ncol(X)
-  v = 1:p
-  if(!is.null(exclude.from.penalty)){
-    stopifnot(all(exclude.from.penalty %in% (1:p)))
-    v = (1:p)[-exclude.from.penalty]
-  }
-  alphamat <- CVXR::Variable(p, numclust)
-
-  ## First component
-  obj1 = CVXR::matrix_trace(t(y) %*% X %*% alphamat)
-
-  ## Second component
-  obj2 <- sum(CVXR::log_sum_exp(diag(rowSums(y)) %*%  X %*% alphamat, 1))
+  obj2 <- sum((CVXR::log_sum_exp( X %*% alphamat, 1)) * rowSums(y))
 
   ## Sum them
   obj <- (obj1  - obj2)  / TT - lambda * sum(abs(alphamat[v,]))
