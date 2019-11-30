@@ -15,8 +15,12 @@ objective_overall_cov <- function(mu, pie, sigma,
                                   ){
 
 
-  ## Basic checks
-  stopifnot(dim(mu) == c(TT, dimdat, numclust))
+  ## stopifnot(dim(mu) == c(TT, dimdat, numclust)) ## Too much
+  ## trouble.. just add to a unit test later.
+
+  ## TT = length(ylist)
+  TT = dim(mu)[1]
+  numclust = dim(mu)[3]
 
   ## 1. Helper function: Calculates one particle's log likelihood using
   ## precalculated data densities.
