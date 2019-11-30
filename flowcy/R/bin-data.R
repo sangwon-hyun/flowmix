@@ -54,7 +54,13 @@ make_counts <- function(y, grid){
 
 ##' Helper to make grid. Takes 3-lengthed list of ranges (2 length vectors
 ##' containing min and max) and returns a 3-lengthed list of grid points.
-make_grid <- function(ranges, gridsize=5){
+make_grid <- function(ylist, gridsize=5){
+
+  ## Get overall range.
+  ylist_collapsed = do.call(rbind, ylist)
+  ranges = lapply(1:dimdat, function(ii) range(ylist_collapsed[,ii]))
+
+  ## Equally space in each dimension.
   gridpoints = lapply(ranges,
                      function(x) seq(from=x[1], to=x[2], length=gridsize+1))
 }
