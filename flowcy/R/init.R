@@ -63,6 +63,7 @@ init_mn_naive <- function(data, numclust, TT, countslist){
 
   dimdat = ncol(data[[1]])
 
+  if(!is.null(countslist)){
   ## Flatten the countslist
   countslist_flattened = countslist
   for(tt in 1:TT){
@@ -80,6 +81,18 @@ init_mn_naive <- function(data, numclust, TT, countslist){
     sampled.data = mydata[rows, , drop=FALSE]
     return(sampled.data)
   })
+
+  } else {
+
+    mulist = lapply(1:TT, function(tt){
+      mydata = data[[tt]]
+      nt = nrow(mydata)
+      rows = sample(1:nt, numclust)
+      sampled.data = mydata[rows, , drop=FALSE]
+      return(sampled.data)
+    })
+
+  }
 
 
   ## New (T x dimdat x numclust)
