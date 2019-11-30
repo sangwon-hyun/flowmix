@@ -22,8 +22,9 @@ blockcv <- function(cl, folds, cv.gridsize,
   nfold = length(folds)
   iimat = make_iimat(cv.gridsize, nfold)
   iimax = nrow(iimat)
-  ## parLapplyLB(cl,
-  lapply(1:iimax, function(ii){
+  parallel::parLapplyLB(cl,
+  ## lapply(
+      1:iimax, function(ii){
     ialpha = iimat[ii,"ialpha"]
     ibeta = iimat[ii,"ibeta"]
     ifold = iimat[ii,"ifold"]
@@ -49,8 +50,10 @@ blockcv_fitmodel <- function(cl, folds, destin,
 
   iimat = make_iimat_small(cv.gridsize)
   iimax = nrow(iimat)
-  ## parLapplyLB(cl, 1:iimax, function(ii){
-  lapply(1:iimax, function(ii){
+  parallel::parLapplyLB(cl,
+  ## 1:iimax, function(ii){
+  ## lapply(
+      1:iimax, function(ii){
     ialpha = iimat[ii, "ialpha"]
     ibeta = iimat[ii, "ibeta"]
     print('iii=')
