@@ -84,7 +84,7 @@ blockcv_make_folds <- function(ylist, nfold, verbose=FALSE){
 }
 
 ##' Define the folds for 1-hr-split CVs.
-blockcv_hourlong_make_folds <- function(ylist, nfold){
+blockcv_hourlong_make_folds <- function(ylist, nfold, verbose=FALSE){
 
   if(verbose) print("Hour-long time blocks used for CV (block type 2)")
   ## Make hour-long index list
