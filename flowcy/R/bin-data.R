@@ -58,6 +58,7 @@ make_grid <- function(ylist, gridsize=5){
 
   ## Get overall range.
   ylist_collapsed = do.call(rbind, ylist)
+  dimdat = ncol(ylist_collapsed)
   ranges = lapply(1:dimdat, function(ii) range(ylist_collapsed[,ii]))
 
   ## Equally space in each dimension.

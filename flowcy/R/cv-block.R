@@ -5,6 +5,7 @@
 ##' @param nsplit Number of CV splits. Defaults to 5.
 ##' @param ... default arguments to covarem().
 ##' @return List containing (1) the set of coefficients
+##' @export
 blockcv <- function(cl, folds, cv.gridsize,
                     ylist, countslist, X,
                     mean_lambdas,
@@ -42,8 +43,9 @@ blockcv <- function(cl, folds, cv.gridsize,
 ##' @param nsplit Number of CV splits. Defaults to 5.
 ##' @param ... default arguments to covarem().
 ##' @return List containing (1) the set of coefficients
+##' @export
 blockcv_fitmodel <- function(cl, folds, destin,
-                             ylist, X,
+                             ylist, countslist, X,
                              mean_lambdas,
                              pie_lambdas,
                              ...){
@@ -60,7 +62,7 @@ blockcv_fitmodel <- function(cl, folds, destin,
     print(c(ialpha, ibeta))
     one_job_refit(ialpha, ibeta, folds, destin,
                   mean_lambdas, pie_lambdas,
-                  ylist, X,
+                  ylist, countslist, X,
                   ...)
   })
 
@@ -70,13 +72,33 @@ blockcv_fitmodel <- function(cl, folds, destin,
 
 
 ##' Define the folds.
-blockcv_make_folds <- function(ylist, nfold){
+blockcv_make_folds <- function(ylist, nfold, verbose=FALSE){
+
+  if(verbose) print("Large consecutive time blocks used for CV (block type 1)")
   TT = length(ylist)
   endpoints = round(seq(from = 1, to = TT, length = nfold+1))
   inds = Map(function(a,b){(a+1):b},
              endpoints[-length(endpoints)],
              endpoints[-1])
   return(inds)
+}
+
+##' Define the folds for 1-hr-split CVs.
+blockcv_hourlong_make_folds <- function(ylist, nfold){
+
+  if(verbose) print("Hour-long time blocks used for CV (block type 2)")
+  ## Make hour-long index list
+  TT = length(ylist)
+  endpoints = round(seq(from = 1, to = TT, by = 20))
+  inds = Map(function(a,b){(a+1):b},
+             endpoints[-length(endpoints)],
+             endpoints[-1])
+
+  ## Further make these into five blocks of test indices.
+  test.ii.list = lapply(1:5, function(ifold){
+    test.ii = seq(from=ifold, to=length(inds), by=5)
+  })
+  return(test.ii.list)
 }
 
 
@@ -114,6 +136,7 @@ one_job <- function(ialpha, ibeta, ifold, folds, destin,
                                   pie = pred$newpie,
                                   sigma = pred$sigma,
                                   ylist = test.dat,
+                                  countslist = NULL,
                                   pie_lambda = 0,
                                   mean_lambda = 0,
                                   alpha = res.train$alpha,
@@ -138,7 +161,7 @@ one_job_refit <- function(ialpha, ibeta, folds, destin,
                           ...){
 
   ## Get the fitted results on the entire data
-  res = covarem(ylist = ylist, X = X,
+  res = covarem(ylist = ylist, countslist = countslist, X = X,
                 mean_lambda = mean_lambdas[ibeta],
                 pie_lambda = pie_lambdas[ialpha],
                 ...)
@@ -188,7 +211,13 @@ make_iimat_small <- function(cv.gridsize){
 
 
 
-##' Aggregate results
+##' Aggregate results from blocked CV.
+##'
+##' @param destin destination folder for output.
+##' @param cv.gridsize Grid size for cross validation.
+##' @param nfold Number of folds.
+##'
+##' @export
 blockcv_aggregate <- function(destin, cv.gridsize, nfold){
   cvscore.array = array(0, dim=c(cv.gridsize, cv.gridsize, nfold))
   cvscore.mat = matrix(0, nrow = cv.gridsize, ncol = cv.gridsize)
