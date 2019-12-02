@@ -183,13 +183,19 @@ get_max_lambda <- function(ylist, X, numclust, maxfac=32, ...){
 ##' @param ... Other arguments to \code{covarem_once()}.
 ##' @return list containing the two maximum values to use.
 ##' @examples
-##'
-##' obj = generate_data_generic(p=5, TT=500, fac=1, nt=7000, dimdat=3)
+##' ## Generate and bin data
+##' obj = generate_data_generic(p=5, TT=50, fac=1, nt=7000, dimdat=3)
 ##' ylist = obj$ylist
 ##' X = obj$X
+##' dat.gridsize = 50
+##' dat.grid = make_grid(ylist, gridsize = dat.gridsize)
+##' obj = bin_many_cytograms(ylist, dat.grid, mc.cores=4, verbose=TRUE)
+##' ybin_list = obj$ybin_list
+##' counts_list = obj$counts_list
 ##'
 ##' ## No parallel:
-##' maxres = get_max_lambda_new(ylist, X, numclust, verbose=TRUE,
+##' numclust = 4
+##' maxres = get_max_lambda_new(ybin_list, counts_list, X, numclust, verbose=TRUE,
 ##'                             nrep = 4,
 ##'                             ## Function settings
 ##'                             parallelize = FALSE,
@@ -198,11 +204,13 @@ get_max_lambda <- function(ylist, X, numclust, maxfac=32, ...){
 ##'                             max_lambda_alpha = 10000,
 ##'                             tol = 1E-3 ## This doesn't need to be so low here.
 ##'                             )
-##' ## Yes parallel:
+##'
+##'
+##' # Yes parallel:
 ##' cl = get_cl(3)
 ##' parallel::clusterExport(cl, ls())
 ##' parallel::clusterCall(cl, function(){ load_all("~/repos/flowcy/flowcy")}) ## directory that contains the R package.
-##' maxres = get_max_lambda_new(ylist, X, numclust, verbose=TRUE,
+##' maxres = get_max_lambda_new(ybin_list, counts_list, X, numclust, verbose=TRUE,
 ##'                             nrep = 4,
 ##'                             ## Function settings
 ##'                             parallelize = TRUE,
@@ -212,7 +220,7 @@ get_max_lambda <- function(ylist, X, numclust, maxfac=32, ...){
 ##'                             max_lambda_alpha = 10000,
 ##'                             tol = 1E-3 ## This doesn't need to be so low here.
 ##'                             )
-get_max_lambda_new <- function(ylist, X, numclust,
+get_max_lambda_new <- function(ylist, countslist = NULL, X, numclust,
                                max_lambda_beta = 4000,
                                max_lambda_alpha = 1000
 ,
@@ -236,6 +244,7 @@ get_max_lambda_new <- function(ylist, X, numclust,
     for(ii in 1:iimax){
       if(verbose) printprogress(ii, iimax, fill=TRUE)
       res = covarem(ylist = ylist,
+                    countslist = countslist,
                     X = X,
                     numclust = numclust,
                     pie_lambda = max_lambda_alpha * facs[ii],
@@ -247,19 +256,24 @@ get_max_lambda_new <- function(ylist, X, numclust,
       toler = 1E-8
       sum_nonzero_alpha = sum(res$alpha[,-1] > toler)
       sum_nonzero_beta = sum(unlist(lapply(res$beta, function(cf){ sum(cf[-1,] > toler) })))
-      if(sum_nonzero_alpha + sum_nonzero_beta != 0 & ii==1){
+
+      ## These will be T followed by F, like: TRUE TRUE FALSE FALSE FALSE
+      if(sum_nonzero_alpha + sum_nonzero_beta != 0){
+        if(ii==1){
         stop(paste0("Max lambdas: ", max_lambda_beta, " and ", max_lambda_alpha,
                   " were too small as maximum reg. values. Go up and try again!!"))
-      } else {
+        } else {
           myfac = facs[ii-1]
           return(list(beta = max_lambda_beta * myfac, alpha = max_lambda_alpha * myfac))
+        }
       }
     }
-  } else{
+  } else {
     assert_that(!is.null(cl))
     reslist = parallel::parLapplyLB(cl, 1:iimax, function(ii){
       if(verbose) printprogress(ii, iimax, fill=TRUE)
       res = covarem(ylist = ylist,
+                    countslist = countslist,
                     X = X,
                     numclust = numclust,
                     pie_lambda = max_lambda_alpha * facs[ii],

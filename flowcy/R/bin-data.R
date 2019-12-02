@@ -36,7 +36,7 @@ make_counts <- function(y, grid){
   identify_box <- function(grid, yrow){
     dimdat = length(yrow)
     sapply(1:dimdat, function(idim){
-      max(which(yrow[idim] > grid[[idim]]))
+      max(which(yrow[idim] >= grid[[idim]]))
     })
   }
 
@@ -45,8 +45,8 @@ make_counts <- function(y, grid){
   nn = length(grid[[1]]) - 1
   counts = array(0, dim=c(nn,nn,nn))
   for(ii in 1:nt){
-    ## printprogress(ii, nt)
     ijk = identify_box(grid, y[ii,])
+    ijk = pmin(ijk, nn) ## fixing indexing for right-end edge points.
     counts[ijk[1], ijk[2], ijk[3]]= counts[ijk[1], ijk[2], ijk[3]] + 1
   }
   return(counts)
@@ -135,7 +135,7 @@ bin_many_cytograms <- function(ylist, manual.grid, verbose=FALSE, mc.cores=1){
 
   ## Bin each cytogram
   reslist = parallel::mclapply(1:TT, function(tt){
-    if(verbose & (tt %% 50 ==0 )) printprogress(tt, TT, "binning")
+    if(verbose & (tt %% 10 ==0 )) printprogress(tt, TT, "binning")
     bin_one_cytogram(ylist[[tt]], manual.grid)
   }, mc.cores=mc.cores)
 

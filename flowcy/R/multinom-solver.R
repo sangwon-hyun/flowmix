@@ -51,9 +51,11 @@ cvxr_multinom <- function(y, X, lambda, exclude.from.penalty=NULL, sel_coef=NULL
   alphamat <- CVXR::Variable(p, numclust)
 
   ## First component
+  ## obj1 = CVXR::matrix_trace(t(y) %*% X %*% alphamat)
   obj1 = CVXR::sum_entries(CVXR::mul_elemwise(y, (X %*% alphamat)))
 
   ## Second component
+  ## obj2 <- sum(CVXR::log_sum_exp(diag(rowSums(y)) %*%  X %*% alphamat, 1))
   obj2 <- sum((CVXR::log_sum_exp( X %*% alphamat, 1)) * rowSums(y))
 
   ## Sum them
