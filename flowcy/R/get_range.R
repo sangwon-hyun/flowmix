@@ -214,7 +214,8 @@ get_max_lambda <- function(ylist, X, numclust, maxfac=32, ...){
 ##'                             )
 get_max_lambda_new <- function(ylist, X, numclust,
                                max_lambda_beta = 4000,
-                               max_lambda_alpha = 1000,
+                               max_lambda_alpha = 1000
+,
                                verbose=FALSE,
                                iimax = 16,
                                parallelize = FALSE,
@@ -251,7 +252,7 @@ get_max_lambda_new <- function(ylist, X, numclust,
                   " were too small as maximum reg. values. Go up and try again!!"))
       } else {
           myfac = facs[ii-1]
-          return(c(max_lambda_beta * myfac, max_lambda_alpha * myfac))
+          return(list(beta = max_lambda_beta * myfac, alpha = max_lambda_alpha * myfac))
       }
     }
   } else{
@@ -280,7 +281,8 @@ get_max_lambda_new <- function(ylist, X, numclust,
     if(any(allzero)){
       ## Get the SMALLEST coeff such that all zero coefficients were found, and return.
       myfac = facs[max(which(allzero))]
-      return(c(max_lambda_beta * myfac, max_lambda_alpha * myfac))
+      ## return(c(max_lambda_beta * myfac, max_lambda_alpha * myfac))
+      return(list(beta = max_lambda_beta * myfac, alpha = max_lambda_alpha * myfac))
     } else {
       stop(paste0("Max lambdas: ", max_lambda_beta, " and ", max_lambda_alpha,
                   " were too small as maximum reg. values. Go up and try again!!"))
