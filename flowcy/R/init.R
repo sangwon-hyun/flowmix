@@ -64,23 +64,28 @@ init_mn_naive <- function(data, numclust, TT, countslist){
   dimdat = ncol(data[[1]])
 
   if(!is.null(countslist)){
-  ## Flatten the countslist
-  countslist_flattened = countslist
-  for(tt in 1:TT){
-    thresh = quantile(countslist_flattened[[tt]], 0.6)
-    countslist_flattened[[tt]][which(countslist_flattened[[tt]] >= thresh)] = thresh
-  }
 
+    ## Flatten the countslist
+    countslist_flattened = countslist
+    for(tt in 1:TT){
+      thresh = quantile(countslist_flattened[[tt]], 0.6)
+      above.thresh = which(countslist_flattened[[tt]] >= thresh)
+      if(length(above.thresh) > 0){
+        countslist_flattened[[tt]][above.thresh] = thresh
+      }
+    }
 
-  ## Initialize the means by randomly sampling data from each time point.
-  mulist = lapply(1:TT, function(tt){
-    mydata = data[[tt]]
-    nt = nrow(mydata)
-    rows = sample(1:nt, numclust,
-                  prob = countslist_flattened[[tt]]/sum(countslist_flattened[[tt]]))
-    sampled.data = mydata[rows, , drop=FALSE]
-    return(sampled.data)
-  })
+    ## Initialize the means by randomly sampling data from each time point.
+    mulist = lapply(1:TT, function(tt){
+      mydata = data[[tt]]
+      nt = nrow(mydata)
+      counts = countslist_flattened[[tt]]
+      stopifnot(length(counts) == nt)
+      rows = sample(1:nt, numclust,
+                    prob = counts / sum(counts))
+      sampled.data = mydata[rows, , drop=FALSE]
+      return(sampled.data)
+    })
 
   } else {
 
