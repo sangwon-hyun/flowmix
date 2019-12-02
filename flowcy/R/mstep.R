@@ -14,8 +14,7 @@ Mstep_alpha <- function(resp, X, numclust, lambda = 0, alpha = 1,
   p = ncol(X)
 
   ## Calculate the summed responsibilities
-  if(bin) resp.sum = t(sapply(resp, Matrix::colSums)) ## (T x numclust)
-  if(!bin) resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
+  resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
 
   ## Temporary: eventually make into sparse Matrix, but for now, CVXR doesn't
   ## take sparse Matrix.
@@ -26,20 +25,17 @@ Mstep_alpha <- function(resp, X, numclust, lambda = 0, alpha = 1,
   if(!refit){
     ## ## TODO: wrap a try-catch around this; catch this precise message and end
     ## ## the entire algorithm by returning a flag or NULL, when this happens.
-    ## browser()
     ## fit = glmnet::glmnet(x = X, y = resp.sum, family = "multinomial",
     ##                      alpha = alpha, lambda = lambda) ## This
-    ## ## Question: why isn't the weight of n_t becing used?
-
+    ## Question: why isn't the weight of n_t becing used?
     ## ## The coefficients for the multinomial logit model are (K x (p+1))
     ## alphahat = do.call(rbind,
     ##                    lapply(coef(fit), as.numeric))
-    ## stopifnot(all(dim(alphahat) == c(numclust, (p + 1))))
 
-    ## Until we find an equivalence between glmnet and cvxr, use cvxr (slow but
-    ## correct):
+    ## Until we find an equivalence between glmnet and cvxr (unlikely), use cvxr
+    ## (slow but correct):
     Xa = cbind(1, X)
-    alphahat = cvxr_multinom(X = Xa, y = resp.sum, lambda = 0,
+    alphahat = cvxr_multinom(X = Xa, y = resp.sum, lambda = lambda, ## This was lambda=0 for no good reason
                                  exclude = 1)
     alphahat[which(abs(alphahat) < 1E-8, arr.ind = TRUE)] = 0
     alphahat = t(as.matrix(alphahat))
@@ -47,7 +43,7 @@ Mstep_alpha <- function(resp, X, numclust, lambda = 0, alpha = 1,
 
   } else {
     Xa = cbind(1, X)
-    alphahat = cvxr_multinom_new(X = Xa, y = resp.sum, lambda = 0,
+    alphahat = cvxr_multinom_new(X = Xa, y = resp.sum, lambda = lambda, ## This was lambda=0 for no good reason
                                  sel_coef = sel_coef$alpha,
                                  exclude = 1)
     alphahat[which(abs(alphahat) < 1E-8, arr.ind = TRUE)] = 0
@@ -88,12 +84,12 @@ Mstep_sigma_covar <- function(resp, ylist, mn, numclust,
   resid.rows = matrix(0, nrow = sum(ntlist), ncol=dimdat) ## trying env
   cs = c(0, cumsum(ntlist))
   vars <- vector(mode = "list", numclust)
-  if(bin){
-    resp.grandsums = Matrix::rowSums(sapply(1:TT, function(tt){ Matrix::colSums(resp[[tt]]) }))
-  }
-  if(!bin){
+  ## if(bin){
+  ##   resp.grandsums = Matrix::rowSums(sapply(1:TT, function(tt){ Matrix::colSums(resp[[tt]]) }))
+  ## }
+  ## if(!bin){
     resp.grandsums = rowSums(sapply(1:TT, function(tt){ colSums(resp[[tt]]) }))
-  }
+  ## }
 
   for(iclust in 1:numclust){
 
@@ -142,6 +138,9 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
                        maxdev = NULL,
                        sigma_eig_by_clust=NULL,
                        first_iter=FALSE,
+                       ridge = FALSE,
+                       ridge_lambda = NULL,
+                       ridge_pie = NULL,
                        bin = FALSE
                        ){
 
@@ -153,15 +152,25 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
   p = ncol(X)
   Xa = cbind(1, X)
   dimsigma = dim(sigma)
+
   if(!is.null(sigma)){
     assert_that(all.equal(dimsigma, c(numclust, dimdat, dimdat)))
   }
 
   ## Setup
-  manip_obj = manip(ylist, Xa, resp, sigma, numclust,
-                    sigma_eig_by_clust = sigma_eig_by_clust,
-                    first_iter = first_iter,
-                    bin = bin) ## Temporry
+  if(ridge){
+    manip_obj = manip_ridge(ylist, Xa, resp, sigma, numclust,
+                            sigma_eig_by_clust = sigma_eig_by_clust,
+                            first_iter = first_iter,
+                            ridge_lambda = ridge_lambda,
+                            ridge_pie = ridge_pie)
+                            ## bin = bin)
+  } else {
+    manip_obj = manip(ylist, Xa, resp, sigma, numclust,
+                      sigma_eig_by_clust = sigma_eig_by_clust,
+                      first_iter = first_iter)
+                      ## bin = bin)
+  }
   Xtildes = manip_obj$Xtildes
   yvecs = manip_obj$yvecs
 
@@ -196,7 +205,6 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
       ##   print("using CVXR")
 
         ## If applicable, restrict the fitted means to be close to \beta0k.
-        ## b = microbenchmark({
         betahat = cvxr_lasso_newer(X = Xtildes[[iclust]],
                                    Xorig = X,
                                    y = yvecs[[iclust]],
@@ -207,8 +215,6 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
                                    numclust = numclust,
                                    refit = refit,
                                    sel_coef = sel_coef$beta[[iclust]])
-
-      ## } ## Ending bracket of of TEMPORARY
       betahat[which(abs(betahat) < 1E-8, arr.ind = TRUE)] = 0
 
       ## Temporary
@@ -227,7 +233,7 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
   ## Extract results; this needs to by (T x dimdat x numclust)
   betahats = lapply(results, function(a){a$betahat})
   yhats = lapply(results, function(a){as.matrix(a$yhat)})
-  yhats_array = array(NA, dim=c(TT,dimdat,numclust))
+  yhats_array = array(NA, dim=c(TT, dimdat, numclust))
   for(iclust in 1:numclust){ yhats_array[,,iclust] = yhats[[iclust]] }
 
   ## Each are lists of length |numclust|.
@@ -241,16 +247,17 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
 ##' separately for each cluster).
 ##' @return 3 (or dimdat) |numclust|-length lists.
 manip <- function(ylist, X, resp, sigma, numclust,
-                  sigma_eig_by_clust=NULL,
-                  first_iter=FALSE,
-                  bin = FALSE){ ## temporary
+                  sigma_eig_by_clust = NULL,
+                  first_iter = FALSE){
+                  ## bin = FALSE){
 
   ## Make some quantities
   ntlist = sapply(ylist, nrow)
   dimdat = ncol(ylist[[1]])
   TT = nrow(X)
-  if(bin) resp.sum = t(sapply(resp, Matrix::colSums)) ## (T x numclust)
-  if(!bin) resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
+  ## if(bin) resp.sum = t(sapply(resp, Matrix::colSums)) ## (T x numclust)
+  ## if(!bin)
+    resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
   sigma.inv.halves = array(NA, dim=dim(sigma))
 
   if(first_iter){
@@ -280,6 +287,71 @@ manip <- function(ylist, X, resp, sigma, numclust,
   yvecs = lapply(1:numclust, function(iclust){
     yvec = (1/sqrt(resp.sum[,iclust]) * t(Ytildes[[iclust]])) %*% sigma.inv.halves[iclust,,]
     yvec = as.vector(yvec)
+  })
+
+  return(list(Xtildes = Xtildes,
+              Ytildes = Ytildes,
+              yvecs = yvecs
+              ))
+}
+
+
+##' Helper to "manipulate" X and y, to get Xtilde and Ytilde and yvec for a more
+##' efficient beta M step (each are |numclust|-length lists, calculated
+##' separately for each cluster).
+##' @return 3 (or dimdat) |numclust|-length lists.
+manip_ridge <- function(ylist, X, resp, sigma, numclust,
+                        sigma_eig_by_clust = NULL,
+                        first_iter = FALSE,
+                        ridge_lambda = 0,
+                        ridge_pie = NULL){
+                        ## bin = FALSE
+                        ## ){
+
+  ## Make some quantities
+  ntlist = sapply(ylist, nrow)
+  dimdat = ncol(ylist[[1]])
+  TT = nrow(X)
+  ## if(bin) resp.sum = t(sapply(resp, Matrix::colSums)) ## (T x numclust)
+  ## if(!bin)
+  resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
+  sigma.inv.halves = array(NA, dim=dim(sigma))
+
+  if(first_iter){
+    for(iclust in 1:numclust){
+      sigma.inv.halves[iclust,,] = mtsqrt_inv(sigma[iclust,,])
+    }
+  } else {
+    for(iclust in 1:numclust){
+      sigma.inv.halves[iclust,,] = sigma_eig_by_clust[[iclust]]$inverse_sigma_half
+    }
+  }
+
+  ## Pre-calculate response and covariates to feed into lasso.
+  emptymat = matrix(0, nrow = dimdat, ncol = TT)
+  Ytildes = list()
+  for(iclust in 1:numclust){
+    for(tt in 1:TT){
+      emptymat[,tt] = colSums(resp[[tt]][, iclust] * ylist[[tt]])
+    }
+    Ytildes[[iclust]] = emptymat
+  }
+  Xtildes = lapply(1:numclust, function(iclust){
+    Xtilde = sigma.inv.halves[iclust,,] %x% (sqrt(resp.sum[,iclust]) * X)
+    ## Append rows for the ridge
+    Xridge = sqrt(ridge_lambda)  * ( diag(rep(1, dimdat)) %x% X) ##* sqrt(ridge_pie[,iclust]))
+    ## if(!is.null(ridge_pie)){
+    ##   Xridge =  Xridge * sqrt(ridge_pie[,iclust]) ## I think this is right.
+    ## }
+    return(rbind(Xtilde, Xridge))
+  })
+
+  ## Vector
+  yvecs = lapply(1:numclust, function(iclust){
+    yvec = (1/sqrt(resp.sum[,iclust]) * t(Ytildes[[iclust]])) %*% sigma.inv.halves[iclust,,]
+    yvec = as.vector(yvec)
+    ## New: augment response with zeros
+    return(c(yvec, rep(0, dimdat * TT))) ## Check the dimensions
   })
 
   return(list(Xtildes = Xtildes,
