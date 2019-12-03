@@ -36,36 +36,39 @@ Estep_covar <- function(mn, sigma, pie, ylist=NULL,
   for(tt in 1:TT){
     ylist_tt = ylist[[tt]]
 
-    ## Calculate the densities of data with respe       ct to cluster centers
-    if(is.null(countslist)){
-      densmat <- sapply(1:numclust,
-                        calculate_dens,
-                        ## Rest of arguments:
-                        tt, ylist_tt, mn, sigma,
-                        denslist_by_clust, first_iter,
-                        bin = bin)
-    } else {
-      denslist <- lapply(1:numclust,
-                         calculate_dens,
-                         ## Rest of arguments:
-                         tt, ylist_tt, mn, sigma,
-                         denslist_by_clust, first_iter,
-                         bin = bin)
-      densmat = Matrix::Matrix(0, ncol=ncol.pie, nrow=ntlist[tt])
-      for(iclust in 1:numclust){ ## There must be a bettr way to do it.
-        densmat[,iclust] <- denslist[[iclust]]
-      }
-    }
+    ## Calculate the densities of data with respect to cluster centers
+    densmat <- sapply(1:numclust,
+                      calculate_dens,
+                      ## Rest of arguments:
+                      tt, ylist_tt, mn, sigma,
+                      denslist_by_clust, first_iter,
+                      bin = bin)
+    ## } else {
+      ## denslist <- lapply(1:numclust,
+      ##                    calculate_dens,
+      ##                    ## Rest of arguments:
+      ##                    tt, ylist_tt, mn, sigma,
+      ##                    denslist_by_clust, first_iter,
+      ##                    bin = bin)
+      ## densmat = Matrix::Matrix(0,
+      ##                          ncol=ncol.pie,
+      ##                          nrow=ntlist[tt])
+      ## for(iclust in 1:numclust){ ## There must be a bettr way to do it.
+      ##   browser()
+      ##   densmat[,iclust] <- denslist[[iclust]]
+      ## }
+    ## }
 
     ## Weight them by pie, to produce responsibilities.
-    if(is.null(countslist)){
+    ## if(is.null(countslist)){
       wt.densmat <- matrix(pie[tt,], nrow = ntlist[tt], ncol=ncol.pie, byrow=TRUE) * densmat
       wt.densmat <- wt.densmat / rowSums(wt.densmat)
-    } else {
-      wt.densmat <- Matrix::Matrix(pie[tt,], nrow = ntlist[tt], ncol=ncol.pie, byrow=TRUE) * densmat
-      a = Matrix::rowSums(wt.densmat)
-      wt.densmat <- wt.densmat / a
-    }
+    ## } else {
+    ##   wt.densmat <- Matrix::Matrix(pie[tt,], nrow = ntlist[tt], ncol=ncol.pie, byrow=TRUE) * densmat
+    ##   a = Matrix::rowSums(wt.densmat)
+    ##   wt.densmat <- wt.densmat / a
+    ## }
+
     resp[[tt]] <- wt.densmat
   }
   return(resp)
