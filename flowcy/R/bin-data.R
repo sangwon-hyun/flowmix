@@ -4,35 +4,13 @@
 ##' @param grid Grid, created using \code{make_grid()}.
 ##'
 ##' @return All counts, as a 3-dimensional array.
-make_counts <- function(y, grid){
-  ## ## Old way: ugly triple loop
-  ## nn = length(grid[[1]])-1
-  ## counts = array(0, dim=c(nn,nn,nn))
-  ## nt = nrow(y)
-  ## nnlast = 1
-  ## dimdat = ncol(y)
-  ## if(dimdat == 3)  k_nn_range = 1:nn
-  ## if(dimdat == 2)  k_nn_range = NULL
-  ## start.time = Sys.time()
-  ## for(ii in 1:nn){
-  ##   printprogress(ii, nn, start.time=start.time)
-  ##   for(jj in 1:nn){
-  ##   ## printprogress((ii-1)*nn + jj, nn^2, start.time=start.time)
-  ##     for(kk in k_nn_range){
-  ##       count <- sum(sapply(1:nt, function(irow){
-  ##         myrow = y[irow,]
-  ##         in_grid(myrow, ii, jj, kk, grid)
-  ##       }))
-  ##       counts[ii,jj,kk] = count
-  ##     }
-  ##   }
-  ## }
-  ## return(counts)
+make_counts <- function(y, grid, qc=NULL){
 
-  ## New way: Go through y_list, identify the closest box, add a count to the
-  ## midpoint of the pertinent box (there is only one).
+  ## Go through y_list, identify the closest box, add a count to the midpoint of
+  ## the pertinent box (there is only one such box). Upweight by the carbon
+  ## quantity (QC) if available.
 
-  ## Helper: works on one row.
+  ## Helper: works on one row. Sees if a row is in a particular box
   identify_box <- function(grid, yrow){
     dimdat = length(yrow)
     sapply(1:dimdat, function(idim){
@@ -44,10 +22,13 @@ make_counts <- function(y, grid){
   nt = nrow(y)
   nn = length(grid[[1]]) - 1
   counts = array(0, dim=c(nn,nn,nn))
+  qc_ii = NULL
   for(ii in 1:nt){
     ijk = identify_box(grid, y[ii,])
-    ijk = pmin(ijk, nn) ## fixing indexing for right-end edge points.
-    counts[ijk[1], ijk[2], ijk[3]]= counts[ijk[1], ijk[2], ijk[3]] + 1
+        ijk = pmin(ijk, nn) ## fixing indexing for right-end edge points.
+    if(is.null(qc))  to_add = 1
+    if(!is.null(qc)) to_add = qc[ii]
+    counts[ijk[1], ijk[2], ijk[3]]= counts[ijk[1], ijk[2], ijk[3]] + to_add
   }
   return(counts)
 }
@@ -109,11 +90,13 @@ make_ybin <- function(y, counts, midpoints){
 ##' Main function for binning a cytogram (y).
 ##' @param y nt by dimdat matrix.
 ##' @param manual.grid grid, produced using \code{make_grid()}.
+##' @param qc QC value, but in the original scale, NOT in the log scale.
 ##'
 ##' @return List containing *trimmed* ybin (a x 3) and counts (a).
-bin_one_cytogram <- function(y, manual.grid){
+bin_one_cytogram <- function(y, manual.grid, qc=NULL){
+
   midpoints <- flowcy::make_midpoints(manual.grid)  ## Obtain the midpoints of each box (d x d x d array)
-  counts <- make_counts(y, manual.grid) ## Count the points in each of the boxes (d x d x d array)
+  counts <- make_counts(y, manual.grid, qc) ## Count the points in each of the boxes (d x d x d array)
   ybin_all <- make_ybin(y, counts, midpoints) ## Aggregate all of this into a (d^3 x 4 array)
   ybin <- ybin_all[,1:3]
   counts <- ybin_all[,4]
@@ -128,15 +111,15 @@ bin_one_cytogram <- function(y, manual.grid){
 ##' @param manual.grid grid, produced using \code{make_grid()}.
 ##'
 ##' @return List containing *trimmed* ybin (a x 3) and counts (a).
-bin_many_cytograms <- function(ylist, manual.grid, verbose=FALSE, mc.cores=1){
+bin_many_cytograms <- function(ylist, manual.grid, verbose=FALSE, mc.cores=1, qclist=NULL){
 
   TT = length(ylist)
   if(verbose) cat(fill=TRUE)
 
-  ## Bin each cytogram
+  ## Bin each cytogram:
   reslist = parallel::mclapply(1:TT, function(tt){
     if(verbose & (tt %% 10 ==0 )) printprogress(tt, TT, "binning")
-    bin_one_cytogram(ylist[[tt]], manual.grid)
+    bin_one_cytogram(ylist[[tt]], manual.grid, qclist[[tt]])
   }, mc.cores=mc.cores)
 
   ## Gather results and return
