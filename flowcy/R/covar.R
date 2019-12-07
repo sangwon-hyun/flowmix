@@ -42,12 +42,11 @@ covarem <- function(..., nrep = 5){
 ##'
 ##' @export
 covarem_once <- function(ylist, X,
-                         ## ylist_orig,## temporary
                          countslist = NULL,
                          numclust, niter = 100,
                          mn = NULL, pie_lambda = 0,
                          mean_lambda = 0, verbose = FALSE,
-                         warmstart  =  c("none", "rough"), sigma.fac = 1, tol = 1E-5,
+                         sigma.fac = 1, tol = 1E-5,
                          refit = FALSE, ## EXPERIMENTAL FEATURE.
                          sel_coef = NULL,
                          maxdev = NULL,
@@ -56,10 +55,12 @@ covarem_once <- function(ylist, X,
                          countslist_overwrite = NULL,
                          ## ridge = FALSE,
                          ## ridge_lambda = 0
-                                             plot=FALSE,
-                                             plotdir = "~/Desktop"
-                         ){
-  ## Basic checks
+                         plot=FALSE,
+                         plotdir = "~/Desktop",
+                         thresh = 1E-8,
+                         zerothresh = 1E-8,
+                         init_mn_flatten = FALSE
+                         ){## Basic checks
   if(!is.null(maxdev)){ assert_that(maxdev!=0) } ## Preventing the maxdev=FALSE mistake.
   ## assert_that(!(is.data.frame(ylist[[1]])))
 
@@ -67,8 +68,7 @@ covarem_once <- function(ylist, X,
   TT = length(ylist)
   dimdat = ncol(ylist[[1]])
   p = ncol(X)
-  if(is.null(mn)) mn = init_mn(ylist, numclust, TT, dimdat, warmstart, countslist)
-  if(!is.null(mn)) orig.mn = mn
+  if(is.null(mn)) mn = init_mn(ylist, numclust, TT, dimdat, countslist)
   ntlist = sapply(ylist, nrow)
   bin = !is.null(countslist)
 
@@ -79,36 +79,12 @@ covarem_once <- function(ylist, X,
   sigma = init_sigma(ylist, numclust, TT, fac=sigma.fac) ## (T x numclust x dimdat x dimdat)
   sigma_eig_by_clust = NULL
 
-  ## If binning manual,
-  if(manual.bin){
-    assert_that(!is.null(manual.grid))
-    bin = TRUE
-
-    ## Bin data
-    cat("binning started", fill=TRUE)
-    print(Sys.time())
-    ## reslist = lapply(ylist, bin_one_cytogram, manual.grid)
-    start.time1 = Sys.time()
-    reslist = lapply(1:TT, function(tt){
-      if(tt %% 100==0)printprogress(tt, TT, "binning", start.time = start.time1, fill=TRUE)
-      bin_one_cytogram(ylist[[tt]], manual.grid)})
-    ylist = lapply(reslist, function(res) res$ybin)
-    countslist = lapply(reslist, function(res) res$counts)
-    print(Sys.time())
-    cat("binning ended", fill=TRUE)
-  }
-  ## Endof alternative
-
-  if(!is.null(countslist_overwrite))countslist = countslist_overwrite ## The least elegant solution I can think of..
-
-
-  ## Temporary: Also, if we are using binned counts, make sure that ylist and
-  ## countslist are trimmed i.e. make sure that in
+  ## The least elegant solution i can think of.. used for blocked cv
+  if(!is.null(countslist_overwrite))countslist = countslist_overwrite
   if(bin) check_trim(ylist, countslist)
 
   start.time = Sys.time()
   for(iter in 2:niter){
-    if(verbose) printprogress(iter-1, niter-1, "EM iterations.", start.time = start.time)
 
     start_time_per_iter = Sys.time()
 
@@ -121,9 +97,8 @@ covarem_once <- function(ylist, X,
 
     ## If countslist is provided, further weight them.
     if(!is.null(countslist)){
-      resp <- Map(function(myresp, mycount){
-        myresp * mycount
-      }, resp, countslist)
+      resp <- Map(function(myresp, mycount){ myresp * mycount },
+                  resp, countslist)
     }
 
     ## Conduct M step
@@ -133,12 +108,14 @@ covarem_once <- function(ylist, X,
                             lambda = pie_lambda,
                             refit = refit,
                             sel_coef = sel_coef,
-                            bin = bin)
+                            bin = bin,
+                            thresh = thresh,
+                            zerothresh = zerothresh)
     pie = res.alpha$pie
     alpha = res.alpha$alpha
     rm(res.alpha)
 
-    ## 2. Beta
+    ## 2. beta
     res.beta = Mstep_beta(resp, ylist, X,
                           mean_lambda = mean_lambda,
                           sigma,
@@ -149,7 +126,9 @@ covarem_once <- function(ylist, X,
                           ## ridge = ridge,
                           ## ridge_lambda = ridge_lambda,
                           ## ridge_pie = pie,
-                          bin = bin)
+                          bin = bin,
+                          thresh = thresh,
+                          zerothresh = zerothresh)
     mn = res.beta$mns
     beta = res.beta$beta
     rm(res.beta)
@@ -188,80 +167,86 @@ covarem_once <- function(ylist, X,
     ########################
     ## Make plots ##########
     ########################
-    ## browser()
     if(plot){
-    if(!is.null(countslist)){
-      cex = (countslist[[1]]/max(countslist[[1]]))*5+.5
-    } else {
-      cex = .5
-    }
-    ylist_collapsed = do.call(rbind, ylist)
-    ntsum = nrow(ylist_collapsed)
-    ylist_collapsed = ylist_collapsed[sample(1:ntsum, 10000),]
-    png(file=file.path(plotdir,
-                       paste0("iteration-", iter, ".png")), width=1200, height=1200)
-    par(mfrow=c(2,2))
-    dimslist = list(1:2,2:3,c(3,1))
-    for(dims in dimslist){
-    ## plot(x = ylist_collapsed[,dims[1]],
-    ##      y = ylist_collapsed[,dims[2]],
-    ##      pch=16,
-    ##      ## col='grey80',
-    ##      col=rgb(0,0,0,0.1),
-    ##      cex = cex,
-    ##      type='p')
-    tt = 1
-      Names = c("fsc_small", "chl_small","pe")
-    plot(x=ylist[[tt]][,dims[1]],
-           y=ylist[[tt]][,dims[2]],
-           ## col='grey50',
-           col=rgb(0,0,0,0.1),
-           pch=16,
-           cex = cex,
-           ## col='pink',
-         type='p',
-         xlab = Names[dims[1]],
-         ylab = Names[dims[2]],
-         cex.lab=1.5,
-         cex.axis=1.5
-         )
-
-
-    ## for(iclust in 1:numclust){
-    ##   x = mn[,1, iclust]
-    ##   y = mn[,2, iclust]
-    ##   points(x=as.numeric(x), y=as.numeric(y),col=iclust)
-    ## }
-    cols = 1:numclust
-    points(x=mn[tt,dims[1],],
-           y=mn[tt,dims[2],],
-           pch=4, col=cols,
-           ## cex = pie[1,]/max(pie[1,])*10)
-           cex = log(pie[1,]/max(pie[1,]) + 1)*3)
-
-    for(tt in 1:TT){
-      for(kk in 1:numclust){
-    points(x=mn[tt,dims[1],kk],
-           y=mn[tt,dims[2],kk],
-           pch=16, col=cols[kk],
-           cex = .3)
+      if(!is.null(countslist)){
+        cex = (countslist[[1]]/max(countslist[[1]]))*5+.5
+      } else {
+        cex = .5
       }
+      ylist_collapsed = do.call(rbind, ylist)
+      ntsum = nrow(ylist_collapsed)
+      ylist_collapsed = ylist_collapsed[sample(1:ntsum, 10000),]
+      png(file=file.path(plotdir,
+                         paste0("iteration-", iter, ".png")), width=1200, height=1200)
+      par(mfrow=c(2,2))
+      dimslist = list(1:2,2:3,c(3,1))
+      for(dims in dimslist){
+      ## plot(x = ylist_collapsed[,dims[1]],
+      ##      y = ylist_collapsed[,dims[2]],
+      ##      pch=16,
+      ##      ## col='grey80',
+      ##      col=rgb(0,0,0,0.1),
+      ##      cex = cex,
+      ##      type='p')
+      tt = 1
+        names = c("fsc_small", "chl_small","pe")
+      plot(x=ylist[[tt]][,dims[1]],
+             y=ylist[[tt]][,dims[2]],
+             ## col='grey50',
+             col=rgb(0,0,0,0.1),
+             pch=16,
+             cex = cex,
+             ## col='pink',
+           type='p',
+           xlab = names[dims[1]],
+           ylab = names[dims[2]],
+           cex.lab=1.5,
+           cex.axis=1.5
+           )
+
+
+      ## for(iclust in 1:numclust){
+      ##   x = mn[,1, iclust]
+      ##   y = mn[,2, iclust]
+      ##   points(x=as.numeric(x), y=as.numeric(y),col=iclust)
+      ## }
+
+        ## this time point's mean
+      cols = 1:numclust
+      points(x=mn[tt,dims[1],],
+             y=mn[tt,dims[2],],
+             pch=4, col=cols,
+             ## cex = pie[1,]/max(pie[1,])*10)
+             cex = log(pie[1,]/max(pie[1,]) + 1)*3)
+
+        ## All time points' means
+      for(tt in 1:TT){
+        for(kk in 1:numclust){
+          points(x=mn[tt,dims[1],kk],
+                 y=mn[tt,dims[2],kk],
+                 pch=16, col=cols[kk],
+                 cex = 1)
+        }
+      }
+
+      for(kk in 1:numclust){
+        lines(ellipse::ellipse(x = sigma[kk,dims,dims],
+                               centre = mn[tt,dims, kk]
+                               ), lwd=1, col=cols[kk], lty=1)
+      }
+      }
+
+      plot(objectives[2:(min(100, length(objectives)))],
+           type= 'o',
+           ylab = "Objective Value", xlab = "EM Iteration",
+           cex.lab = 1.5,
+           cex.axis = 1.5) ##temporary
+      ## End of plotting  ##########
+      graphics.off()
     }
 
-    for(kk in 1:numclust){
-      lines(ellipse::ellipse(x = sigma[kk,dims,dims],
-                             centre = mn[tt,dims, kk]
-                             ), lwd=1, col=cols[kk], lty=1)
-    }
-    }
-
-    plot(objectives[2:50], type= 'o',
-         ylab = "Objective Value", xlab = "EM Iteration",
-         cex.lab = 1.5,
-         cex.axis = 1.5) ##temporary
-    ## End of plotting  ##########
-    graphics.off()
-    }
+    ## Run times
+    if(verbose) printprogress(iter-1, niter-1, "EM iterations.", start.time = start.time)
 
     ## Check convergence
     if(check_converge_rel(objectives[iter-1],
@@ -269,12 +254,12 @@ covarem_once <- function(ylist, X,
                           tol = tol)) break
   }
 
-  ## Threshold (now that we're using CVXR for beta)
-  betathresh = 1E-3
-  beta = lapply(beta, function(a){
-    a[abs(a)<betathresh] = 0
-    a
-  })
+  ## ## Threshold (now that we're using CVXR for beta)
+  ## betathresh = 1E-3
+  ## beta = lapply(beta, function(a){
+  ##   a[abs(a)<betathresh] = 0
+  ##   a
+  ## })
 
   return(structure(list(alpha = alpha,
                         beta = beta,

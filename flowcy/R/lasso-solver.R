@@ -94,7 +94,7 @@ solve_lasso <- function(y, x, lambda, intercept=TRUE, exclude.from.penalty=NULL)
 ##' @return Fitted beta.
 cvxr_lasso_newer <- function(y, X, Xorig, lambda,
                              exclude.from.penalty=NULL,
-                             thresh=1E-12,
+                             thresh=1E-8,
                              maxdev=NULL,
                              dimdat=NULL,
                              numclust=NULL,
@@ -143,60 +143,91 @@ cvxr_lasso_newer <- function(y, X, Xorig, lambda,
 
   ## Solve the problem.
   prob <- CVXR::Problem(CVXR::Minimize(obj), constraints)
-  ## result <- solve(prob, FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
-  ## Temporary: trying out different solvers
-  ## result <- solve(prob, solver = "SCS",
-  ##                 control = scs_control(eps=1E-5))
-  ## b1=print(result$getValue(betamat))
-  ## result2 <- solve(prob, solver = "SCS",
-  ##                 control = scs_control(eps=1E-8))
-  ## b2=print(result2$getValue(betamat))
-  ## b1-b2
+  ## browser()
 
-  ## result <- solve(prob, solver = "SCS",
-  ##                 scs.control = scs_control(eps=1E-3))
-  ## library(scs)
+  ## Tempoarary
+  ## ## Cehck objective values.
+  ## eps.list = c(1E-10, 1E-8, 1E-7, 1E-6, 1E-5, seq(from=1E-3, to=1E-2, length=5))
+  ## reslist = lapply(eps.list, function(eps){
+  ##   print(eps)
+  ##   start.time = Sys.time()
+  ##   set.seed(0)
+  ##   result <- solve(prob, solver = "SCS",
+  ##                    eps = eps)
+  ##   solution <- result$getValue(betamat)
+  ##   objective_value = result$value
+  ##   lapse.time = round(difftime(Sys.time(), start.time,
+  ##                              units = "secs"), 2)
+  ##   return(list(lapse.time = lapse.time,
+  ##               objective_value = objective_value,
+  ##               solution = solution))
+  ## })
 
-  ## ## End of temporary
+  ## eps.list = c(1E-10, 1E-8, 1E-7, 1E-6, 1E-5, seq(from=1E-3, to=1E-2, length=5))
+  ## reslist_ecos = lapply(eps.list, function(eps){
+  ##   print(eps)
+  ##   start.time = Sys.time()
+  ##   set.seed(0)
+  ##   result <- solve(prob, solver="ECOS",
+  ##                   FEASTOL = eps, RELTOL = eps, ABSTOL = eps)
+  ##   solution <- result$getValue(betamat)
+  ##   objective_value = result$value
+  ##   lapse.time = round(difftime(Sys.time(), start.time,
+  ##                              units = "secs"), 2)
+  ##   return(list(lapse.time = lapse.time,
+  ##               objective_value = objective_value,
+  ##               solution = solution))
+  ## })
 
-  result <- solve(prob)
-  betahat <- result$getValue(betamat)
-  ## betahat[which(abs(betahat) < 1E-8, arr.ind = TRUE)] = 0
+  ## pdf("~/Desktop/ecos-by-tolerance.pdf", width=12, height=4)
+  ## par(mfrow=c(1,3))
 
-  ## thresh = 1E-8
-  ## result1 <- solve(prob, FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
-  ## thresh = 1E-12
-  ## result2 <- solve(prob, FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
-  ## betahat1 <- result1$getValue(betamat)
-  ## betahat2 <- result2$getValue(betamat)
-  ## signif(betahat1, 3)
-  ## signif(betahat2, 3)
-  ## signif(abs(betahat1-betahat2)/betahat1, 3)
-  ## round(betahat1-betahat2,3)
-  ## betahat1[which(abs(betahat1) < 1E-8, arr.ind = TRUE)] = 0
-  ## betahat2[which(abs(betahat2) < 1E-8, arr.ind = TRUE)] = 0
+  ## lapsetimes = sapply(reslist_ecos, function(a) a$lapse.time)
+  ## plot(y = lapsetimes, x = eps.list, type='o', ylim = c(0, max(lapsetimes)), main="Solve times (sec)", lwd=2, log="x", xlab = "Convergence tolerance for ECOS solver")
+  ## abline(h=0, lwd=2, col='grey')
+  ## abline(v=1E-8, log="x", col='pink')
 
-  ## ## Browser
-  ## result <- solve(prob)
-  ## result_ecos <- solve(prob, solver="ECOS")
-  ## result_scs1 <- solve(prob, solver="SCS", EPS=1E-8)
-  ## result_scs2 <- solve(prob, solver="SCS", EPS=1E-2)
-  ## betahat1 <- result_scs1$getValue(betamat)
-  ## betahat2 <- result_scs2$getValue(betamat)
-  ## betahat1-betahat2
+  ## objectives = sapply(reslist_ecos, function(a) a$objective_value)
+  ## plot(y = objectives, x = eps.list, type='o',
+  ##      main="Objective value (minimization)", lwd=2, log="x",xlab = "Convergence tolerance for ECOS solver")
+  ## abline(v=1E-8, log="x", col='pink')
 
-
-  ## signif(betahat_ecos - betahat_scs, 3)
-
-  ## betahat <- result$getValue(betamat)
-  ## betahat_ecos <- result_ecos$getValue(betamat)
-  ## betahat_scs <- result_scs$getValue(betamat)
-  ## betahat_scs - betahat_ecos
-  ## betahat_scs
-  ## signif(betahat_ecos - betahat_scs, 3)
-
+  ## matplot(y = sapply(2:20, function(ii)(sapply(reslist_ecos, function(a) a$solution[ii, 2]))),
+  ##         x = eps.list,
+  ##         type='o', pch=16, lty=1, lwd=2, log="x", xlab = "Convergence tolerance for ECOS solver",
+  ##         main = "Some fitted coefficient values",
+  ##         ylab = "Values")
+  ## abline(v=1E-8, log="x", col='pink')
+  ## graphics.off()
 
 
+  ## ## reslist = reslist2
+  ## ## eps.list0 = c(eps.list[1:4], eps.list2[-1])
+  ## ## reslist0 = c(reslist[1:4], reslist2[-1])
+  ## pdf("~/Desktop/scs-by-tolerance.pdf", width=12, height=4)
+  ## par(mfrow=c(1,3))
+
+  ## lapsetimes = sapply(reslist, function(a) a$lapse.time)
+  ## plot(y = lapsetimes, x = eps.list, type='o', ylim = c(0, max(lapsetimes)), main="Solve times (sec)", lwd=2, log="x", xlab = "Convergence tolerance for SCS solver")
+  ## abline(h=0, lwd=2, col='grey')
+  ## abline(v=1E-5, log="x", col='pink')
+
+  ## objectives = sapply(reslist, function(a) a$objective_value)
+  ## plot(y = objectives, x = eps.list, type='o',
+  ##      main="Objective value (minimization)", lwd=2, log="x",xlab = "Convergence tolerance for SCS solver")
+  ## abline(v=1E-5, log="x", col='pink')
+
+  ## matplot(y = sapply(2:20, function(ii)(sapply(reslist, function(a) a$solution[ii, 2]))),
+  ##         x = eps.list,
+  ##         type='o', pch=16, lty=1, lwd=2, log="x", xlab = "Convergence tolerance for SCS solver",
+  ##         main = "Some fitted coefficient values",
+  ##         ylab = "Values")
+  ## abline(v=1E-5, log="x", col='pink')
+  ## graphics.off()
+
+  ## End of tempoarary
+  result <- solve(prob, solver="ECOS",
+                  FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
   betahat <- result$getValue(betamat)
 
   return(betahat)
