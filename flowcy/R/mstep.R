@@ -7,7 +7,9 @@
 Mstep_alpha <- function(resp, X, numclust, lambda = 0, alpha = 1,
                         refit = FALSE,
                         sel_coef = NULL,
-                        bin = FALSE ##temporary
+                        bin = FALSE, ##temporary
+                        thresh = 1E-8,
+                        zerothresh = 1E-8
                         ){
 
   TT = nrow(X)
@@ -36,17 +38,18 @@ Mstep_alpha <- function(resp, X, numclust, lambda = 0, alpha = 1,
     ## (slow but correct):
     Xa = cbind(1, X)
     alphahat = cvxr_multinom(X = Xa, y = resp.sum, lambda = lambda, ## This was lambda=0 for no good reason
-                                 exclude = 1)
-    alphahat[which(abs(alphahat) < 1E-8, arr.ind = TRUE)] = 0
+                                 exclude = 1, thresh = thresh)
+    stopifnot(all(!is.na(alphahat)))
+    alphahat[which(abs(alphahat) < zerothresh, arr.ind = TRUE)] = 0
     alphahat = t(as.matrix(alphahat))
     stopifnot(all(dim(alphahat) == c(numclust, (p + 1))))
 
   } else {
     Xa = cbind(1, X)
-    alphahat = cvxr_multinom_new(X = Xa, y = resp.sum, lambda = lambda, ## This was lambda=0 for no good reason
+    alphahat = cvxr_multinom(X = Xa, y = resp.sum, lambda = lambda, ## This was lambda=0 for no good reason
                                  sel_coef = sel_coef$alpha,
                                  exclude = 1)
-    alphahat[which(abs(alphahat) < 1E-8, arr.ind = TRUE)] = 0
+    alphahat[which(abs(alphahat) < zerothres, arr.ind = TRUE)] = 0
     alphahat = t(as.matrix(alphahat))
     stopifnot(all(dim(alphahat) == c(numclust, (p + 1))))
   }
@@ -141,7 +144,9 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
                        ridge = FALSE,
                        ridge_lambda = NULL,
                        ridge_pie = NULL,
-                       bin = FALSE
+                       bin = FALSE,
+                       thresh = 1E-8,
+                       zerothresh = 1E-8
                        ){
 
   ## Preliminaries
@@ -214,8 +219,10 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
                                    dimdat = dimdat,
                                    numclust = numclust,
                                    refit = refit,
-                                   sel_coef = sel_coef$beta[[iclust]])
-      betahat[which(abs(betahat) < 1E-8, arr.ind = TRUE)] = 0
+                                   sel_coef = sel_coef$beta[[iclust]],
+                                   thresh=thresh ## Temporary
+                                   )
+      betahat[which(abs(betahat) < zerothresh, arr.ind = TRUE)] = 0
 
       ## Temporary
       ## xb = sqrt(rowSums((X %*% betahat[-1,])^2))

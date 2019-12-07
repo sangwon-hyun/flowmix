@@ -92,12 +92,14 @@ solve_lasso <- function(y, x, lambda, intercept=TRUE, exclude.from.penalty=NULL)
 ##' @param sel_coef The ones in this matrix defines the entries in the
 ##'   regression coefficients |beta| that are allowed to be nonzero.
 ##' @return Fitted beta.
-cvxr_lasso_newer <- function(y, X, Xorig, lambda, exclude.from.penalty=NULL, thresh=1E-12,
-                           maxdev=NULL,
-                           dimdat=NULL,
-                           numclust=NULL,
-                           refit=FALSE,
-                           sel_coef=NULL
+cvxr_lasso_newer <- function(y, X, Xorig, lambda,
+                             exclude.from.penalty=NULL,
+                             thresh=1E-12,
+                             maxdev=NULL,
+                             dimdat=NULL,
+                             numclust=NULL,
+                             refit=FALSE,
+                             sel_coef=NULL
                            ){
 
   ## Define dimensions
@@ -141,7 +143,60 @@ cvxr_lasso_newer <- function(y, X, Xorig, lambda, exclude.from.penalty=NULL, thr
 
   ## Solve the problem.
   prob <- CVXR::Problem(CVXR::Minimize(obj), constraints)
-  result <- solve(prob, FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
+  ## result <- solve(prob, FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
+  ## Temporary: trying out different solvers
+  ## result <- solve(prob, solver = "SCS",
+  ##                 control = scs_control(eps=1E-5))
+  ## b1=print(result$getValue(betamat))
+  ## result2 <- solve(prob, solver = "SCS",
+  ##                 control = scs_control(eps=1E-8))
+  ## b2=print(result2$getValue(betamat))
+  ## b1-b2
+
+  ## result <- solve(prob, solver = "SCS",
+  ##                 scs.control = scs_control(eps=1E-3))
+  ## library(scs)
+
+  ## ## End of temporary
+
+  result <- solve(prob)
+  betahat <- result$getValue(betamat)
+  ## betahat[which(abs(betahat) < 1E-8, arr.ind = TRUE)] = 0
+
+  ## thresh = 1E-8
+  ## result1 <- solve(prob, FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
+  ## thresh = 1E-12
+  ## result2 <- solve(prob, FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
+  ## betahat1 <- result1$getValue(betamat)
+  ## betahat2 <- result2$getValue(betamat)
+  ## signif(betahat1, 3)
+  ## signif(betahat2, 3)
+  ## signif(abs(betahat1-betahat2)/betahat1, 3)
+  ## round(betahat1-betahat2,3)
+  ## betahat1[which(abs(betahat1) < 1E-8, arr.ind = TRUE)] = 0
+  ## betahat2[which(abs(betahat2) < 1E-8, arr.ind = TRUE)] = 0
+
+  ## ## Browser
+  ## result <- solve(prob)
+  ## result_ecos <- solve(prob, solver="ECOS")
+  ## result_scs1 <- solve(prob, solver="SCS", EPS=1E-8)
+  ## result_scs2 <- solve(prob, solver="SCS", EPS=1E-2)
+  ## betahat1 <- result_scs1$getValue(betamat)
+  ## betahat2 <- result_scs2$getValue(betamat)
+  ## betahat1-betahat2
+
+
+  ## signif(betahat_ecos - betahat_scs, 3)
+
+  ## betahat <- result$getValue(betamat)
+  ## betahat_ecos <- result_ecos$getValue(betamat)
+  ## betahat_scs <- result_scs$getValue(betamat)
+  ## betahat_scs - betahat_ecos
+  ## betahat_scs
+  ## signif(betahat_ecos - betahat_scs, 3)
+
+
+
   betahat <- result$getValue(betamat)
 
   return(betahat)

@@ -37,7 +37,7 @@ solve_multinom <- function(y, X, lambda, intercept,
 ##' multinom problem: \deqn{ \frac{1}{n} \sum_{i=1}^n \sum_{k=1}^K y_{ik} (
 ##' x_i^T \alpha_k) - \log \left( \sum_{l=1}^K \exp ( x^T \alpha_l) \right) -
 ##' \lambda \sum_{l=1}^K \left(\| \alpha_l \|_1 \right)}
-cvxr_multinom <- function(y, X, lambda, exclude.from.penalty=NULL, sel_coef=NULL){
+cvxr_multinom <- function(y, X, lambda, exclude.from.penalty=NULL, sel_coef=NULL, thresh = 1E-8){
 
   ## Setup
   numclust = ncol(y)
@@ -71,8 +71,39 @@ cvxr_multinom <- function(y, X, lambda, exclude.from.penalty=NULL, sel_coef=NULL
   }
   ## Solve the problem
   prob <- CVXR::Problem(CVXR::Maximize(obj), constraints)
-  result <- solve(prob)
+  ## thresh = 1E-3
+  ## thresh = 1E-12
+  result <- solve(prob, solver="ECOS", FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
+  ## result2 <- solve(prob, solver="SCS", FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
+  ## browser()
+  ## result <- solve(prob, solver="SCS",
+  ##                 ## eps = 5E-4)
+  ##                 eps = 1E-5)
+  ##                 ## FEASTOL = thresh,
+  ##                 ## RELTOL = thresh,
+  ##                 ## ABSTOL = thresh)
+  ## result$getValue(alphamat)
+  ## result2$getValue(alphamat)
+
+
+
+
+  ## ?solve
+
+  ## result2 <- solve(prob, solver="ECOS")
+  ## result2$getValue(alphamat)
+  ## signif(result$getValue(alphamat),3) -  signif(result_ecos$getValue(alphamat),3)
+  ## names(result)
+  ## result$solver
+  ## result$solve_time
+  ## result$num_iters
+  ## result$setup_time
+  ## result$"8218"
+  ## result$stat
+
+  ## browser()
   return(result$getValue(alphamat))
+
 }
 
 
