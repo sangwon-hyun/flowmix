@@ -222,8 +222,7 @@ get_max_lambda <- function(ylist, X, numclust, maxfac=32, ...){
 ##'                             )
 get_max_lambda_new <- function(ylist, countslist = NULL, X, numclust,
                                max_lambda_beta = 4000,
-                               max_lambda_alpha = 1000
-,
+                               max_lambda_alpha = 1000,
                                verbose=FALSE,
                                iimax = 16,
                                parallelize = FALSE,
@@ -243,7 +242,7 @@ get_max_lambda_new <- function(ylist, countslist = NULL, X, numclust,
   if(!parallelize){
     for(ii in 1:iimax){
       if(verbose) printprogress(ii, iimax, fill=TRUE)
-      res = covarem(ylist = ylist,
+      res = covarem_once(ylist = ylist,
                     countslist = countslist,
                     X = X,
                     numclust = numclust,
@@ -253,7 +252,7 @@ get_max_lambda_new <- function(ylist, countslist = NULL, X, numclust,
                     ...)
 
       ## Check zero-ness
-      toler = 1E-8
+      toler = 0##1E-8
       sum_nonzero_alpha = sum(res$alpha[,-1] > toler)
       sum_nonzero_beta = sum(unlist(lapply(res$beta, function(cf){ sum(cf[-1,] > toler) })))
 
