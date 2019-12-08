@@ -176,7 +176,7 @@ one_job <- function(ialpha, ibeta, ifold, folds, destin,
     err$message = paste(err$message,
                         "\n(No file will be saved for the lambdas ",
                         pie_lambdas[ialpha], ",", mean_lambdas[ibeta],
-                        "whose indices are", ialpha,", ", ibeta,"," ifold,
+                        "whose indices are", ialpha, "-", ibeta, "-", ifold,
                         " .)",sep="")
     cat(err$message, fill=TRUE)
     warning(err)})
