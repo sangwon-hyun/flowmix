@@ -169,9 +169,16 @@ one_job <- function(ialpha, ibeta, ifold, folds, destin,
                                     mean_lambda = 0,
                                     alpha = res.train$alpha,
                                     beta = res.train$beta)
+    time_per_iter = res.train$time_per_iter
+    final_iter = res.train$final.iter
+    total_time = res.train$total_time
 
     ## Save the CV results
-    save(cvscore, file=file.path(destin, filename))
+    save(cvscore,
+         time_per_iter,
+         final_iter,
+         total_time,
+         file=file.path(destin, filename))
   }, error = function(err) {
     err$message = paste(err$message,
                         "\n(No file will be saved for the lambdas ",

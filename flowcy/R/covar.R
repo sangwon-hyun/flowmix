@@ -86,8 +86,6 @@ covarem_once <- function(ylist, X,
   start.time = Sys.time()
   for(iter in 2:niter){
 
-    start_time_per_iter = Sys.time()
-
     resp <- Estep_covar(mn, sigma, pie,
                         ylist = ylist,
                         numclust,
@@ -163,6 +161,7 @@ covarem_once <- function(ylist, X,
                                              beta = beta,
                                              denslist_by_clust = denslist_by_clust,
                                              countslist = countslist)
+    ## print(gc())
 
     ########################
     ## Make plots ##########
@@ -254,6 +253,11 @@ covarem_once <- function(ylist, X,
                           tol = tol)) break
   }
 
+  ## Measure time
+  lapsetime = difftime(Sys.time(), start.time, units = "secs")
+  time_per_iter = lapsetime / (iter-1)
+
+
   ## ## Threshold (now that we're using CVXR for beta)
   ## betathresh = 1E-3
   ## beta = lapply(beta, function(a){
@@ -270,6 +274,8 @@ covarem_once <- function(ylist, X,
                         denslist_by_clust = denslist_by_clust, ## Temporary
                         objectives = objectives[1:iter],
                         final.iter = iter,
+                        time_per_iter = time_per_iter,
+                        total_time = lapsetime,
                         ## Above is output, below are data/algorithm settings.
                         dimdat = dimdat,
                         TT = TT,
@@ -279,7 +285,7 @@ covarem_once <- function(ylist, X,
                         pie_lambda = pie_lambda,
                         mean_lambda = mean_lambda,
                         maxdev=maxdev,
-                        refit=refit,
+                        refit = refit,
                         niter = niter
                         ), class = "covarem"))
 }
