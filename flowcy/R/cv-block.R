@@ -11,6 +11,7 @@ blockcv <- function(cl, folds, cv.gridsize,
                     mean_lambdas,
                     pie_lambdas,
                     destin,
+                    parallel=TRUE,
                     ...){
 
   ## iimat looks like this:
@@ -23,18 +24,34 @@ blockcv <- function(cl, folds, cv.gridsize,
   nfold = length(folds)
   iimat = make_iimat(cv.gridsize, nfold)
   iimax = nrow(iimat)
-  parallel::parLapplyLB(cl,
-  ## lapply(
-      1:iimax, function(ii){
-    ialpha = iimat[ii,"ialpha"]
-    ibeta = iimat[ii,"ibeta"]
-    ifold = iimat[ii,"ifold"]
-    print('iii=')
-    print(c(ialpha, ibeta, ifold))
-    one_job(ialpha, ibeta, ifold, folds, destin,
-            mean_lambdas, pie_lambdas,
-            ylist, countslist, X, ...)
-  })
+  if(parallel){
+    print('parallel')
+    parallel::parLapplyLB(cl,
+    ## lapply(
+        1:iimax, function(ii){
+      ialpha = iimat[ii,"ialpha"]
+      ibeta = iimat[ii,"ibeta"]
+      ifold = iimat[ii,"ifold"]
+      print('iii=')
+      print(c(ialpha, ibeta, ifold))
+      one_job(ialpha, ibeta, ifold, folds, destin,
+              mean_lambdas, pie_lambdas,
+              ylist, countslist, X, ...)
+    })
+  } else {
+    print('non parallel')
+    ## Mirror copy of whatever goes in the parallel=TRUE block directly above.
+    lapply(1:iimax, function(ii){
+      ialpha = iimat[ii,"ialpha"]
+      ibeta = iimat[ii,"ibeta"]
+      ifold = iimat[ii,"ifold"]
+      print('iii=')
+      print(c(ialpha, ibeta, ifold))
+      one_job(ialpha, ibeta, ifold, folds, destin,
+              mean_lambdas, pie_lambdas,
+              ylist, countslist, X, ...)
+    })
+  }
 }
 
 ##' Synopsis: BLOCKED cross-validation function goes here.
