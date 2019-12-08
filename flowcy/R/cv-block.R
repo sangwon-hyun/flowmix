@@ -117,34 +117,52 @@ one_job <- function(ialpha, ibeta, ifold, folds, destin,
   train.count = countslist[-test.inds]
   train.X = X[-test.inds,]
 
-  ## Run algorithm on training data,
-  res.train = covarem(ylist = train.dat,
-                      countslist = train.count,
-                      X = train.X,
-                      ## refit = FALSE, ## Is this necessary? Think about it for a sec.
-                      mean_lambda = mean_lambdas[ibeta],
-                      pie_lambda = pie_lambdas[ialpha],
-                      ...)
-  ## assert_that(!refit)
 
-  ## Assign mn and pie
-  pred = predict.covarem(res.train, newx = test.X)
-  stopifnot(all(pred$newpie >= 0))
-
-  ## Evaluate on test data, by calculating objective (penalized likelihood)
-  cvscore = objective_overall_cov(mu = pred$newmn,
-                                  pie = pred$newpie,
-                                  sigma = pred$sigma,
-                                  ylist = test.dat,
-                                  countslist = NULL,
-                                  pie_lambda = 0,
-                                  mean_lambda = 0,
-                                  alpha = res.train$alpha,
-                                  beta = res.train$beta)
-
-  ## Save the CV results
+  ## Check whether this version has been done already.
   filename = paste0(ialpha, "-", ibeta, "-", ifold, "-cvscore.Rdata")
-  save(cvscore, file=file.path(destin, filename))
+  if(file.exists(file.path(destin, filename))){
+    return(NULL)
+  } else {
+    cat("ialpha, ibeta are:", ialpha, ibeta, "are attempted.", fill=TRUE)
+  }
+
+  tryCatch({
+
+    ## Run algorithm on training data,
+    res.train = covarem(ylist = train.dat,
+                        countslist = train.count,
+                        X = train.X,
+                        ## refit = FALSE, ## Is this necessary? Think about it for a sec.
+                        mean_lambda = mean_lambdas[ibeta],
+                        pie_lambda = pie_lambdas[ialpha],
+                        ...)
+    ## assert_that(!refit)
+
+    ## Assign mn and pie
+    pred = predict.covarem(res.train, newx = test.X)
+    stopifnot(all(pred$newpie >= 0))
+
+    ## Evaluate on test data, by calculating objective (penalized likelihood)
+    cvscore = objective_overall_cov(mu = pred$newmn,
+                                    pie = pred$newpie,
+                                    sigma = pred$sigma,
+                                    ylist = test.dat,
+                                    countslist = NULL,
+                                    pie_lambda = 0,
+                                    mean_lambda = 0,
+                                    alpha = res.train$alpha,
+                                    beta = res.train$beta)
+
+    ## Save the CV results
+    save(cvscore, file=file.path(destin, filename))
+  }, error = function(err) {
+    err$message = paste(err$message,
+                        "\n(No file will be saved for the lambdas ",
+                        pie_lambdas[ialpha], ",", mean_lambdas[ibeta],
+                        "whose indices are", ialpha,", ", ibeta,"," ifold,
+                        " .)",sep="")
+    cat(err$message, fill=TRUE)
+    warning(err)})
 }
 
 

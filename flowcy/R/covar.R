@@ -266,7 +266,7 @@ covarem_once <- function(ylist, X,
                         mn = mn,
                         pie = pie,
                         sigma = sigma,
-                        resp = resp, ## Temporary
+                        ## resp = resp, ## Temporary
                         denslist_by_clust = denslist_by_clust, ## Temporary
                         objectives = objectives[1:iter],
                         final.iter = iter,
