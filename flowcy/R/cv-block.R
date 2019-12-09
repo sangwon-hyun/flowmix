@@ -32,11 +32,11 @@ blockcv <- function(cl, folds, cv.gridsize,
       ialpha = iimat[ii,"ialpha"]
       ibeta = iimat[ii,"ibeta"]
       ifold = iimat[ii,"ifold"]
-      print('iii=')
-      print(c(ialpha, ibeta, ifold))
+      cat('(ialpha, ibeta, ifold)=', c(ialpha, ibeta, ifold), fill=TRUE)
       one_job(ialpha, ibeta, ifold, folds, destin,
               mean_lambdas, pie_lambdas,
               ylist, countslist, X, ...)
+      cat(fill=TRUE)
     })
   } else {
     print('non parallel')
@@ -45,11 +45,11 @@ blockcv <- function(cl, folds, cv.gridsize,
       ialpha = iimat[ii,"ialpha"]
       ibeta = iimat[ii,"ibeta"]
       ifold = iimat[ii,"ifold"]
-      print('iii=')
-      print(c(ialpha, ibeta, ifold))
+      cat('iii=', c(ialpha, ibeta, ifold), fill=TRUE)
       one_job(ialpha, ibeta, ifold, folds, destin,
               mean_lambdas, pie_lambdas,
               ylist, countslist, X, ...)
+      cat(fill=TRUE)
     })
   }
 }
@@ -138,10 +138,11 @@ one_job <- function(ialpha, ibeta, ifold, folds, destin,
   ## Check whether this version has been done already.
   filename = paste0(ialpha, "-", ibeta, "-", ifold, "-cvscore.Rdata")
   if(file.exists(file.path(destin, filename))){
+    cat("ialpha, ibeta ", ialpha, ibeta, "are already done.", fill=TRUE)
     return(NULL)
-  } else {
-    cat("ialpha, ibeta are:", ialpha, ibeta, "are attempted.", fill=TRUE)
   }
+  mean_lambda = mean_lambdas[ibeta]
+  pie_lambda = pie_lambdas[ialpha]
 
   tryCatch({
 
@@ -150,8 +151,8 @@ one_job <- function(ialpha, ibeta, ifold, folds, destin,
                         countslist = train.count,
                         X = train.X,
                         ## refit = FALSE, ## Is this necessary? Think about it for a sec.
-                        mean_lambda = mean_lambdas[ibeta],
-                        pie_lambda = pie_lambdas[ialpha],
+                        mean_lambda = mean_lambda,
+                        pie_lambda = pie_lambda,
                         ...)
     ## assert_that(!refit)
 
@@ -172,13 +173,24 @@ one_job <- function(ialpha, ibeta, ifold, folds, destin,
     time_per_iter = res.train$time_per_iter
     final_iter = res.train$final.iter
     total_time = res.train$total_time
+    beta = res.train$beta
+    alpha = res$train$alpha
 
     ## Save the CV results
     save(cvscore,
+         ## Time
          time_per_iter,
          final_iter,
          total_time,
-         file=file.path(destin, filename))
+         ## Results
+         mean_lambda,
+         pie_lambda,
+         mean_lambdas,
+         pie_lambdas,
+         beta,
+         alpha,
+         ## Save the file
+         file = file.path(destin, filename))
   }, error = function(err) {
     err$message = paste(err$message,
                         "\n(No file will be saved for the lambdas ",
