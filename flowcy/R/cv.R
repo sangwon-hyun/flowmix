@@ -180,17 +180,19 @@ get_cv_score_prebinned <- function(ylist, X, splits, nsplit, refit,
 ##' likelihood for one train/test split.  Specifically, it takes the set of
 ##' splitted indices for all times in 1:TT, trains on (1:nsplit)[-isplit], tests
 ##' on splits
+##'
 ##' @param splits TT-lengthed list of indices.
 ##' @param test.split The split (out of 1:nsplit) to use for test.
 ##' @param ylist List of BINNED responses.
 ##' @param counts_list List of BINNED counts.
 ##' @param train_ybin_list_by_split nsplit lengthed list of binend responses of
 ##'   the training data.
-##' @param train_counts_list_by_split
+##' @param train_counts_list_by_split Same but with counts.
 ##' @param refit (experimental), defaults to FALSE. If TRUE, then the refitted
 ##'   non-regularized solutions (with only a user-specified set of active
 ##'   coefficients) are calculated.
-##' @param ... arguments to covarem
+##' @param ... arguments to covarem.
+##'
 ##' @return One split's test likelihood.
 get_cv_score_onesplit_prebinned <- function(test.isplit, splits, ylist, X, refit,
                                             counts_list,

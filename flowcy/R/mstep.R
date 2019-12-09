@@ -49,7 +49,7 @@ Mstep_alpha <- function(resp, X, numclust, lambda = 0, alpha = 1,
     alphahat = cvxr_multinom(X = Xa, y = resp.sum, lambda = lambda, ## This was lambda=0 for no good reason
                                  sel_coef = sel_coef$alpha,
                                  exclude = 1)
-    alphahat[which(abs(alphahat) < zerothres, arr.ind = TRUE)] = 0
+    alphahat[which(abs(alphahat) < zerothresh, arr.ind = TRUE)] = 0
     alphahat = t(as.matrix(alphahat))
     stopifnot(all(dim(alphahat) == c(numclust, (p + 1))))
   }

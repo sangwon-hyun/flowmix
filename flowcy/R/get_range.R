@@ -295,7 +295,8 @@ get_max_lambda_new <- function(ylist, countslist = NULL, X, numclust,
       ## Get the SMALLEST coeff such that all zero coefficients were found, and return.
       myfac = facs[max(which(allzero))]
       ## return(c(max_lambda_beta * myfac, max_lambda_alpha * myfac))
-      return(list(beta = max_lambda_beta * myfac, alpha = max_lambda_alpha * myfac))
+      return(list(beta = max_lambda_beta * myfac, alpha = max_lambda_alpha * myfac,
+                  reslist = reslist)) ## Addition
     } else {
       stop(paste0("Max lambdas: ", max_lambda_beta, " and ", max_lambda_alpha,
                   " were too small as maximum reg. values. Go up and try again!!"))

@@ -63,6 +63,7 @@ covarem_once <- function(ylist, X,
                          ){## Basic checks
   if(!is.null(maxdev)){ assert_that(maxdev!=0) } ## Preventing the maxdev=FALSE mistake.
   ## assert_that(!(is.data.frame(ylist[[1]])))
+  assert_that(sum(is.na(X))==0)
 
   ## Setup.
   TT = length(ylist)

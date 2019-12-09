@@ -24,14 +24,33 @@ make_grid <- function(ylist, gridsize=5){
 ##' @export
 bin_one_cytogram <- function(y, manual.grid, qc=NULL){
 
-  midpoints <- make_midpoints(manual.grid)  ## Obtain the midpoints of each box (d x d x d array)
-  counts <- make_counts(y, manual.grid, qc) ## Count the points in each of the boxes (d x d x d array)
-  ybin_all <- make_ybin(y, counts, midpoints) ## Aggregate all of this into a (d^3 x 4 array)
+  ## Obtain the midpoints of each box (d x d x d array)
+  midpoints <- make_midpoints(manual.grid)
+
+  ## Count the points in each of the boxes (d x d x d array)
+  counts <- make_counts(y, manual.grid, qc)
+
+  ## Aggregate all of this into a (d^3 x 4 array)
+  ybin_all <- make_ybin(counts, midpoints)
+
+  ## Extract the ybin and counts
   ybin <- ybin_all[,1:3]
   counts <- ybin_all[,4]
+
+  ## if(trim){
+  ##   obj = trim_one_cytogram(ybin = ybin, counts = counts)
+  ##   return(list(ybin = obj$ybin,
+  ##               counts = obj$counts))
+  ## } else {
+  ##   return(list(ybin = NULL,
+  ##               counts = counts))
+  ## }
+
   obj = trim_one_cytogram(ybin = ybin, counts = counts)
+  sparsecounts <- as(counts, "sparseVector")
   return(list(ybin = obj$ybin,
-              counts = obj$counts))
+              counts = obj$counts,
+              sparsecounts = sparsecounts))
 }
 
 
@@ -48,16 +67,22 @@ bin_many_cytograms <- function(ylist, manual.grid, verbose=FALSE, mc.cores=1, qc
 
   ## Bin each cytogram:
   reslist = parallel::mclapply(1:TT, function(tt){
-    if(verbose & (tt %% 10 ==0 )) printprogress(tt, TT, "binning")
-    bin_one_cytogram(ylist[[tt]], manual.grid, qclist[[tt]])
+    if(verbose & (tt %% 10 == 0 )) printprogress(tt, TT, "binning")
+    bin_one_cytogram(ylist[[tt]], manual.grid = manual.grid,
+                     qc = qclist[[tt]])
   }, mc.cores=mc.cores)
 
   ## Gather results and return
   ybin_list = lapply(reslist, function(res) res$ybin)
   counts_list = lapply(reslist, function(res) res$counts)
+  sparsecounts_list = lapply(reslist, function(res) res$sparsecounts)
+  ybin_all = make_ybin(counts = NULL,  make_midpoints(manual.grid))
+
   if(verbose) cat(fill=TRUE)
   return(list(ybin_list = ybin_list,
-              counts_list = counts_list))
+              counts_list = counts_list,
+              sparsecounts_list = sparsecounts_list,
+              ybin_all = ybin_all))
 }
 
 
@@ -85,8 +110,16 @@ make_midpoints <- function(grid){
 }
 
 
-##' Make a matrix of (x,y,z,count).
-make_ybin <- function(y, counts, midpoints){
+
+##' Make a (d^3 x 4) matrix of rows that look like (x,y,z,count) from the 3
+##' dimensional (d x d x d) array |counts|.
+##'
+##' @param counts d x d x d array containing counts. If this is NULL, then dummy
+##'   counts of -100 are added.
+##' @param midpoints midpoints of each bin.
+##'
+##' @return (d^3 x 4) matrix of rows that look like (x,y,z,count).
+make_ybin <- function(counts, midpoints){
   gridsize = length(midpoints[[1]])
   d = gridsize
   mat = matrix(0, nrow=d^3, ncol=4)
@@ -94,11 +127,16 @@ make_ybin <- function(y, counts, midpoints){
   for(ii in 1:d){
     for(jj in 1:d){
       for(kk in 1:d){
-        ## Make the c(3 coordinates, count)
+        ## Make the row c(three coordinates, count)
+        if(!is.null(counts)){
+          count = counts[ii,jj,kk]
+        } else {
+          count = -100
+        }
         mat[mm,] = c(midpoints[[1]][ii],
                      midpoints[[2]][jj],
                      midpoints[[3]][kk],
-                     counts[ii,jj,kk])
+                     count)
         mm = mm + 1
       }
     }
@@ -109,6 +147,7 @@ make_ybin <- function(y, counts, midpoints){
 
 ##' Takes a cytogram y that is a (nt x dimdat) matrix, and makes it into a 3d
 ##' array that contains the counts for each box.
+##'
 ##' @param y Single cytogram.
 ##' @param grid Grid, created using \code{make_grid()}.
 ##'
@@ -131,7 +170,6 @@ make_counts <- function(y, grid, qc=NULL){
   nt = nrow(y)
   nn = length(grid[[1]]) - 1
   counts = array(0, dim=c(nn,nn,nn))
-  qc_ii = NULL
   for(ii in 1:nt){
     ijk = identify_box(grid, y[ii,])
         ijk = pmin(ijk, nn) ## fixing indexing for right-end edge points.

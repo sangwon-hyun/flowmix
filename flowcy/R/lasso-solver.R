@@ -6,7 +6,7 @@
 ##' @param X Covariate matrix.
 ##' @param y Response vector.
 ##' @param lambda regularization problem.
-cvxr_lasso <- function(y, X, lambda, exclude.from.penalty=NULL, thresh=1E-12
+cvxr_lasso <- function(y, X, lambda, exclude.from.penalty=NULL, thresh=1E-8, eps = 1E-5
                        ## coef_limit=NULL
                        ){
   n = nrow(X)
@@ -34,7 +34,35 @@ cvxr_lasso <- function(y, X, lambda, exclude.from.penalty=NULL, thresh=1E-12
   ## Perform elastic-net regression
   obj <- CVXR::sum_squares(y - X %*% beta) / (2 * n) + lambda * sum(abs(beta[v]))
   prob <- CVXR::Problem(CVXR::Minimize(obj), constraints)
-  result <- solve(prob, FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
+  ## result <- solve(prob, FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
+
+  result = NULL
+  tryCatch({
+    result <- solve(prob, solver="ECOS",
+                    FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
+  }, error=function(err){
+    err$message = paste(err$message,
+                        "\n", "Lasso solver using ECOS has failed." ,sep="")
+    cat(err$message, fill=TRUE)
+    return(NULL)
+  })
+  if(is.null(result)){
+
+    tryCatch({
+      result <- solve(prob, solver="ECOS",
+                      FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
+    }, error=function(err){
+
+
+      result <- solve(prob, solver="SCS", eps = eps)
+    }, error=function(err){
+      err$message = paste(err$message,
+                          "\n", "Lasso solver using SCS has failed." ,sep="")
+      stop(err$message)
+    })
+  }
+
+
   return(as.numeric(result$getValue(beta)))
 }
 
