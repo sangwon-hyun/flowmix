@@ -153,6 +153,10 @@ one_job <- function(ialpha, ibeta, ifold, folds, destin,
                         ## refit = FALSE, ## Is this necessary? Think about it for a sec.
                         mean_lambda = mean_lambda,
                         pie_lambda = pie_lambda,
+                        ## verbose=TRUE, ## TEMPORARY
+                        ## plot = TRUE,
+                        ## plotdir = paste0("~/Desktop/blockcv-test-figures/1-6"),
+                        ## filepath = file.path("~/Desktop/blockcv-test-figures/1-6", Sys.time()),
                         ...)
     ## assert_that(!refit)
 
@@ -174,7 +178,7 @@ one_job <- function(ialpha, ibeta, ifold, folds, destin,
     final_iter = res.train$final.iter
     total_time = res.train$total_time
     beta = res.train$beta
-    alpha = res$train$alpha
+    alpha = res.train$alpha
 
     ## Save the CV results
     save(cvscore,
@@ -191,6 +195,9 @@ one_job <- function(ialpha, ibeta, ifold, folds, destin,
          alpha,
          ## Save the file
          file = file.path(destin, filename))
+
+    return(NULL)
+
   }, error = function(err) {
     err$message = paste(err$message,
                         "\n(No file will be saved for the lambdas ",
