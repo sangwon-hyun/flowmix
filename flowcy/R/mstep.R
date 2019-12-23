@@ -66,8 +66,6 @@ Mstep_alpha <- function(resp, X, numclust, lambda = 0, alpha = 1,
   return(list(pie = piehat, alpha = alphahat))
 }
 
-
-
 ##' Estimates sigma. TODO: Change the format of the sigma matrix so that the
 ##' covariance at each time is only recorded once i.e. it is a numclust lengthed
 ##' list of (dimdat x dimdat) matrices.
@@ -87,12 +85,7 @@ Mstep_sigma_covar <- function(resp, ylist, mn, numclust,
   resid.rows = matrix(0, nrow = sum(ntlist), ncol=dimdat) ## trying env
   cs = c(0, cumsum(ntlist))
   vars <- vector(mode = "list", numclust)
-  ## if(bin){
-  ##   resp.grandsums = Matrix::rowSums(sapply(1:TT, function(tt){ Matrix::colSums(resp[[tt]]) }))
-  ## }
-  ## if(!bin){
-    resp.grandsums = rowSums(sapply(1:TT, function(tt){ colSums(resp[[tt]]) }))
-  ## }
+  resp.grandsums = rowSums(sapply(1:TT, function(tt){ colSums(resp[[tt]]) }))
 
   for(iclust in 1:numclust){
 
@@ -248,23 +241,24 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
               mns = yhats_array))
 }
 
-
 ##' Helper to "manipulate" X and y, to get Xtilde and Ytilde and yvec for a more
 ##' efficient beta M step (each are |numclust|-length lists, calculated
 ##' separately for each cluster).
+##' @param sigma only used if \code{first_iter} is TRUE. Otherwise,
+##'   \code{sigma_eig_by_clust} is used.
+##' @param sigma_eig_by_clust Eigendecomposition of Sigma.
+##' @param first_iter TRUE if this is the first EM iteration.
+##'
 ##' @return 3 (or dimdat) |numclust|-length lists.
 manip <- function(ylist, X, resp, sigma, numclust,
                   sigma_eig_by_clust = NULL,
                   first_iter = FALSE){
-                  ## bin = FALSE){
 
   ## Make some quantities
   ntlist = sapply(ylist, nrow)
   dimdat = ncol(ylist[[1]])
   TT = nrow(X)
-  ## if(bin) resp.sum = t(sapply(resp, Matrix::colSums)) ## (T x numclust)
-  ## if(!bin)
-    resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
+  resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
   sigma.inv.halves = array(NA, dim=dim(sigma))
 
   if(first_iter){
@@ -301,7 +295,6 @@ manip <- function(ylist, X, resp, sigma, numclust,
               yvecs = yvecs
               ))
 }
-
 
 ##' Helper to "manipulate" X and y, to get Xtilde and Ytilde and yvec for a more
 ##' efficient beta M step (each are |numclust|-length lists, calculated
@@ -365,4 +358,131 @@ manip_ridge <- function(ylist, X, resp, sigma, numclust,
               Ytildes = Ytildes,
               yvecs = yvecs
               ))
+}
+
+
+##' The M step of beta, using ADMM.
+##' @param maxdev The desired maximum radius of the fitted means from beta0k.
+##' @param sel_coef Sparsity pattern. Only active when refit=TRUE.
+##' @param sigma (numclust x dimdat x dimdat) matrix.
+##' @return Result of M step; a |numclust| length list of (p+1)x(d) matrices,
+##'   each containing the estimated coefficients for the mean estimation.
+Mstep_beta_admm <- function(resp, ylist, X, mean_lambda = 0, sigma, numclust,
+                            refit = NULL, maxdev = NULL,
+                            sigma_eig_by_clust = NULL, first_iter = FALSE){
+
+  ####################
+  ## Preliminaries ###
+  ####################
+  TT = length(ylist)
+  numclust = ncol(resp[[1]])
+  dimdat = ncol(ylist[[1]])
+  ntlist = sapply(ylist, nrow)
+  p = ncol(X)
+  Xa = cbind(1, X)
+  intercept_inds = ((1:d) - 1)*(p+1) + 1
+  rho = 0.5 ## Some default
+  X0 = lapply(1:TT, function(tt){ diag(rep(1,dimdat) %x% cbind(0, X[tt,]))})
+  X0 = do.call(rbind, X0)
+  lambda = mean_lambda
+
+  ##########################################
+  ## Run ADMM separately on each cluster ##
+  #########################################
+  betas_full = vector(length = numclust, mode="list")
+  yhats = vector(length = numclust, mode="list")
+  for(iclust in 1:numclust){
+
+    ###############################
+    ## Initialize the variables ###
+    ###############################
+    b = rep(0, dimdat*(p+1))
+    Z = rep(0, dimdat * TT)
+    w = rep(0, pd)
+    uw = rep(0, dimdat)
+    Uz = rep(0, dimdat * TT)
+    for(iter in 1:100){
+
+      ## Form tilde objects for b update.
+      manip_obj = manip(ylist, Xa, resp, sigma, numclust,
+                        sigma_eig_by_clust = sigma_eig_by_clust,
+                          first_iter = first_iter)
+      Xtildes = manip_obj$Xtildes
+      yvecs = manip_obj$yvecs
+
+      ##' Remember to input Xtildes[[iclust]] and yvecs[[iclust]].
+      b_update  <- function(w, uw, Z, Uz, X0, rho, Xtilde, yvec){
+
+        ## Form the least squares problem \min_b \|c-Db\|^2
+        cvec = rbind(ytilde,
+                     w - uw/rho,
+                     Z - Uz/rho)
+        D = rbind(Xtilde,
+                  diag(rep(1,pd)),
+                  diag(rep(1,d) %x% X0))
+        print(length(cvec))
+        print(dim(D))
+        sol = Rcpp::cppFunction(depends='RcppArmadillo', code='
+                arma::mat fRcpp (arma::mat A, arma::mat b) {
+                arma::mat betahat ;
+                betahat = (A.t() * A ).i() * A.t() * b ;
+                return(betahat) ;
+                }
+                ')
+        assert_that(length(sol) == p * dimdat)
+        return(sol)
+      }
+      b = b_update(w, uw, Z, Uz, X0, rho, Xtildes[[iclust]], yvec[[iclust]]) ## (p+1)*d vector
+      betavec = b[-intercept_inds]  ## vector version of beta
+      beta = matrix(betavec, ncol = p) ## p x d matrix version of beta
+
+      Z_update  <- function(beta, X, Uz, C, rho){
+        mat = (beta %*% t(X) - Uz/rho) ##
+        return(apply(mat, 2, projC))
+      }
+      Z <- Z_update(b, X, Uz, C, rho)
+
+      w_update  <- function(betavec, uw, lambda, rho){
+        soft_thresh(betavec - uw/rho, lambda/rho)
+      }
+      w <-  w_update(b, dimdat, p, lambda, rho)
+
+      uw_update <- function(uw, rho, b){
+        uw + rho * (b - vec(w))
+      }
+      uw <-  uw_update(uw, rho, b)
+
+      uz_update <- function(Uz, rho, beta, X, Z){
+        Uz + rho * (beta^T %*% X^T - Z)
+      }
+      uz <-  uz_update(Uz, rho, beta, X, Z)
+    }
+
+    ## Store the results (only b)
+    beta_full = matrix(b, nrow = p+1, ncol = d)
+    yhat = Xa %*% beta_full
+    betas_full[[iclust]] = beta_full
+    yhats[[iclust]] = yhat
+  }
+
+  ## Aggregate the yhats into one array
+  yhats_array = array(NA, dim=c(TT, dimdat, numclust))
+  for(iclust in 1:numclust){ yhats_array[,,iclust] = yhats[[iclust]] }
+
+  ## Each are lists of length |numclust|.
+  return(list(beta = betahats,
+              mns = yhats_array))
+}
+
+##' (Helper) Soft thresholding of |a| at radius of |b|.
+soft_thresh <- function(a, b) return(sign(a) * pmax(0, abs(a)-b))
+
+##' (Helper) Projection into an l2 ball centered at zero, of radius C.
+projC <- function(v){
+  vlen = sqrt(sum(v*v))
+  if(vlen <  C){
+    return(v)
+  } else {
+    return(C * v/vlen)
+  }
 }
