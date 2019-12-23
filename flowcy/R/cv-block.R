@@ -286,13 +286,19 @@ blockcv_aggregate <- function(destin, cv.gridsize, nfold){
     for(ibeta in 1:cv.gridsize){
       cvscores <- sapply(1:nfold, function(igrid){
         filename = paste0(ialpha, "-", ibeta, "-", igrid, "-cvscore.Rdata")
-        load(file.path(destin, filename))
-        return(cvscore)
+        print(filename)
+        tryCatch({
+          load(file.path(destin, filename))
+          return(cvscore)
+        }, error = function(e){
+          return(NA)
+        })
       })
-      cvscore.mat[ialpha, ibeta] = mean(cvscore)
-      cvscore.array[ialpha, ibeta, ] = cvscore
+      cvscore.mat[ialpha, ibeta] = mean(cvscores)
+      cvscore.array[ialpha, ibeta, ] = cvscores
     }
   }
   return(list(cvscore.array = cvscore.array,
               cvscore.mat = cvscore.mat))
 }
+

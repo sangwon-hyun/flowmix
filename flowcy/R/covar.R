@@ -43,7 +43,7 @@ covarem <- function(..., nrep = 5){
 ##' @export
 covarem_once <- function(ylist, X,
                          countslist = NULL,
-                         numclust, niter = 100,
+                         numclust, niter = 1000,
                          mn = NULL, pie_lambda = 0,
                          mean_lambda = 0, verbose = FALSE,
                          sigma.fac = 1, tol = 1E-5,
@@ -60,6 +60,7 @@ covarem_once <- function(ylist, X,
                          thresh = 1E-8,
                          zerothresh = 1E-8,
                          init_mn_flatten = FALSE
+                         ## filepath
                          ){## Basic checks
   if(!is.null(maxdev)){ assert_that(maxdev!=0) } ## Preventing the maxdev=FALSE mistake.
   ## assert_that(!(is.data.frame(ylist[[1]])))
@@ -87,12 +88,19 @@ covarem_once <- function(ylist, X,
   start.time = Sys.time()
   for(iter in 2:niter){
 
-    resp <- Estep_covar(mn, sigma, pie,
-                        ylist = ylist,
-                        numclust,
+      ## Temporary:
+    ## browser()
+    ## print('here')
+    ##   lapsetime = round(difftime(Sys.time(), start.time,
+    ##                              units = "secs"), 0)
+    ##   if(!dir.exists(filepath)) dir.create(filepath, recursive = TRUE)
+    ## cat(paste("iter=", iter, "and", "lapsetime=", lapsetime), fill = TRUE,
+    ##     append=TRUE, file = file.path(filepath, "times.txt"))
+
+
+    resp <- Estep_covar(mn, sigma, pie, ylist = ylist, numclust = numclust,
                         denslist_by_clust = denslist_by_clust,
-                        first_iter = (iter == 2),
-                        countslist = countslist)
+                        first_iter = (iter == 2), countslist = countslist)
 
     ## If countslist is provided, further weight them.
     if(!is.null(countslist)){
@@ -102,32 +110,22 @@ covarem_once <- function(ylist, X,
 
     ## Conduct M step
     ## 1. Alpha
-    res.alpha = Mstep_alpha(resp,
-                            X, numclust,
-                            lambda = pie_lambda,
-                            refit = refit,
-                            sel_coef = sel_coef,
-                            bin = bin,
-                            thresh = thresh,
-                            zerothresh = zerothresh)
+    res.alpha = Mstep_alpha(resp, X, numclust, lambda = pie_lambda,
+                            refit = refit, sel_coef = sel_coef, bin = bin,
+                            thresh = thresh, zerothresh = zerothresh)
     pie = res.alpha$pie
     alpha = res.alpha$alpha
     rm(res.alpha)
 
-    ## 2. beta
-    res.beta = Mstep_beta(resp, ylist, X,
-                          mean_lambda = mean_lambda,
-                          sigma,
-                          refit = refit,
-                          sel_coef = sel_coef, maxdev = maxdev,
+    ## 2. Beta
+    res.beta = Mstep_beta(resp, ylist, X, mean_lambda = mean_lambda, sigma,
+                          refit = refit, sel_coef = sel_coef, maxdev = maxdev,
                           sigma_eig_by_clust = sigma_eig_by_clust,
                           first_iter = (iter == 2),
                           ## ridge = ridge,
                           ## ridge_lambda = ridge_lambda,
                           ## ridge_pie = pie,
-                          bin = bin,
-                          thresh = thresh,
-                          zerothresh = zerothresh)
+                          bin = bin, thresh = thresh, zerothresh = zerothresh)
     mn = res.beta$mns
     beta = res.beta$beta
     rm(res.beta)
@@ -141,115 +139,45 @@ covarem_once <- function(ylist, X,
 
     ## 3. (Continue) Decompose the sigmas.
     sigma_eig_by_clust <- eigendecomp_sigma_array(sigma)
-    denslist_by_clust <- make_denslist_eigen(ylist,
-                                             mn,
-                                             TT, dimdat,
-                                             numclust, sigma_eig_by_clust,
-                                             bin=bin,
+    denslist_by_clust <- make_denslist_eigen(ylist, mn, TT, dimdat, numclust,
+                                             sigma_eig_by_clust, bin=bin,
                                              countslist)
 
     ## Calculate the objectives
-    objectives[iter] = objective_overall_cov(mn,
-                                             pie,
-                                             sigma,
-                                             TT,
-                                             dimdat,
-                                             numclust,
-                                             ylist,
+    objectives[iter] = objective_overall_cov(mn, pie, sigma, TT, dimdat,
+                                             numclust, ylist,
                                              pie_lambda = pie_lambda,
                                              mean_lambda = mean_lambda,
-                                             alpha = alpha,
-                                             beta = beta,
+                                             alpha = alpha, beta = beta,
                                              denslist_by_clust = denslist_by_clust,
                                              countslist = countslist)
+
+    ## Temporary print message, to see sparsity.
+    ## print('beta')
+    ## for( b in beta){
+    ##   cat(sum(b[-1,]!=0), "out of", length(b[-1,]), fill=TRUE)
+    ## }
+    ## print('alpha')
+    ## cat(sum(alpha[,-1]!=0), "out of", length(alpha[,-1]), fill=TRUE)
+
     ## print(gc())
 
     ########################
     ## Make plots ##########
     ########################
     if(plot){
-      if(!is.null(countslist)){
-        cex = (countslist[[1]]/max(countslist[[1]]))*5+.5
-      } else {
-        cex = .5
-      }
-      ylist_collapsed = do.call(rbind, ylist)
-      ntsum = nrow(ylist_collapsed)
-      ylist_collapsed = ylist_collapsed[sample(1:ntsum, 10000),]
-      png(file=file.path(plotdir,
-                         paste0("iteration-", iter, ".png")), width=1200, height=1200)
-      par(mfrow=c(2,2))
-      dimslist = list(1:2,2:3,c(3,1))
-      for(dims in dimslist){
-      ## plot(x = ylist_collapsed[,dims[1]],
-      ##      y = ylist_collapsed[,dims[2]],
-      ##      pch=16,
-      ##      ## col='grey80',
-      ##      col=rgb(0,0,0,0.1),
-      ##      cex = cex,
-      ##      type='p')
-      tt = 1
-        names = c("fsc_small", "chl_small","pe")
-      plot(x=ylist[[tt]][,dims[1]],
-             y=ylist[[tt]][,dims[2]],
-             ## col='grey50',
-             col=rgb(0,0,0,0.1),
-             pch=16,
-             cex = cex,
-             ## col='pink',
-           type='p',
-           xlab = names[dims[1]],
-           ylab = names[dims[2]],
-           cex.lab=1.5,
-           cex.axis=1.5
-           )
-
-
-      ## for(iclust in 1:numclust){
-      ##   x = mn[,1, iclust]
-      ##   y = mn[,2, iclust]
-      ##   points(x=as.numeric(x), y=as.numeric(y),col=iclust)
-      ## }
-
-        ## this time point's mean
-      cols = 1:numclust
-      points(x=mn[tt,dims[1],],
-             y=mn[tt,dims[2],],
-             pch=4, col=cols,
-             ## cex = pie[1,]/max(pie[1,])*10)
-             cex = log(pie[1,]/max(pie[1,]) + 1)*3)
-
-        ## All time points' means
-      for(tt in 1:TT){
-        for(kk in 1:numclust){
-          points(x=mn[tt,dims[1],kk],
-                 y=mn[tt,dims[2],kk],
-                 pch=16, col=cols[kk],
-                 cex = 1)
-        }
-      }
-
-      for(kk in 1:numclust){
-        lines(ellipse::ellipse(x = sigma[kk,dims,dims],
-                               centre = mn[tt,dims, kk]
-                               ), lwd=1, col=cols[kk], lty=1)
-      }
-      }
-
-      plot(objectives[2:(min(100, length(objectives)))],
-           type= 'o',
-           ylab = "Objective Value", xlab = "EM Iteration",
-           cex.lab = 1.5,
-           cex.axis = 1.5) ##temporary
-      ## End of plotting  ##########
-      graphics.off()
+      plot_iter(ylist, countslist, iter, tt=1, TT, mn, sigma, pie, objectives,
+                saveplot = TRUE,
+                plotdir = plotdir)
     }
 
     ## Run times
-    if(verbose) printprogress(iter-1, niter-1, "EM iterations.", start.time = start.time)
+    if(verbose){
+      printprogress(iter-1, niter-1, "EM iterations.", start.time = start.time)
+    }
 
     ## Check convergence
-    if(check_converge_rel(objectives[iter-1],
+    if(check_converge_rel_print(objectives[iter-1],
                           objectives[iter],
                           tol = tol)) break
   }
@@ -257,14 +185,6 @@ covarem_once <- function(ylist, X,
   ## Measure time
   lapsetime = difftime(Sys.time(), start.time, units = "secs")
   time_per_iter = lapsetime / (iter-1)
-
-
-  ## ## Threshold (now that we're using CVXR for beta)
-  ## betathresh = 1E-3
-  ## beta = lapply(beta, function(a){
-  ##   a[abs(a)<betathresh] = 0
-  ##   a
-  ## })
 
   return(structure(list(alpha = alpha,
                         beta = beta,
@@ -387,4 +307,142 @@ make_denslist_eigen <- function(ylist, mu,
                             sigma_eig=mysigma_eig))
     })
   })
+}
+
+## ## helper function for plotting within covarem_once() iterations.
+## plot_iter_3d <- function(ylist, countslist, iter=NULL, tt = 1, TT, mn, sigma, pie, saveplot=TRUE){
+
+##   if(!is.null(countslist)){
+##     cex = (countslist[[1]]/max(countslist[[1]]))*5+.5
+##   } else {
+##     cex = .5
+##   }
+##   ylist_collapsed = do.call(rbind, ylist)
+##   ntsum = nrow(ylist_collapsed)
+##   ylist_collapsed = ylist_collapsed[sample(1:ntsum, 10000),]
+##   if(saveplot) png(file=file.path(plotdir,
+##                      paste0("iteration-", iter, ".png")), width=1200, height=1200)
+##   par(mfrow=c(2,2))
+##   dimslist = list(1:2,2:3,c(3,1))
+##   for(dims in dimslist){
+##     names = c("fsc_small", "chl_small","pe")
+##     plot(x=ylist[[tt]][,dims[1]],
+##          y=ylist[[tt]][,dims[2]],
+##          ## col='grey50',
+##          col=rgb(0,0,0,0.1),
+##          pch=16,
+##          cex = cex,
+##          ## col='pink',
+##          type='p',
+##          xlab = names[dims[1]],
+##          ylab = names[dims[2]],
+##          cex.lab = 1.5,
+##          cex.axis = 1.5
+##          )
+
+##     ## this time point's mean
+##     cols = 1:numclust
+##     points(x = mn[tt,dims[1],],
+##            y = mn[tt,dims[2],],
+##            pch = 4, col = cols,
+##            ## cex = pie[1,]/max(pie[1,])*10)
+##            cex = log(pie[1,]/max(pie[1,]) + 1)*3)
+
+##     ## All time points' means
+##     for(tt in 1:TT){
+##       for(kk in 1:numclust){
+##         points(x=mn[tt,dims[1],kk],
+##                y=mn[tt,dims[2],kk],
+##                pch=16, col=cols[kk],
+##                cex = 1)
+##       }
+##     }
+
+##     for(kk in 1:numclust){
+##       lines(ellipse::ellipse(x = sigma[kk,dims,dims],
+##                              centre = mn[tt,dims, kk]),
+##             lwd=1, col=cols[kk], lty=1)
+##     }
+##   }
+##   plot(objectives[2:(min(100, length(objectives)))],
+##        type= 'o',
+##        ylab = "Objective Value", xlab = "EM Iteration",
+##        cex.lab = 1.5,
+##        cex.axis = 1.5)
+##   if(saveplot)  graphics.off()
+## }
+
+
+## helper function for plotting within covarem_once() iterations.
+plot_iter <- function(ylist, countslist, iter=NULL, tt = 1, TT, mn, sigma, pie, objectives,
+                      saveplot=TRUE, plotdir=NULL){
+
+  if(!is.null(countslist)){
+    cex = (countslist[[tt]]/max(countslist[[tt]]))*5+.5
+  } else {
+    cex = .5
+  }
+  ylist_collapsed = do.call(rbind, ylist)
+  ntsum = nrow(ylist_collapsed)
+  ylist_collapsed = ylist_collapsed[sample(1:ntsum, 10000),]
+  if(saveplot){
+    png(file=file.path(plotdir,
+                     paste0("iteration-", iter, ".png")), width=1200, height=1200)
+    print(  file.path(plotdir,
+          paste0("iteration-", iter, ".png")))
+    }
+  par(mfrow=c(2,2))
+  dimslist = list(1:2, 2:3, c(3,1))
+  for(dims in dimslist){
+    xlim = range(ylist_collapsed[,dims[1]])
+    ylim = range(ylist_collapsed[,dims[2]])
+    names = c("fsc_small", "chl_small","pe")
+    plot(x=ylist[[tt]][,dims[1]],
+         y=ylist[[tt]][,dims[2]],
+         ## col='grey50',
+         col=rgb(0,0,0,0.1),
+         pch=16,
+         cex = cex,
+         ## col='pink',
+         type='p',
+         xlab = names[dims[1]],
+         ylab = names[dims[2]],
+         cex.lab = 1.5,
+         cex.axis = 1.5,
+         xlim = xlim,
+         ylim = ylim
+         )
+
+    ## this time point's mean
+    cols = 1:numclust
+    points(x = mn[tt,dims[1],],
+           y = mn[tt,dims[2],],
+           pch = 16, col = cols,
+           cex = pie[1,]/max(pie[1,])*5)
+           ## cex = log(pie[1,]/max(pie[1,]) + 1)*3)
+
+
+    ## All time points' means
+    for(ttt in 1:TT){
+      for(kk in 1:numclust){
+        points(x=mn[ttt,dims[1],kk],
+               y=mn[ttt,dims[2],kk],
+               pch=16, col=cols[kk],
+               cex = .2)
+      }
+    }
+
+    ## Draw the ellipses
+    for(kk in 1:numclust){
+      lines(ellipse::ellipse(x = sigma[kk,dims,dims],
+                             centre = mn[tt,dims, kk]),
+            lwd=1, col=cols[kk], lty=1)
+    }
+  }
+  plot(objectives[2:(min(100, length(objectives)))],
+       type = 'o',
+       ylab = "Objective Value", xlab = "EM Iteration",
+       cex.lab = 1.5,
+       cex.axis = 1.5)
+  if(saveplot)  graphics.off()
 }

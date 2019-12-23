@@ -78,6 +78,11 @@ bin_many_cytograms <- function(ylist, manual.grid, verbose=FALSE, mc.cores=1, qc
   sparsecounts_list = lapply(reslist, function(res) res$sparsecounts)
   ybin_all = make_ybin(counts = NULL,  make_midpoints(manual.grid))
 
+  ## Name everything
+  names(ybin_list) = names(ylist)
+  names(counts_list) = names(ylist)
+  names(sparsecounts_list) = names(ylist)
+
   if(verbose) cat(fill=TRUE)
   return(list(ybin_list = ybin_list,
               counts_list = counts_list,
