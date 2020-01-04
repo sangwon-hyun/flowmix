@@ -11,8 +11,8 @@
 Mstep_beta_admm <- function(resp, ylist, X, mean_lambda = 0, sigma, numclust,
                             maxdev = NULL,
                             niter = 100,
-                            rho = 0.1 ## Some default
-                            ){
+                            rho = 0.1, ## Some default
+                            err_rel = 1E-3){
 
   ####################
   ## Preliminaries ###
@@ -44,6 +44,17 @@ Mstep_beta_admm <- function(resp, ylist, X, mean_lambda = 0, sigma, numclust,
   Uz = matrix(0, nrow = TT, ncol = dimdat)
   C = maxdev
 
+  ## Prepare a few objects for converge()
+  p = ncol(X)
+  TT = nrow(X)
+  A = rbind(diag(rep(1,p)),
+            X)
+  tA = t(A)
+  B = Matrix::bdiag(-diag(rep(1,p)),
+                    -diag(rep(1,TT)))
+  B = as.matrix(B)
+  tAB = tA %*% B
+
   ## 1. Form tilde objects for b update. Only do once!
   manip_obj = manip(ylist, Xa, resp, sigma, numclust,
                     first_iter = TRUE) ## todo: consider updating this.
@@ -56,23 +67,26 @@ Mstep_beta_admm <- function(resp, ylist, X, mean_lambda = 0, sigma, numclust,
   start.time = Sys.time()
   for(iclust in 1:numclust){
     resid_mat = matrix(0, nrow = niter, ncol = 4)
-    ## printprogress(iclust, numclust, "cluster", start.time = start.time, fill=TRUE)
+
+    ## Prepare an object for b_update()
+    D = rbind(sqrt(1/2) * Xtildes[[iclust]],
+              sqrt(rho/2) * I_aug,
+              sqrt(rho/2) * X0) ## This can be moved out
+    DtD = crossprod(D, D)
 
     for(iter in 1:niter){
-      ## printprogress(iter, niter, "iteration")
 
-      b = b_update(wvec, uw, Z, Uz, X0, rho, Xtildes[[iclust]], yvecs[[iclust]], I_aug)
+      b <- b_update(wvec, uw, Z, Uz, rho, yvecs[[iclust]], D, DtD)
       b1 = b[-intercept_inds]
       b0 = b[intercept_inds]
       beta = matrix(b, nrow = p+1)
       beta1 = matrix(b1, nrow = p)
-      assert_that(all.equal(as.numeric(I_aug %*% b ), b1) == TRUE) ## Check once
 
-      Z_update  <- function(beta1, X, Uz, C, rho){
+      Z_update  <- function(beta1, X, Uz, C, rho, dimdat, TT){
         mat = X %*% beta1 + Uz/rho
-        t(apply(mat, 1, projC, C)) ## TODO: improve.
+        Z = projCmat(mat, C)
       }
-      Z <- Z_update(beta1, X, Uz, C, rho)
+      Z <- Z_update(beta1, X, Uz, C, rho, dimdat, TT)
 
       wvec_update  <- function(b1, uw, lambda, rho){
         soft_thresh(b1 + uw/rho, lambda/rho)
@@ -92,20 +106,19 @@ Mstep_beta_admm <- function(resp, ylist, X, mean_lambda = 0, sigma, numclust,
       Uw <- matrix(uw, nrow = p, byrow=FALSE)
 
       ## 3. Check convergence
-      if( iter > 1 ){
-        ## if( converge(beta1, X, rho, w, Z, w_prev, Z_prev, Uw, Uz) ) next
-        obj = converge(beta1, X, rho, w, Z, w_prev, Z_prev, Uw, Uz)
+      if( iter > 1  & iter %% 5 == 0 ){
+        obj = converge(beta1, X, rho, w, Z, w_prev, Z_prev, Uw, Uz, A=A, B=B, tA=tA, tAB = tAB, err_rel = err_rel)
         resid_mat[iter-1,] = c(norm(obj$primal_resid, "F"), obj$primal_err, norm(obj$dual_resid,"F"), obj$dual_err)
-        if(obj$converge) break
+        if(obj$converge){  break }
       }
       w_prev = w
       Z_prev = Z
 
       ## 3. Calculate objective values for this cluster.
-      if(iter %% 20 == 0){
-        fits[iter, iclust] = objective_per_cluster(beta, ylist, Xa, resp, lambda,
-                                                                     dimdat, iclust, sigma, iter)
-      }
+      ## if(iter %% 20 == 0){
+      ##   fits[iter, iclust] = objective_per_cluster(beta, ylist, Xa, resp, lambda,
+      ##                                                                dimdat, iclust, sigma, iter)
+      ## }
     }
 
     ## Store the results (only b)

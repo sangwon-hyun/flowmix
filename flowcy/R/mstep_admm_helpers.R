@@ -10,10 +10,22 @@ soft_thresh <- function(a, b){
   ## abline(v=0)
 }
 
+
+##' (Helper) Projection of each ROW of the matrix \code{mat} into an l2 ball
+##' centered at zero, of radius C.
+projCmat <- function(mat, C){
+  vlens = sqrt(rowSums(mat * mat))
+  inds = which(vlens > C)
+  if(length(inds)>0){
+    mat[inds,] = mat[inds,] * C / vlens[inds]
+  }
+  return(mat)
+}
+
 ##' (Helper) Projection into an l2 ball centered at zero, of radius C.
 projC <- function(v, C){
   vlen = sqrt(sum(v*v))
-  if(vlen <  C){
+ if(vlen <  C){
     return(v)
   } else {
     return(C * v/vlen)
@@ -38,18 +50,11 @@ projC <- function(v, C){
 ##' out what it should be when we are doing a matrix ADMM; will come back to
 ##' it).
 ##' @param err_rel = 1E-3
-converge <- function(beta1, X, rho, w, Z, w_prev, Z_prev, Uw, Uz, err_rel = 1E-3
+converge <- function(beta1, X, rho, w, Z, w_prev, Z_prev, Uw, Uz, err_rel = 1E-4,
+                     A, B, tA, tAB
                      ## , err_abs = 1E-3
                      ){
 
-  ## Prepare a few objects
-  p = ncol(X)
-  TT = nrow(X)
-  A = rbind(diag(rep(1,p)),
-            X)
-  B = Matrix::bdiag(-diag(rep(1,p)),
-                    -diag(rep(1,TT)))
-  B = as.matrix(B)
   U = rbind(Uw, Uz)
 
   ## Form the second block of primal variables.
@@ -60,17 +65,18 @@ converge <- function(beta1, X, rho, w, Z, w_prev, Z_prev, Uw, Uz, err_rel = 1E-3
 
   ## Form primal and dual residuals.
   primal_resid = A %*% beta1 + B %*% wz
-  dual_resid = rho * t(A) %*% B %*% (wz - wz_prev)
+  dual_resid = rho * tAB %*% (wz - wz_prev)
 
   ## Form primal and dual tolerances.
   primal_err = ## sqrt(length(primal_resid)) * err_abs +
     err_rel * max(norm(A %*% beta1, "F"), norm(B %*% wz, "F") )
   dual_err = ## sqrt(length(dual_resid)) * err_abs +
-    err_rel * norm(t(A) %*% U, "F")
+    err_rel * norm(tA %*% U, "F")
 
   ## Check convergence.
   primal_converge = ( norm(primal_resid, "F") <= primal_err )
   dual_converge = ( norm(dual_resid, "F") <= dual_err )
+
   ## return(primal_converge & dual_converge)
   converge = primal_converge & dual_converge
   return(list(primal_resid = primal_resid,
@@ -111,46 +117,14 @@ objective_per_cluster <- function(beta, ylist, Xa, resp, lambda, dimdat, iclust,
 
 
 ##' Calculate a specific least squares problem \min_b \|c-Db\|^2.
-b_update  <- function(wvec, uw, Z, Uz, X0, rho, Xtilde, yvec, I_aug){
-
-  ## Seeing element matching of the third term
-  TT = length(ylist)
-  dimdat = ncol(ylist[[1]])
-
-  ## Temporary: Checking element match.
-  ## Z = matrix(rep(1:TT, each = dimdat),
-  ##            nrow = TT, ncol = dimdat, byrow=TRUE)
-  ## Uz = matrix(0, nrow = TT, ncol = dimdat)
-  ## rho = 1
-  ## as.numeric(t(Z) - t(Uz)/rho)
-  ## Xt = c(0, rnorm(p))
-  ## X0 = lapply(1:TT, function(tt){ diag(rep(1,dimdat)) %x% t(Xt)})
-  ## X0 = do.call(rbind, X0)
-  ## dim(X0)
-  ## round(X0[1:3,],3)
-  ## set.seed(2)
-  ## b = rnorm((p+1)*dimdat)
-  ## beta = matrix(b, ncol = dimdat)
-  ## image(X0)
-  ## End of temporaray
-
-  ## ## Okay, these are the same
-  ## X0[1:3,] %*% cbind(b)
-  ## t(beta) %*% Xt
-
-  ## t(beta) %*% Xt
-  ## beta[,1] %*% Xt
-  ## X0[1,] %*% b
-  ## ## End of the temporary match.
+b_update  <- function(wvec, uw, Z, Uz, rho, yvec, D, DtD){
 
   cvec = c(sqrt(1/2) * yvec,
            sqrt(rho/2) * (wvec - uw/rho),
            sqrt(rho/2) * as.numeric(t(Z) - t(Uz)/rho))
 
-  D = rbind(sqrt(1/2) * Xtilde,
-            sqrt(rho/2) * I_aug,
-            sqrt(rho/2) * X0)
-  sol = solve(t(D) %*% D, t(D) %*% cvec)
+  ## sol = solve(t(D) %*% D, t(D) %*% cvec)
+  sol = solve(DtD, crossprod(D, cvec)) ##t(D) %*% D, t(D) %*% cvec)
   return(sol)
 }
 
