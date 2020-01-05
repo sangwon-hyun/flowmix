@@ -62,9 +62,7 @@ covarem_once <- function(ylist, X,
                          init_mn_flatten = FALSE,
                          admm = FALSE,
                          admm_rho = 0.1,
-                         admm_err_rel = 1E-3,
-                         admm_converge_fast = TRUE ## temporary
-                         ## filepath
+                         admm_err_rel = 1E-3
                          ){## Basic checks
   if(!is.null(maxdev)){ assert_that(maxdev!=0) } ## Preventing the maxdev=FALSE mistake.
   ## assert_that(!(is.data.frame(ylist[[1]])))
@@ -125,9 +123,7 @@ covarem_once <- function(ylist, X,
     if(admm){
       res.beta = Mstep_beta_admm(resp, ylist, X, mean_lambda = mean_lambda,
                                  sigma, numclust, maxdev = maxdev, rho = admm_rho,
-                                 err_rel = admm_err_rel,
-                                 converge_fast = admm_converge_fast## temporary
-                                 )
+                                 err_rel = admm_err_rel)
     } else {
       res.beta = Mstep_beta(resp, ylist, X, mean_lambda = mean_lambda, sigma,
                             refit = refit, sel_coef = sel_coef, maxdev = maxdev,

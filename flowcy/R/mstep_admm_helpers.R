@@ -47,50 +47,7 @@ projC <- function(v, C){
 
 
 
-##' (Helper) Check convergence for ADMM (incomplete because I couldn't figure
-##' out what it should be when we are doing a matrix ADMM; will come back to
-##' it).
-##' @param err_rel = 1E-3
-converge_old <- function(beta1, X, rho, w, Z, w_prev, Z_prev, Uw, Uz, err_rel = 1E-4,
-                     A, B, tA, tAB
-                     ## , err_abs = 1E-3
-                     ){
-
-  U = rbind(Uw, Uz)
-
-  ## Form the second block of primal variables.
-  wz = rbind(w,
-             Z)
-  wz_prev = rbind(w_prev,
-                  Z_prev)
-
-  ## Form primal and dual residuals.
-  primal_resid = A %*% beta1 + B %*% wz
-  dual_resid = rho * tAB %*% (wz - wz_prev)
-
-  ## Form primal and dual tolerances.
-  primal_err = ## sqrt(length(primal_resid)) * err_abs +
-    err_rel * max(norm(A %*% beta1, "F"), norm(B %*% wz, "F") )
-  dual_err = ## sqrt(length(dual_resid)) * err_abs +
-    err_rel * norm(tA %*% U, "F")
-
-  ## Check convergence.
-  primal_converge = ( norm(primal_resid, "F") <= primal_err )
-  dual_converge = ( norm(dual_resid, "F") <= dual_err )
-
-  ## return(primal_converge & dual_converge)
-  converge = primal_converge & dual_converge
-  return(list(primal_resid = primal_resid,
-              primal_err = primal_err,
-              dual_resid = dual_resid,
-              dual_err = dual_err,
-              converge = converge))
-}
-
-
-##' (Helper) Check convergence for ADMM (incomplete because I couldn't figure
-##' out what it should be when we are doing a matrix ADMM; will come back to
-##' it).
+##' (Helper) Check convergence for ADMM.
 ##' @param err_rel = 1E-3
 converge <- function(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX, Xbeta1,
                      err_rel = 1E-4

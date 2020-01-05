@@ -30,21 +30,7 @@ Mstep_beta_admm <- function(resp, ylist, X, mean_lambda = 0, sigma, numclust,
   X0 = do.call(rbind, X0)
   lambda = mean_lambda
   I_aug = make_I_aug(p, dimdat, intercept_inds)
-
-  if(converge_fast){
-    tX = t(X)
-  } else {
-    ## Prepare a few objects for converge()
-    p = ncol(X)
-    TT = nrow(X)
-    A = rbind(diag(rep(1,p)),
-              X)
-    tA = t(A)
-    B = Matrix::bdiag(-diag(rep(1,p)),
-                      -diag(rep(1,TT)))
-    B = as.matrix(B)
-    tAB = tA %*% B
-  }
+  tX = t(X)
 
   ##########################################
   ## Run ADMM separately on each cluster ##
@@ -118,12 +104,7 @@ Mstep_beta_admm <- function(resp, ylist, X, mean_lambda = 0, sigma, numclust,
 
       ## 3. Check convergence
       if( iter > 1  & iter %% 5 == 0 ){
-        if(converge_fast){
-          obj = converge(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX = tX, Xbeta1 = Xbeta1, err_rel = err_rel)
-
-        } else{
-          obj = converge_old(beta1, X, rho, w, Z, w_prev, Z_prev, Uw, Uz, A=A, B=B, tA=tA, tAB = tAB, err_rel = err_rel)
-        }
+        obj = converge(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX = tX, Xbeta1 = Xbeta1, err_rel = err_rel)
         resid_mat[iter-1,] = c(norm(obj$primal_resid, "F"), obj$primal_err, norm(obj$dual_resid,"F"), obj$dual_err)
         if(obj$converge){  break }
       }
