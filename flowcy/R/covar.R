@@ -59,7 +59,10 @@ covarem_once <- function(ylist, X,
                          plotdir = "~/Desktop",
                          thresh = 1E-8,
                          zerothresh = 1E-8,
-                         init_mn_flatten = FALSE
+                         init_mn_flatten = FALSE,
+                         admm = FALSE,
+                         admm_rho = 0.1,
+                         admm_err_rel = 1E-3
                          ## filepath
                          ){## Basic checks
   if(!is.null(maxdev)){ assert_that(maxdev!=0) } ## Preventing the maxdev=FALSE mistake.
@@ -88,16 +91,6 @@ covarem_once <- function(ylist, X,
   start.time = Sys.time()
   for(iter in 2:niter){
 
-      ## Temporary:
-    ## browser()
-    ## print('here')
-    ##   lapsetime = round(difftime(Sys.time(), start.time,
-    ##                              units = "secs"), 0)
-    ##   if(!dir.exists(filepath)) dir.create(filepath, recursive = TRUE)
-    ## cat(paste("iter=", iter, "and", "lapsetime=", lapsetime), fill = TRUE,
-    ##     append=TRUE, file = file.path(filepath, "times.txt"))
-
-
     resp <- Estep_covar(mn, sigma, pie, ylist = ylist, numclust = numclust,
                         denslist_by_clust = denslist_by_clust,
                         first_iter = (iter == 2), countslist = countslist)
@@ -108,7 +101,7 @@ covarem_once <- function(ylist, X,
                   resp, countslist)
     }
 
-    ## Conduct M step
+    ## M step (three parts)
     ## 1. Alpha
     res.alpha = Mstep_alpha(resp, X, numclust, lambda = pie_lambda,
                             refit = refit, sel_coef = sel_coef, bin = bin,
@@ -118,14 +111,21 @@ covarem_once <- function(ylist, X,
     rm(res.alpha)
 
     ## 2. Beta
-    res.beta = Mstep_beta(resp, ylist, X, mean_lambda = mean_lambda, sigma,
-                          refit = refit, sel_coef = sel_coef, maxdev = maxdev,
-                          sigma_eig_by_clust = sigma_eig_by_clust,
-                          first_iter = (iter == 2),
-                          ## ridge = ridge,
-                          ## ridge_lambda = ridge_lambda,
-                          ## ridge_pie = pie,
-                          bin = bin, thresh = thresh, zerothresh = zerothresh)
+    if(admm){
+      ## print(iter)
+      ## save(resp, ylist, X, sigma, numclust, maxdev, sigma_eig_by_clust,
+      ##      file = file.path("~/Desktop/test-admm.Rdata"))
+      ## load(file.path("~/Desktop/test-admm.Rdata"))
+      res.beta = Mstep_beta_admm(resp, ylist, X, mean_lambda = mean_lambda,
+                                 sigma, numclust, maxdev = maxdev, rho = admm_rho,
+                                 err_rel = admm_err_rel)
+    } else {
+      res.beta = Mstep_beta(resp, ylist, X, mean_lambda = mean_lambda, sigma,
+                            refit = refit, sel_coef = sel_coef, maxdev = maxdev,
+                            sigma_eig_by_clust = sigma_eig_by_clust,
+                            first_iter = (iter == 2),
+                            bin = bin, thresh = thresh, zerothresh = zerothresh)
+    }
     mn = res.beta$mns
     beta = res.beta$beta
     rm(res.beta)
@@ -177,7 +177,7 @@ covarem_once <- function(ylist, X,
     }
 
     ## Check convergence
-    if(check_converge_rel_print(objectives[iter-1],
+    if(check_converge_rel(objectives[iter-1],
                           objectives[iter],
                           tol = tol)) break
   }
