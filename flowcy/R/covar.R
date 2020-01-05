@@ -62,7 +62,8 @@ covarem_once <- function(ylist, X,
                          init_mn_flatten = FALSE,
                          admm = FALSE,
                          admm_rho = 0.1,
-                         admm_err_rel = 1E-3
+                         admm_err_rel = 1E-3,
+                         admm_converge_fast = TRUE ## temporary
                          ## filepath
                          ){## Basic checks
   if(!is.null(maxdev)){ assert_that(maxdev!=0) } ## Preventing the maxdev=FALSE mistake.
@@ -110,15 +111,23 @@ covarem_once <- function(ylist, X,
     alpha = res.alpha$alpha
     rm(res.alpha)
 
+
+    ## print(iter)
+    if(iter==3){
+      ## print('here')
+      ## save(resp, ylist, X, sigma, numclust, maxdev, sigma_eig_by_clust,
+      ##      file = file.path("~/Desktop/test-admm-large-T.Rdata"))
+      ## return()
+    }
+    ## load(file.path("~/Desktop/test-admm.Rdata"))
+
     ## 2. Beta
     if(admm){
-      ## print(iter)
-      ## save(resp, ylist, X, sigma, numclust, maxdev, sigma_eig_by_clust,
-      ##      file = file.path("~/Desktop/test-admm.Rdata"))
-      ## load(file.path("~/Desktop/test-admm.Rdata"))
       res.beta = Mstep_beta_admm(resp, ylist, X, mean_lambda = mean_lambda,
                                  sigma, numclust, maxdev = maxdev, rho = admm_rho,
-                                 err_rel = admm_err_rel)
+                                 err_rel = admm_err_rel,
+                                 converge_fast = admm_converge_fast## temporary
+                                 )
     } else {
       res.beta = Mstep_beta(resp, ylist, X, mean_lambda = mean_lambda, sigma,
                             refit = refit, sel_coef = sel_coef, maxdev = maxdev,

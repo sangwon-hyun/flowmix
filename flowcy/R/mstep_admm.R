@@ -12,7 +12,9 @@ Mstep_beta_admm <- function(resp, ylist, X, mean_lambda = 0, sigma, numclust,
                             maxdev = NULL,
                             niter = 100,
                             rho = 0.1, ## Some default
-                            err_rel = 1E-3){
+                            err_rel = 1E-3,
+                            converge_fast=TRUE ## temporary
+                            ){
 
   ####################
   ## Preliminaries ###
@@ -28,6 +30,21 @@ Mstep_beta_admm <- function(resp, ylist, X, mean_lambda = 0, sigma, numclust,
   X0 = do.call(rbind, X0)
   lambda = mean_lambda
   I_aug = make_I_aug(p, dimdat, intercept_inds)
+
+  if(converge_fast){
+    tX = t(X)
+  } else {
+    ## Prepare a few objects for converge()
+    p = ncol(X)
+    TT = nrow(X)
+    A = rbind(diag(rep(1,p)),
+              X)
+    tA = t(A)
+    B = Matrix::bdiag(-diag(rep(1,p)),
+                      -diag(rep(1,TT)))
+    B = as.matrix(B)
+    tAB = tA %*% B
+  }
 
   ##########################################
   ## Run ADMM separately on each cluster ##
@@ -47,13 +64,6 @@ Mstep_beta_admm <- function(resp, ylist, X, mean_lambda = 0, sigma, numclust,
   ## Prepare a few objects for converge()
   p = ncol(X)
   TT = nrow(X)
-  A = rbind(diag(rep(1,p)),
-            X)
-  tA = t(A)
-  B = Matrix::bdiag(-diag(rep(1,p)),
-                    -diag(rep(1,TT)))
-  B = as.matrix(B)
-  tAB = tA %*% B
 
   ## 1. Form tilde objects for b update. Only do once!
   manip_obj = manip(ylist, Xa, resp, sigma, numclust,
@@ -81,12 +91,13 @@ Mstep_beta_admm <- function(resp, ylist, X, mean_lambda = 0, sigma, numclust,
       b0 = b[intercept_inds]
       beta = matrix(b, nrow = p+1)
       beta1 = matrix(b1, nrow = p)
+      Xbeta1 = X %*% beta1
 
-      Z_update  <- function(beta1, X, Uz, C, rho, dimdat, TT){
-        mat = X %*% beta1 + Uz/rho
+      Z_update  <- function(Xbeta1, Uz, C, rho, dimdat, TT){
+        mat = Xbeta1 + Uz/rho
         Z = projCmat(mat, C)
       }
-      Z <- Z_update(beta1, X, Uz, C, rho, dimdat, TT)
+      Z <- Z_update(Xbeta1, Uz, C, rho, dimdat, TT)
 
       wvec_update  <- function(b1, uw, lambda, rho){
         soft_thresh(b1 + uw/rho, lambda/rho)
@@ -94,10 +105,10 @@ Mstep_beta_admm <- function(resp, ylist, X, mean_lambda = 0, sigma, numclust,
       wvec <- wvec_update(b1, uw, lambda, rho)
       w <- matrix(wvec, nrow = p, byrow=FALSE)
 
-      Uz_update <- function(Uz, rho, beta1, X, Z){
-        Uz + rho * (X %*% beta1 - Z)
+      Uz_update <- function(Uz, rho, Xbeta1, Z){
+        Uz + rho * (Xbeta1 - Z)
       }
-      Uz <- Uz_update(Uz, rho, beta1, X, Z)
+      Uz <- Uz_update(Uz, rho, Xbeta1, Z)
 
       uw_update <- function(uw, rho, b1, wvec){
         uw + rho * (b1 - wvec)
@@ -107,7 +118,12 @@ Mstep_beta_admm <- function(resp, ylist, X, mean_lambda = 0, sigma, numclust,
 
       ## 3. Check convergence
       if( iter > 1  & iter %% 5 == 0 ){
-        obj = converge(beta1, X, rho, w, Z, w_prev, Z_prev, Uw, Uz, A=A, B=B, tA=tA, tAB = tAB, err_rel = err_rel)
+        if(converge_fast){
+          obj = converge(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX = tX, Xbeta1 = Xbeta1, err_rel = err_rel)
+
+        } else{
+          obj = converge_old(beta1, X, rho, w, Z, w_prev, Z_prev, Uw, Uz, A=A, B=B, tA=tA, tAB = tAB, err_rel = err_rel)
+        }
         resid_mat[iter-1,] = c(norm(obj$primal_resid, "F"), obj$primal_err, norm(obj$dual_resid,"F"), obj$dual_err)
         if(obj$converge){  break }
       }

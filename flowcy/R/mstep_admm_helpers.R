@@ -46,11 +46,12 @@ projC <- function(v, C){
 }
 
 
+
 ##' (Helper) Check convergence for ADMM (incomplete because I couldn't figure
 ##' out what it should be when we are doing a matrix ADMM; will come back to
 ##' it).
 ##' @param err_rel = 1E-3
-converge <- function(beta1, X, rho, w, Z, w_prev, Z_prev, Uw, Uz, err_rel = 1E-4,
+converge_old <- function(beta1, X, rho, w, Z, w_prev, Z_prev, Uw, Uz, err_rel = 1E-4,
                      A, B, tA, tAB
                      ## , err_abs = 1E-3
                      ){
@@ -87,9 +88,49 @@ converge <- function(beta1, X, rho, w, Z, w_prev, Z_prev, Uw, Uz, err_rel = 1E-4
 }
 
 
+##' (Helper) Check convergence for ADMM (incomplete because I couldn't figure
+##' out what it should be when we are doing a matrix ADMM; will come back to
+##' it).
+##' @param err_rel = 1E-3
+converge <- function(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX, Xbeta1,
+                     err_rel = 1E-4
+                     ## , err_abs = 1E-3
+                     ){
+
+  ## Form primal and dual residuals, and other things.
+  ## prim1 = A %*% beta1 ## old
+  ## prim2 = B %*% wz    ## old
+  prim1 = rbind(beta1, Xbeta1) ## new (although I don't like the rbind)
+  prim2 = - rbind(w, Z) ## new
+  primal_resid = prim1 + prim2
+  ## dual_resid = rho * tAB %*% (wz - wz_prev) ## old (No need for tAB).
+  dual_resid = -rho * ((w - w_prev) + (tX %*% (Z - Z_prev))) ## new
+  tAU = Uw + tX %*% Uz
+
+  ## Form primal and dual tolerances.
+  primal_err = ## sqrt(length(primal_resid)) * err_abs +
+    err_rel * max(norm(prim1, "F"), norm(prim2, "F"))
+  dual_err = ## sqrt(length(dual_resid)) * err_abs +
+    err_rel * norm(tAU, "F")
+
+  ## Check convergence.
+  primal_converge = ( norm(primal_resid, "F") <= primal_err )
+  dual_converge = ( norm(dual_resid, "F") <= dual_err )
+
+  ## return(primal_converge & dual_converge)
+  converge = primal_converge & dual_converge
+  return(list(primal_resid = primal_resid,
+              primal_err = primal_err,
+              dual_resid = dual_resid,
+              dual_err = dual_err,
+              converge = converge))
+}
+
+
 ##' (Helper) calculates the per-cluster objective value for the ADMM
 ##' @param beta p x d matrix
-objective_per_cluster <- function(beta, ylist, Xa, resp, lambda, dimdat, iclust, sigma, iter){
+objective_per_cluster <- function(beta, ylist, Xa, resp, lambda, dimdat, iclust, sigma, iter,
+                                  sigma_eig_by_clust=NULL){
 
   ## Setup
   TT = length(ylist)
@@ -106,13 +147,23 @@ objective_per_cluster <- function(beta, ylist, Xa, resp, lambda, dimdat, iclust,
                    nrow = nrow(y),
                    byrow = TRUE)
     wt_resid = sqrt(resp[[tt]][, iclust]) * (y - mumat)
-    sum(unlist(lapply(1:nrow(y), function(irow){
+    sums = sum(unlist(lapply(1:nrow(y), function(irow){
       t(wt_resid[irow,]) %*% inv.sigma %*% (wt_resid[irow,])
     })))
+
+    ## Check if this is the same as the above
+    browser()
+    myinv_half <- sigma_eig$inverse_sigma_half
+    transformed_resids = wt_resids %*% myinv_half
+    sums2 = sum(transformed_resids * transformed_resids)
+    stopifnot(max(abs(sums - sums2)) < 1E-8)
+
+    return(sums)
   }, mc.cores = 8)
   all.terms = sum(unlist(terms))
   tol = 1E-8
   obj = (1/2) * sum(unlist(all.terms)) + lambda * sum(abs(beta) > tol)
+  return(obj)
 }
 
 
