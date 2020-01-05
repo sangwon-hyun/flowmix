@@ -46,11 +46,17 @@ get_mixture_at_timepoint <- function(tt, nt, mnlist, pilist, sigma=NULL, sigmali
 
 
 
-##' Generic 2d data generation
+##' Generic 2d or 3d data generation.
+##'
 ##' @export
+##'
 ##' @return list containing ylist, X
-generate_data_generic <- function(p = 5, TT = 50, fac = 1, nt = 1000, dimdat = 2, seed=NULL){
+generate_data_generic <- function(p = 5, TT = 50, fac = 1, nt = 1000, dimdat = 2,
+                                  seed = NULL){
+
   if(!is.null(seed)) set.seed(seed)
+  ## dimdat = match.arg(dimdat)
+  stopifnot(dimdat %in% c(2,3))
 
   ## Generate covariates.
   X = matrix(rnorm(TT*p), ncol = p, nrow = TT)
@@ -77,10 +83,12 @@ generate_data_generic <- function(p = 5, TT = 50, fac = 1, nt = 1000, dimdat = 2
   beta4 = rbind(beta4, matrix(0, nrow = p-2, ncol = 2))
 
   ## Add another
-  beta1 = cbind(beta1, c(0,rep(0,p)))
-  beta2 = cbind(beta2, c(1,rep(0,p)))
-  beta3 = cbind(beta3, c(0,rep(0,p)))
-  beta4 = cbind(beta4, c(5,rep(0,p)))
+  if(dimdat==3){
+    beta1 = cbind(beta1, c(0,rep(0,p)))
+    beta2 = cbind(beta2, c(1,rep(0,p)))
+    beta3 = cbind(beta3, c(0,rep(0,p)))
+    beta4 = cbind(beta4, c(5,rep(0,p)))
+  }
   betalist = list(beta1, beta2, beta3, beta4)
 
   ## Generate the four response /components/.
@@ -90,7 +98,6 @@ generate_data_generic <- function(p = 5, TT = 50, fac = 1, nt = 1000, dimdat = 2
   mn3 = Xa %*% beta3
   mn4 = Xa %*% beta4
   mnlist = list(mn1, mn2, mn3, mn4)
-
 
   ## Define mixture components
   pi1 = rep(3/4, TT)
@@ -110,19 +117,20 @@ generate_data_generic <- function(p = 5, TT = 50, fac = 1, nt = 1000, dimdat = 2
   ntlist = apply(ntlist * cbind(pi1,pi2,pi3,pi4), 1, sum)
 
   ## Define the covariances
-  sigma1 = diag(c(1,1,1))
-  sigma2 = diag(c(10,1,1))
+  sigma1 = diag(c(1,1,1))[1:dimdat, 1:dimdat]
+  sigma2 = diag(c(10,1,1))[1:dimdat, 1:dimdat]
   sigma3 = matrix(c(3,1.5,0,
                     1.5,3,0,
-                    0,0,1), ncol = dimdat)
-  sigma4 = diag(c(1,1,1))
+                    0,0,1), ncol=3)[1:dimdat, 1:dimdat]
+  sigma4 = diag(c(1,1,1))[1:dimdat, 1:dimdat]
   sigmalist = list(sigma1, sigma2, sigma3, sigma4)
   sigmalist = lapply(sigmalist, function(a) a/3*fac)
+  stopifnot(all(unlist(lapply(sigmalist, dim)) == dimdat))
 
   ## Then, the resulting |y| is a probabistic mixture of the /components/
   datapoints = sapply(1:TT, function(tt){
     dat = get_mixture_at_timepoint(tt, ntlist[[tt]], mnlist, pilist,
-                                sigmalist = sigmalist)
+                                   sigmalist = sigmalist)
   })
 
   ## Reformat
