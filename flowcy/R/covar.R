@@ -57,9 +57,12 @@ covarem_once <- function(ylist, X,
                          ## ridge_lambda = 0
                          plot=FALSE,
                          plotdir = "~/Desktop",
-                         thresh = 1E-8,
-                         zerothresh = 1E-8,
                          init_mn_flatten = FALSE,
+                         ## beta Mstep (CVXR) settings
+                         mstep_cvxr_ecos_thresh = 1E-8,
+                         mstep_cvxr_scs_eps = 1E-5,
+                         zerothresh = 1E-8,
+                         ## beta Mstep (ADMM) settings
                          admm = FALSE,
                          admm_rho = 0.1,
                          admm_err_rel = 1E-3
@@ -67,6 +70,7 @@ covarem_once <- function(ylist, X,
   if(!is.null(maxdev)){ assert_that(maxdev!=0) } ## Preventing the maxdev=FALSE mistake.
   ## assert_that(!(is.data.frame(ylist[[1]])))
   assert_that(sum(is.na(X))==0)
+
 
   ## Setup.
   TT = length(ylist)
@@ -104,33 +108,61 @@ covarem_once <- function(ylist, X,
     ## 1. Alpha
     res.alpha = Mstep_alpha(resp, X, numclust, lambda = pie_lambda,
                             refit = refit, sel_coef = sel_coef, bin = bin,
-                            thresh = thresh, zerothresh = zerothresh)
+                            ## thresh = thresh,
+                            cvxr_ecos_thresh = mstep_cvxr_ecos_thresh,
+                            zerothresh = zerothresh)
     pie = res.alpha$pie
     alpha = res.alpha$alpha
     rm(res.alpha)
 
 
     ## print(iter)
-    if(iter==3){
-      ## print('here')
-      ## save(resp, ylist, X, sigma, numclust, maxdev, sigma_eig_by_clust,
-      ##      file = file.path("~/Desktop/test-admm-large-T.Rdata"))
-      ## return()
-    }
+    ## if(iter==3){
+    ##   save(resp, ylist, X, sigma, numclust, maxdev, sigma_eig_by_clust,
+    ##        file = file.path("~/Desktop/test-admm-large-T-numclust-10.Rdata"))
+    ##   return()
+    ## }
     ## load(file.path("~/Desktop/test-admm.Rdata"))
 
     ## 2. Beta
     if(admm){
-      res.beta = Mstep_beta_admm(resp, ylist, X, mean_lambda = mean_lambda,
-                                 sigma, numclust, maxdev = maxdev, rho = admm_rho,
+      res.beta = Mstep_beta_admm(resp, ylist, X,
+                                 mean_lambda = mean_lambda,
+                                 first_iter = (iter == 2),
+                                 sigma_eig_by_clust = sigma_eig_by_clust,
+                                 sigma = sigma, maxdev = maxdev, rho = admm_rho,
                                  err_rel = admm_err_rel)
     } else {
-      res.beta = Mstep_beta(resp, ylist, X, mean_lambda = mean_lambda, sigma,
-                            refit = refit, sel_coef = sel_coef, maxdev = maxdev,
+      res.beta = Mstep_beta(resp, ylist, X,
+                            mean_lambda = mean_lambda,
+                            sigma = sigma,
+                            maxdev = maxdev,
+                            ## This is fluff:
+                            ## refit = refit,
+                            ## sel_coef = sel_coef,
+                            ## end of fluff
                             sigma_eig_by_clust = sigma_eig_by_clust,
-                            first_iter = (iter == 2),
-                            bin = bin, thresh = thresh, zerothresh = zerothresh)
+                            first_iter = (iter == 2), bin = bin,
+                            cvxr_ecos_thresh = mstep_cvxr_ecos_thresh,
+                            cvxr_scs_eps = mstep_cvxr_scs_eps,
+                            zerothresh = zerothresh)
     }
+
+
+    ## ## Temporary
+    ## plot(y=res.beta.admm$mn, x=res.beta$mn,
+    ##      main = paste0("ADMM vs CVXR fitted means after ", iter, " EM iterations"),
+    ##      ylab = "ADMM",
+    ##      xlab = "CVXR", type='p', pch=16)
+    ## abline(0,1)
+
+    ## plot(y=unlist(res.beta.admm$beta), x=unlist(res.beta$beta),
+    ##      main=paste0("ADMM vs CVXR fitted coefficients after ", iter, " EM iterations"),
+    ##      ylab = "ADMM",
+    ##      xlab = "CVXR", type='p', pch=16)
+    ## abline(0,1)
+    ## ## end of temporary
+
     mn = res.beta$mns
     beta = res.beta$beta
     rm(res.beta)

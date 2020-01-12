@@ -2,22 +2,24 @@
 soft_thresh <- function(a, b){
   return(sign(a) * pmax(0, abs(a)-b))
 
-  ## ## (Kind of) test for this function:
-  ## x = seq(from=-10, to=10, length=100)
-  ## plot(y=soft_thresh(x, 3), x=x)
-  ## abline(h=0)
-  ## abline(v=c(-3,3), col='grey')
-  ## abline(v=0)
+  ## (Kind of) test for this function:
+  x = seq(from=-10, to=10, length=100)
+  plot(y=soft_thresh(x, 3), x=x)
+  abline(h=0)
+  abline(v=c(-3,3), col='grey')
+  abline(v=0)
 }
 
 
 ##' (Helper) Projection of each ROW of the matrix \code{mat} into an l2 ball
 ##' centered at zero, of radius C.
 projCmat <- function(mat, C){
-  vlens = sqrt(rowSums(mat * mat))
-  inds = which(vlens > C)
-  if(length(inds)>0){
-    mat[inds,] = mat[inds,] * C / vlens[inds]
+  if(!is.null(C)){
+    vlens = sqrt(rowSums(mat * mat))
+    inds = which(vlens > C)
+    if(length(inds) > 0){
+      mat[inds,] = mat[inds,] * C / vlens[inds]
+    }
   }
   return(mat)
 }
@@ -84,7 +86,8 @@ converge <- function(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX, Xbeta1,
 }
 
 
-##' (Helper) calculates the per-cluster objective value for the ADMM
+##' (Helper) calculates the per-cluster objective value for the ADMM. INCOMPLETE
+##' because it is super inefficient right now.
 ##' @param beta p x d matrix
 objective_per_cluster <- function(beta, ylist, Xa, resp, lambda, dimdat, iclust, sigma, iter,
                                   sigma_eig_by_clust=NULL){
@@ -124,15 +127,16 @@ objective_per_cluster <- function(beta, ylist, Xa, resp, lambda, dimdat, iclust,
 }
 
 
+
+
+
 ##' Calculate a specific least squares problem \min_b \|c-Db\|^2.
-b_update  <- function(wvec, uw, Z, Uz, rho, yvec, D, DtD){
+b_update  <- function(wvec, uw, Z, Uz, rho, yvec, D, DtDinv){
 
   cvec = c(sqrt(1/2) * yvec,
            sqrt(rho/2) * (wvec - uw/rho),
            sqrt(rho/2) * as.numeric(t(Z) - t(Uz)/rho))
-
-  ## sol = solve(t(D) %*% D, t(D) %*% cvec)
-  sol = solve(DtD, crossprod(D, cvec)) ##t(D) %*% D, t(D) %*% cvec)
+  sol = DtDinv %*% crossprod(D, cvec)
   return(sol)
 }
 

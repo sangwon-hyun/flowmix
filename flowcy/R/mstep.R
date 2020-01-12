@@ -8,7 +8,7 @@ Mstep_alpha <- function(resp, X, numclust, lambda = 0, alpha = 1,
                         refit = FALSE,
                         sel_coef = NULL,
                         bin = FALSE, ##temporary
-                        thresh = 1E-8,
+                        cvxr_ecos_thresh = 1E-8,
                         zerothresh = 1E-8
                         ){
 
@@ -38,7 +38,7 @@ Mstep_alpha <- function(resp, X, numclust, lambda = 0, alpha = 1,
     ## (slow but correct):
     Xa = cbind(1, X)
     alphahat = cvxr_multinom(X = Xa, y = resp.sum, lambda = lambda, ## This was lambda=0 for no good reason
-                                 exclude = 1, thresh = thresh)
+                                 exclude = 1, thresh = cvxr_ecos_thresh)
     stopifnot(all(!is.na(alphahat)))
     alphahat[which(abs(alphahat) < zerothresh, arr.ind = TRUE)] = 0
     alphahat = t(as.matrix(alphahat))
@@ -128,7 +128,7 @@ mtsqrt_inv <- function(a){
 ##' @param sigma (numclust x dimdat x dimdat) matrix.
 ##' @return Result of M step; a |numclust| length list of (p+1)x(d) matrices,
 ##'   each containing the estimated coefficients for the mean estimation.
-Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
+Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma,
                        refit = FALSE,
                        sel_coef = NULL,
                        maxdev = NULL,
@@ -138,7 +138,8 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
                        ridge_lambda = NULL,
                        ridge_pie = NULL,
                        bin = FALSE,
-                       thresh = 1E-8,
+                       cvxr_ecos_thresh = 1E-8,
+                       cvxr_scs_eps = 1E-5,
                        zerothresh = 1E-8
                        ){
 
@@ -213,8 +214,10 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma, numclust,
                            numclust = numclust,
                            refit = refit,
                            sel_coef = sel_coef$beta[[iclust]],
-                           thresh = thresh ## Temporary
+                           ecos_thresh = cvxr_ecos_thresh, ## Temporary
+                           scs_eps = cvxr_scs_eps ## Temporary
                            )
+      ## browser()
       betahat[which(abs(betahat) < zerothresh, arr.ind = TRUE)] = 0
 
       ## Temporary

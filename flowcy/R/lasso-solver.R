@@ -55,15 +55,17 @@ solve_lasso <- function(y, x, lambda, intercept=TRUE, exclude.from.penalty=NULL)
 ##'   entries in the regression coefficients |beta| that are allowed to be
 ##'   nonzero.
 ##' @return Fitted beta.
-cvxr_lasso <- function(y, X, Xorig, lambda,
-                             exclude.from.penalty=NULL,
-                             thresh=1E-8,
-                             maxdev=NULL,
-                             dimdat=NULL,
-                             numclust=NULL,
-                             refit=FALSE,
-                             sel_coef=NULL
-                           ){
+cvxr_lasso <- function(y, X,  lambda, Xorig=NULL,
+                       exclude.from.penalty = NULL,
+                       thresh = 1E-8,
+                       maxdev = NULL,
+                       dimdat = NULL,
+                       numclust = NULL,
+                       refit = FALSE,
+                       sel_coef = NULL,
+                       ecos_thresh = 1E-8,
+                       scs_eps = 1E-5
+                       ){
 
   ## Define dimensions
   n = nrow(X)
@@ -73,10 +75,10 @@ cvxr_lasso <- function(y, X, Xorig, lambda,
 
   ## Define the parameter
   betamat <- CVXR::Variable(rows=pp+1,
-                   cols=dimdat)
+                            cols=dimdat)
 
-  ## Define the squared loss (the main part)
-  loss <- sum((y - X %*% CVXR::vec(betamat))^2) / (2 * n)
+  ## ## Define the squared loss (the main part)
+  ## loss <- sum((y - X %*% CVXR::vec(betamat))^2) / 2 ##(2 * n)
 
   ## Set up exclusion from penalty, if applicable.
   if(is.null(exclude.from.penalty)){
@@ -87,13 +89,13 @@ cvxr_lasso <- function(y, X, Xorig, lambda,
   }
 
   ## Set up l1-penalized regression.
-  obj = CVXR::sum_squares(y - X %*% CVXR::vec(betamat)) / (2 * n)
+  obj = CVXR::sum_squares(y - X %*% CVXR::vec(betamat)) / 2 ##(2 * n)
   if(!refit) obj = obj + lambda * sum(abs(CVXR::vec(betamat)[v]))
 
   ## Setup the Xbeta penalty.
   constraints = list()
   if(!is.null(maxdev)){
-    constraints = list(CVXR::sum_entries(CVXR::square(Xorig %*% betamat[-1,]), 1) <= rep(maxdev^2,TT))
+    constraints = list(CVXR::sum_entries(CVXR::square(Xorig %*% betamat[-1,]), 1) <= rep(maxdev^2, TT))
   }
   if(refit){
     sel_coef = !(sel_coef) * 1
@@ -106,7 +108,7 @@ cvxr_lasso <- function(y, X, Xorig, lambda,
   result = NULL
   result <- tryCatch({
      solve(prob, solver="ECOS",
-                    FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
+                    FEASTOL = ecos_thresh, RELTOL = ecos_thresh, ABSTOL = ecos_thresh)
   }, error=function(err){
     err$message = paste(err$message,
                         "\n", "Lasso solver using ECOS has failed." ,sep="")
@@ -115,7 +117,7 @@ cvxr_lasso <- function(y, X, Xorig, lambda,
   })
   if(is.null(result)){
     result <- tryCatch({
-      solve(prob, solver="SCS", eps = eps)
+      solve(prob, solver="SCS", eps = scs_eps)
     }, error=function(err){
       err$message = paste(err$message,
                           "\n", "Lasso solver using both ECOS and SCS has failed." ,sep="")
