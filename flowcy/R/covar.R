@@ -63,9 +63,9 @@ covarem_once <- function(ylist, X,
                          mstep_cvxr_scs_eps = 1E-5,
                          zerothresh = 1E-8,
                          ## beta Mstep (ADMM) settings
-                         admm = FALSE,
-                         admm_rho = 0.1,
-                         admm_err_rel = 1E-3
+                         admm = TRUE,
+                         admm_rho = 100,
+                         admm_err_rel = 1E-4
                          ){## Basic checks
   if(!is.null(maxdev)){ assert_that(maxdev!=0) } ## Preventing the maxdev=FALSE mistake.
   ## assert_that(!(is.data.frame(ylist[[1]])))
