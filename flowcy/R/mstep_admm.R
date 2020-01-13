@@ -67,8 +67,6 @@ Mstep_beta_admm <- function(resp,
                 sqrt(rho/2) * X0)
   Drest_square = crossprod(Drest, Drest)
   for(iclust in 1:numclust){
-    ## print("iclust")
-    ## print(iclust)
     resid_mat = matrix(0, nrow = niter, ncol = 4)
 
     ## Prepare an object for b_update()

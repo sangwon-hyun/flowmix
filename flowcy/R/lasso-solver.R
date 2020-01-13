@@ -1,60 +1,31 @@
-
-##' This solves the lasso problem: \deqn{\min_{\beta_0, \beta} 1/2\|y-1\beta_0-
-##' X\beta\|^2 + \lambda \|\beta\|_1}. There is an option
-##' \code{exclude.from.penalty} to remove some coordinates of \eqn{beta} from
-##' penalization.
-##' @param y Response vector (n vector).
-##' @param X Covariate matrix (n by p). Not assumed to be standardized.
-##' @param intercept TRUE if intercept is desired. Defaults to TRUE.
-##' @return list that contains linear coefficients (length p), intercept
-##'   (scalar, or NULL if intercept=TRUE), and fitted values (length n).
-solve_lasso <- function(y, x, lambda, intercept=TRUE, exclude.from.penalty=NULL){
-
-  ## Setup
-  n = nrow(x)
-  p = ncol(x)
-
-  ## Solve lasso problem with or without intercept.
-  if(intercept){
-    if(!is.null(exclude.from.penalty)){
-      stop("Doesn't support exclude.from.penalty option when intercept exists!")
-    }
-    res = glmnet::glmnet(y=y, x=x, lambda=lambda, intercept=TRUE, standardize=FALSE)
-    b = as.numeric(coef(res))[2:(p+1)]
-    b0 = as.numeric(coef(res))[1]
-  } else {
-    pen = rep(1, p)
-    lam = lambda
-    if(!is.null(exclude.from.penalty)){
-      pen[exclude.from.penalty] = 0
-      pen = pen / sum(pen) * (p)
-      lam = lambda / unique(pen[which(pen!=0)])
-    }
-    res = glmnet::glmnet(y=y, x=x, lambda=lam, intercept=FALSE, standardize=FALSE,
-                         penalty.factor=pen
-                         ## lower.limits=min(coef_limit),## Experimental feature
-                         ## upper.limits=max(coef_limit)## Experimental feature
-                         )
-    b0 = NULL
-    b = as.numeric(coef(res))[2:(p+1)]
-  }
-  yhat = predict(res, newx=x)
-  return(list(b=b, b0=b0, yhat=yhat))
-}
-
-##' Solve the no-intercept Lasso problem using CVXR.
+##' Solve the no-intercept lasso problem using CVXR. This is not a general lasso
+##' function, but designed for the beta M step of the EM algorithm. The response
+##' is a (dimdat T) vector, and the covariate matrix is a ((dimdat T) x (dimdat
+##' p)). This solves the optimization and organizes+returns the optimization
+##' variable as a ((p+1) x dimdat) matrix.
 ##'
-##' \deqn{\min_{\beta} 1/2n
-##' \|y - X\beta\|^2 + \lambda \|\beta\|_1}
+##' \deqn{\min_{\beta} 1/2 \|y - X\vect(\beta)\|^2 + \lambda \|\beta\|_1}
+##'
+##' In addition, this includes other modifications such as the ball constraint
+##' on the means over time (whose radius is handled by \code{maxdev}, and
+##' \code{sel_coef} (an array the same size as the coefficients) to govern which
+##' coefficients should be forced to be zero.
+##'
+##' Internally, it tries an ECOS solver first, then it tries a SCS solver. The
+##' latter is supposedly faster (and less exact) for larger problems, but I
+##' haven't seen that in our application FYI.
 ##'
 ##' @param X Covariate matrix.
 ##' @param y Response vector.
 ##' @param lambda Regularization parameter.
-##' @param sel_coef Numeric matrix of 0's and 1's in the same size of
-##'   \code{\beta} i.e. (pp+1) x dimdat. The ones in this matrix defines the
-##'   entries in the regression coefficients |beta| that are allowed to be
+##' @param sel_coef Optional variable. Numeric matrix of 0's and 1's in the same
+##'   size of \code{\beta} i.e. (p+1) x dimdat. The ones in this matrix defines
+##'   the entries in the regression coefficients |beta| that are allowed to be
 ##'   nonzero.
-##' @return Fitted beta.
+##' @param maxdev Radius of ball constraint. Defaults to NULL.
+##' @param refit A boolean flag for whether \code{sel_coef} should be used.
+##'
+##' @return Fitted beta matrix.
 cvxr_lasso <- function(y, X,  lambda, Xorig=NULL,
                        exclude.from.penalty = NULL,
                        thresh = 1E-8,
@@ -77,9 +48,6 @@ cvxr_lasso <- function(y, X,  lambda, Xorig=NULL,
   betamat <- CVXR::Variable(rows=pp+1,
                             cols=dimdat)
 
-  ## ## Define the squared loss (the main part)
-  ## loss <- sum((y - X %*% CVXR::vec(betamat))^2) / 2 ##(2 * n)
-
   ## Set up exclusion from penalty, if applicable.
   if(is.null(exclude.from.penalty)){
     v = 1:p
@@ -89,7 +57,7 @@ cvxr_lasso <- function(y, X,  lambda, Xorig=NULL,
   }
 
   ## Set up l1-penalized regression.
-  obj = CVXR::sum_squares(y - X %*% CVXR::vec(betamat)) / 2 ##(2 * n)
+  obj = CVXR::sum_squares(y - X %*% CVXR::vec(betamat)) / 2
   if(!refit) obj = obj + lambda * sum(abs(CVXR::vec(betamat)[v]))
 
   ## Setup the Xbeta penalty.
@@ -97,13 +65,14 @@ cvxr_lasso <- function(y, X,  lambda, Xorig=NULL,
   if(!is.null(maxdev)){
     constraints = list(CVXR::sum_entries(CVXR::square(Xorig %*% betamat[-1,]), 1) <= rep(maxdev^2, TT))
   }
+  ## Forcing some coefficients to be zero, if applicable.
   if(refit){
     sel_coef = !(sel_coef) * 1
     constraints = c(constraints,
                     CVXR::vec(betamat[-1,] * sel_coef[-1,]) == rep(0, pp*dimdat))
   }
 
-  ## Try all two CVXR solvers
+  ## Try all two CVXR solvers.
   prob <- CVXR::Problem(CVXR::Minimize(obj), constraints)
   result = NULL
   result <- tryCatch({
@@ -121,98 +90,9 @@ cvxr_lasso <- function(y, X,  lambda, Xorig=NULL,
     }, error=function(err){
       err$message = paste(err$message,
                           "\n", "Lasso solver using both ECOS and SCS has failed." ,sep="")
-      stop(err$message, fill=TRUE)
+      stop(err$message, fill = TRUE)
     })
   }
   betahat <- result$getValue(betamat)
   return(betahat)
 }
-
-
-  ## ## Solve the problem.
-  ## prob <- CVXR::Problem(CVXR::Minimize(obj), constraints)
-  ## ## browser()
-
-  ## ## Tempoarary
-  ## ## ## Cehck objective values.
-  ## ## eps.list = c(1E-10, 1E-8, 1E-7, 1E-6, 1E-5, seq(from=1E-3, to=1E-2, length=5))
-  ## ## reslist = lapply(eps.list, function(eps){
-  ## ##   print(eps)
-  ## ##   start.time = Sys.time()
-  ## ##   set.seed(0)
-  ## ##   result <- solve(prob, solver = "SCS",
-  ## ##                    eps = eps)
-  ## ##   solution <- result$getValue(betamat)
-  ## ##   objective_value = result$value
-  ## ##   lapse.time = round(difftime(Sys.time(), start.time,
-  ## ##                              units = "secs"), 2)
-  ## ##   return(list(lapse.time = lapse.time,
-  ## ##               objective_value = objective_value,
-  ## ##               solution = solution))
-  ## ## })
-
-  ## ## eps.list = c(1E-10, 1E-8, 1E-7, 1E-6, 1E-5, seq(from=1E-3, to=1E-2, length=5))
-  ## ## reslist_ecos = lapply(eps.list, function(eps){
-  ## ##   print(eps)
-  ## ##   start.time = Sys.time()
-  ## ##   set.seed(0)
-  ## ##   result <- solve(prob, solver="ECOS",
-  ## ##                   FEASTOL = eps, RELTOL = eps, ABSTOL = eps)
-  ## ##   solution <- result$getValue(betamat)
-  ## ##   objective_value = result$value
-  ## ##   lapse.time = round(difftime(Sys.time(), start.time,
-  ## ##                              units = "secs"), 2)
-  ## ##   return(list(lapse.time = lapse.time,
-  ## ##               objective_value = objective_value,
-  ## ##               solution = solution))
-  ## ## })
-
-  ## ## pdf("~/Desktop/ecos-by-tolerance.pdf", width=12, height=4)
-  ## ## par(mfrow=c(1,3))
-
-  ## ## lapsetimes = sapply(reslist_ecos, function(a) a$lapse.time)
-  ## ## plot(y = lapsetimes, x = eps.list, type='o', ylim = c(0, max(lapsetimes)), main="Solve times (sec)", lwd=2, log="x", xlab = "Convergence tolerance for ECOS solver")
-  ## ## abline(h=0, lwd=2, col='grey')
-  ## ## abline(v=1E-8, log="x", col='pink')
-
-  ## ## objectives = sapply(reslist_ecos, function(a) a$objective_value)
-  ## ## plot(y = objectives, x = eps.list, type='o',
-  ## ##      main="Objective value (minimization)", lwd=2, log="x",xlab = "Convergence tolerance for ECOS solver")
-  ## ## abline(v=1E-8, log="x", col='pink')
-
-  ## ## matplot(y = sapply(2:20, function(ii)(sapply(reslist_ecos, function(a) a$solution[ii, 2]))),
-  ## ##         x = eps.list,
-  ## ##         type='o', pch=16, lty=1, lwd=2, log="x", xlab = "Convergence tolerance for ECOS solver",
-  ## ##         main = "Some fitted coefficient values",
-  ## ##         ylab = "Values")
-  ## ## abline(v=1E-8, log="x", col='pink')
-  ## ## graphics.off()
-
-
-  ## ## ## reslist = reslist2
-  ## ## ## eps.list0 = c(eps.list[1:4], eps.list2[-1])
-  ## ## ## reslist0 = c(reslist[1:4], reslist2[-1])
-  ## ## pdf("~/Desktop/scs-by-tolerance.pdf", width=12, height=4)
-  ## ## par(mfrow=c(1,3))
-
-  ## ## lapsetimes = sapply(reslist, function(a) a$lapse.time)
-  ## ## plot(y = lapsetimes, x = eps.list, type='o', ylim = c(0, max(lapsetimes)), main="Solve times (sec)", lwd=2, log="x", xlab = "Convergence tolerance for SCS solver")
-  ## ## abline(h=0, lwd=2, col='grey')
-  ## ## abline(v=1E-5, log="x", col='pink')
-
-  ## ## objectives = sapply(reslist, function(a) a$objective_value)
-  ## ## plot(y = objectives, x = eps.list, type='o',
-  ## ##      main="Objective value (minimization)", lwd=2, log="x",xlab = "Convergence tolerance for SCS solver")
-  ## ## abline(v=1E-5, log="x", col='pink')
-
-  ## ## matplot(y = sapply(2:20, function(ii)(sapply(reslist, function(a) a$solution[ii, 2]))),
-  ## ##         x = eps.list,
-  ## ##         type='o', pch=16, lty=1, lwd=2, log="x", xlab = "Convergence tolerance for SCS solver",
-  ## ##         main = "Some fitted coefficient values",
-  ## ##         ylab = "Values")
-  ## ## abline(v=1E-5, log="x", col='pink')
-  ## ## graphics.off()
-
-  ## ## End of tempoarary
-  ## result <- solve(prob, solver="ECOS",
-  ##                 FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)

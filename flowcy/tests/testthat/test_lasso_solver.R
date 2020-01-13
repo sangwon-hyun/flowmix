@@ -1,129 +1,23 @@
-context("Test internal sparse lasso regression solver.")
+context("Test internal CVXR sparse lasso regression solver function.")
 
-## Test for lasso and cvx lasso
-test_that("Lasso solver helpers work as expected.", {
-
-  ## Lasso objective function
-  lasso_objective <- function(beta, x, y, lambda, exclude.from.penalty=NULL) {
-
-    n <- nrow(x)
-    p <- ncol(x)
-    if(is.null(exclude.from.penalty)){
-      v = 1:p
-    } else {
-      assert_that(all(exclude.from.penalty %in% (1:p)))
-      v = (1:p)[-exclude.from.penalty]
-    }
-    sumsq = function(a){sum(a*a)}
-    obj <- sumsq(y - x %*% beta) / (2 * n) + lambda * sum(abs(beta[v]))
-    return(obj)
-  }
-
-
-
-  ## Check match between our internal solver (glmnet_lasso) and cvx_lasso,
-  ## which are solving the no-intercept problem free of any scale problems.
-
-  n <- 100
-  p <- 20
-  for(seed in c(1,2,3)){
-    for(lambda in c(0.01, 0.02, 0.03)){
-
-      ## seed=1
-      ## lambda=0.01
+test_that("CVXR solver is solving the correct problem.", {
 
       ## Generate data
+      seed = 1
       set.seed(seed)
-      x <- matrix(rnorm(n*p),n,p)
+      lambda = 0.01
+      x <- matrix(rnorm(n * p), n, p)
       y <- runif(n)
-      xa = cbind(1,x)
+      xa = cbind(1, x)
 
       ## No-intercept version is in agreement with CVX.
-      res1 = cvxr_lasso(y, x, lambda)
-      res2 = glmnet::glmnet(y=y, x=x, lambda=lambda, intercept=FALSE, standardize=FALSE)
-      res3 = solve_lasso(y=y, x=x, lambda=lambda, intercept=FALSE)
-      mat = cbind(cvx=res1, glmnet=as.numeric(coef(res2)[-1]),
-                  wrapper=c(res3$b0, res3$b))
-      ## print(round(mat,4))
+      res1 = cvxr_lasso(y, x, lambda, dimdat=1)
+      res2 = glmnet::glmnet(y = y, x = x, lambda=lambda / n, intercept=FALSE, standardize=FALSE)
+      mat = cbind(cvx = res1,
+                  glmnet = as.numeric(coef(res2)[-1]))
       testthat::expect_true(max(abs(mat[,1] - mat[,2])) < 1E-4)
-      testthat::expect_true(max(abs(mat[,2] - mat[,3])) < 1E-4)
 
-      ## Intercept version is in overall agreement with CVX.
-      res1 = cvxr_lasso(y, xa, lambda, exclude.from.penalty=1)
-      res2 = glmnet::glmnet(y=y, x=x, lambda=lambda, intercept=TRUE, standardize=FALSE)
-      res3 = solve_lasso(y=y, x=x, lambda=lambda, intercept=TRUE)
-      mat = cbind(cvxr=res1, glmnet=as.numeric(coef(res2)), wrapper=c(res3$b0, res3$b))
-      ## print(round(mat,4))
-      testthat::expect_true(max(abs(mat[,1] - mat[,2])) < 1E-4)
-      testthat::expect_true(max(abs(mat[,2] - mat[,3])) < 1E-4)
+      ## In sum: we can use the glmnet with lambda/n to solve /our/ desired
+      ## problem with lambda.
 
-      ## What if we asked for intercept?
-      ex = c(1,3,5)
-      res1 = cvxr_lasso(y, x, lambda, ex)
-      res2 = solve_lasso(y=y, x=x, lambda=lambda, intercept=FALSE,
-                         exclude.from.penalty=ex)
-      mat = cbind(cvx=as.numeric(res1),
-                  wrapper=c(res2$b))
-      ## print(round(mat,4))
-      testthat::expect_true(max(abs(mat[,1] - mat[,2])) < 1E-2)
-      obj1 = lasso_objective(mat[,1], x, y, lambda, exclude.from.penalty=ex)
-      obj2 = lasso_objective(mat[,2], x, y, lambda, exclude.from.penalty=ex)
-      ## print(abs(obj1 - obj2)/obj1)
-      stopifnot(abs(obj1 - obj2)/obj1 < 1E-5)
-    }
-  }
-
-  ## Generate data once more
-  set.seed(1234)
-  n <- 100
-  p <- 20
-  x <- matrix(rnorm(n*p),n,p)
-  y <- runif(n)
-
-  ## Variable to exclude
-  ex = c(1,3,5,8,12,14)
-  pen = rep(1, p)
-  pen[ex] = 0
-  pen = pen / sum(pen) * (p)
-
-  ## Test across a range of lambdas (res3 is using a wrong, unadjusted lambda)
-  lambdas=seq(from=0.01,to=0.1, length=100)
-  matlist = objlist = list()
-  for(ii in 1:100){
-    lambda = lambdas[ii]
-    res1 = cvxr_lasso(y, x, lambda, ex)
-    lam = lambda / pen[2]
-    res2 = solve_lasso(y, x, lambda, FALSE, ex)
-    ## res2 = glmnet::glmnet(y=y, x=x, lambda=lam, intercept=FALSE,
-    ##               penalty.factor=pen, thresh=1E-30)
-    ## res3 = glmnet::glmnet(y=y, x=x, lambda=lambda, intercept=FALSE, penalty.factor=pen, thresh=1E-30)
-
-    mat = cbind(cvx=as.numeric(res1),
-                wrapper=res2$b)
-              ##   glmnet=as.numeric(coef(res2)[-1]),
-              ## glmnet2=as.numeric(coef(res3)[-1]))
-
-    obj1 = lasso_objective(mat[,1], x, y, lambda, exclude.from.penalty=ex)
-    obj2 = lasso_objective(mat[,2], x, y, lambda, exclude.from.penalty=ex)
-    ## obj3 = lasso_objective(mat[,3], x, y, lambda, exclude.from.penalty=ex)
-
-    matlist[[ii]] = mat
-    objlist[[ii]] = c(obj1, obj2)##, obj3)
-  }
-
-  ## Objectives should match very well
-  objmat = do.call(rbind, objlist)
-  expect_true(max(abs(objmat[,2]-objmat[,1]))<1E-4)
-
-  ## Fitted values should also match very well
-  errs12 = errs13 = c()
-  for(ii in 1:100){
-    mat = matlist[[ii]]
-    testthat::expect_true(max(abs(mat[,1] - mat[,2])) < 1E-2)
-    errs12[ii] = max(abs(mat[,1] - mat[,2]))
-    ## errs13[ii] = max(abs(mat[,1] - mat[,3]))
-  }
-  expect_true(max(errs12) < 1E-2) ## errs13 should be a good deal higher than
-                                  ## errs12, giving weight to using sqrt(lam)
 })
-

@@ -181,29 +181,12 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma,
 
     ## Give the glmnet function pre-calculated Y's and X's.
     if(is.null(maxdev) & !refit){
-      ## if(refit) stop("NOT WRITTEN YET") ## Remove when done writing this
       res =  solve_lasso(x = Xtildes[[iclust]], y = yvecs[[iclust]], lambda = mean_lambda,
                          intercept = FALSE,
                          exclude.from.penalty = exclude.from.penalty)
       ## Unravel to obtain the coef and fitted response
       betahat = matrix(res$b, ncol=dimdat)
     } else {
-
-      ## ## TEMPORARY
-      ## ## First do glmnet.
-      ##   res =  solve_lasso(x = Xtildes[[iclust]], y = yvecs[[iclust]], lambda = mean_lambda,
-      ##                      intercept = FALSE,
-      ##                      exclude.from.penalty = exclude.from.penalty)
-
-      ## ## Unravel to obtain the coef and fitted response
-      ## betahat = matrix(res$b, ncol=dimdat)
-      ## slack = 1E-5 ## Just in case
-      ## xb = sqrt(rowSums((X %*% betahat[-1,])^2))
-
-      ## if(any(xb > maxdev + slack)){
-      ##   print("using CVXR")
-
-        ## If applicable, restrict the fitted means to be close to \beta0k.
       betahat = cvxr_lasso(X = Xtildes[[iclust]],
                            Xorig = X,
                            y = yvecs[[iclust]],
@@ -217,15 +200,12 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma,
                            ecos_thresh = cvxr_ecos_thresh, ## Temporary
                            scs_eps = cvxr_scs_eps ## Temporary
                            )
-      ## browser()
       betahat[which(abs(betahat) < zerothresh, arr.ind = TRUE)] = 0
 
-      ## Temporary
+      ## ## Double checking
       ## xb = sqrt(rowSums((X %*% betahat[-1,])^2))
-      ## slack = 1E-5
+      ## slack = 1E-2
       ## assert_that(max(xb) <= 0.5 + slack)
-      ## print(max(xb))## <= 0.5)
-      ## End of Temporary
 
     }
     yhat = Xa %*% betahat

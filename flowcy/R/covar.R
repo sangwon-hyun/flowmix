@@ -115,7 +115,6 @@ covarem_once <- function(ylist, X,
     alpha = res.alpha$alpha
     rm(res.alpha)
 
-
     ## print(iter)
     ## if(iter==3){
     ##   save(resp, ylist, X, sigma, numclust, maxdev, sigma_eig_by_clust,
@@ -147,21 +146,6 @@ covarem_once <- function(ylist, X,
                             cvxr_scs_eps = mstep_cvxr_scs_eps,
                             zerothresh = zerothresh)
     }
-
-
-    ## ## Temporary
-    ## plot(y=res.beta.admm$mn, x=res.beta$mn,
-    ##      main = paste0("ADMM vs CVXR fitted means after ", iter, " EM iterations"),
-    ##      ylab = "ADMM",
-    ##      xlab = "CVXR", type='p', pch=16)
-    ## abline(0,1)
-
-    ## plot(y=unlist(res.beta.admm$beta), x=unlist(res.beta$beta),
-    ##      main=paste0("ADMM vs CVXR fitted coefficients after ", iter, " EM iterations"),
-    ##      ylab = "ADMM",
-    ##      xlab = "CVXR", type='p', pch=16)
-    ## abline(0,1)
-    ## ## end of temporary
 
     mn = res.beta$mns
     beta = res.beta$beta
