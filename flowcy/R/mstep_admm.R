@@ -16,7 +16,7 @@ Mstep_beta_admm <- function(resp,
                             sigma_eig_by_clust,
                             first_iter,
                             maxdev = NULL,
-                            niter = 10000,
+                            niter = 1E4,
                             rho = 100, ## Some default
                             err_rel = 1E-3,
                             converge_fast = TRUE, ## temporary
@@ -43,7 +43,7 @@ Mstep_beta_admm <- function(resp,
   ## Run ADMM separately on each cluster ##
   #########################################
   betas = yhats = ws = Zs = Uzs = uws = vector(length = numclust, mode = "list")
-  fits = matrix(0, ncol = numclust, nrow = niter)
+  fits = matrix(NA, ncol = numclust, nrow = ceiling(niter/20))
 
 
   ## Prepare a few objects for converge()
@@ -137,11 +137,20 @@ Mstep_beta_admm <- function(resp,
       ## 3. Calculate objective values for this cluster.
       w_prev = w
       Z_prev = Z
-      ## if(iter %% 20 == 0){
-      ##   fits[iter, iclust] = objective_per_cluster(beta, ylist, Xa, resp, lambda,
-      ##                                                                dimdat, iclust, sigma, iter)
-      ## }
+      if(iter %% 20 == 0 & !first_iter){
+        ii = iter / 20
+        fits[ii, iclust] = objective_per_cluster(beta, ylist, Xa, resp, lambda,
+                                                 dimdat, iclust, sigma, iter,
+                                                 first_iter, sigma_eig_by_clust)
+      ##   par(mfrow=c(1,5))
+      ##   plot(fits[,iclust], type = 'o', main = paste("cluster", iclust))
+      ##   plot(resid_mat[,1], type = 'o', main = paste("cluster", iclust))
+      ##   plot(resid_mat[,2], type = 'o', main = paste("cluster", iclust))
+      ##   plot(resid_mat[,3], type = 'o', main = paste("cluster", iclust))
+      ##   plot(resid_mat[,4], type = 'o', main = paste("cluster", iclust))
+      }
     }
+    cat(fill=TRUE)
 
     ## Temporary: numerical thresholding
     beta[-1,] = w

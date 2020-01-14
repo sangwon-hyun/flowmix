@@ -90,44 +90,41 @@ converge <- function(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX, Xbeta1,
 ##' because it is super inefficient right now.
 ##' @param beta p x d matrix
 objective_per_cluster <- function(beta, ylist, Xa, resp, lambda, dimdat, iclust, sigma, iter,
-                                  sigma_eig_by_clust=NULL){
+                                  first_iter, sigma_eig_by_clust=NULL, mc.cores = 1){
 
   ## Setup
   TT = length(ylist)
   p = ncol(Xa) - 1
-  mn = Xa %*% beta## matrix(b, nrow = p+1, ncol = dimdat) ## This is a (TT x dimdat)
-  ## wt_resid_list = mclapply(1:TT, function(tt){
-  inv.sigma = solve(sigma[iclust,,])
+  mn = Xa %*% beta
 
-  ## Calculate the objective value at all times.
-  terms = mclapply(1:TT, function(tt){
+  ## Obtain square root of sigma.
+  if(first_iter){
+    sigma_half <- sigma_half_from_eig(eigendecomp_sigma_barebones(sigma))
+  } else {
+    sigma_eig <- sigma_eig_by_clust[[iclust]]
+    sigma_half <- sigma_eig$inverse_sigma_half
+  }
+
+  ## Obtain the weighted residuals once.
+  wt_resids_list = mclapply(1:TT, function(tt){
     y = ylist[[tt]]
     mumat = matrix(mn[tt,],
                    ncol = ncol(y),
                    nrow = nrow(y),
                    byrow = TRUE)
     wt_resid = sqrt(resp[[tt]][, iclust]) * (y - mumat)
-    sums = sum(unlist(lapply(1:nrow(y), function(irow){
-      t(wt_resid[irow,]) %*% inv.sigma %*% (wt_resid[irow,])
-    })))
+  })
 
-    ## Check if this is the same as the above
-    browser()
-    myinv_half <- sigma_eig$inverse_sigma_half
-    transformed_resids = wt_resids %*% myinv_half
-    sums2 = sum(transformed_resids * transformed_resids)
-    stopifnot(max(abs(sums - sums2)) < 1E-8)
+  ## Calculate the inner product resid * sigma^-1 * t(resid)
+  transformed_resids = do.call(rbind, wt_resids_list) %*% sigma_half
+  resid.prods = rowSums(transformed_resids * transformed_resids)
+  grand.sum = sum(resid.prods)
 
-    return(sums)
-  }, mc.cores = 8)
-  all.terms = sum(unlist(terms))
+  ## Calculate the objective value
   tol = 1E-8
-  obj = (1/2) * sum(unlist(all.terms)) + lambda * sum(abs(beta) > tol)
+  obj = (1/2) * grand.sum + lambda * sum(abs(beta) > tol)
   return(obj)
 }
-
-
-
 
 
 ##' Calculate a specific least squares problem \min_b \|c-Db\|^2.
@@ -135,7 +132,7 @@ b_update  <- function(wvec, uw, Z, Uz, rho, yvec, D, DtDinv){
 
   cvec = c(sqrt(1/2) * yvec,
            sqrt(rho/2) * (wvec - uw/rho),
-           sqrt(rho/2) * as.numeric(t(Z) - t(Uz)/rho))
+           sqrt(rho/2) * as.numeric(t(Z - Uz/rho)))
   sol = DtDinv %*% crossprod(D, cvec)
   return(sol)
 }
