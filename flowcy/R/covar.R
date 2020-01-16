@@ -55,21 +55,26 @@ covarem_once <- function(ylist, X,
                          countslist_overwrite = NULL,
                          ## ridge = FALSE,
                          ## ridge_lambda = 0
-                         plot=FALSE,
+                         plot = FALSE,
                          plotdir = "~/Desktop",
                          init_mn_flatten = FALSE,
                          ## beta Mstep (CVXR) settings
                          mstep_cvxr_ecos_thresh = 1E-8,
                          mstep_cvxr_scs_eps = 1E-5,
-                         zerothresh = 1E-8,
+                         zerothresh = 1E-6,
                          ## beta Mstep (ADMM) settings
                          admm = TRUE,
-                         admm_rho = 100,
-                         admm_err_rel = 1E-4
+                         admm_rho = 10,
+                         admm_err_rel = 1E-3,
+                         admm_niter =  1E4,
+                         admm_local_adapt = FALSE,
+                         admm_local_adapt_niter = 5
                          ){## Basic checks
+
   if(!is.null(maxdev)){ assert_that(maxdev!=0) } ## Preventing the maxdev=FALSE mistake.
   ## assert_that(!(is.data.frame(ylist[[1]])))
-  assert_that(sum(is.na(X))==0)
+  assert_that(sum(is.na(X)) == 0)
+  assert_that(length(ylist) == nrow(X))
 
 
   ## Setup.
@@ -116,9 +121,10 @@ covarem_once <- function(ylist, X,
     rm(res.alpha)
 
     ## print(iter)
-    ## if(iter==3){
+    ## if(iter==2){
     ##   save(resp, ylist, X, sigma, numclust, maxdev, sigma_eig_by_clust,
-    ##        file = file.path("~/Desktop/test-admm-large-T-numclust-10.Rdata"))
+    ##        ## file = file.path("~/Desktop/test-admm-large-T-numclust-10.Rdata"))
+    ##        file = file.path("~/Desktop/test-admm-highdim.Rdata"))
     ##   return()
     ## }
     ## load(file.path("~/Desktop/test-admm.Rdata"))
@@ -130,7 +136,9 @@ covarem_once <- function(ylist, X,
                                  first_iter = (iter == 2),
                                  sigma_eig_by_clust = sigma_eig_by_clust,
                                  sigma = sigma, maxdev = maxdev, rho = admm_rho,
-                                 err_rel = admm_err_rel)
+                                 err_rel = admm_err_rel,
+                                 niter = admm_niter,
+                                 local_adapt = admm_local_adapt)
     } else {
       res.beta = Mstep_beta(resp, ylist, X,
                             mean_lambda = mean_lambda,

@@ -89,7 +89,7 @@ converge <- function(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX, Xbeta1,
 ##' (Helper) calculates the per-cluster objective value for the ADMM. INCOMPLETE
 ##' because it is super inefficient right now.
 ##' @param beta p x d matrix
-objective_per_cluster <- function(beta, ylist, Xa, resp, lambda, dimdat, iclust, sigma, iter,
+objective_per_cluster <- function(beta, ylist, Xa, resp, lambda, dimdat, iclust, sigma, iter, zerothresh,
                                   first_iter, sigma_eig_by_clust=NULL, mc.cores = 1){
 
   ## Setup
@@ -115,14 +115,13 @@ objective_per_cluster <- function(beta, ylist, Xa, resp, lambda, dimdat, iclust,
     wt_resid = sqrt(resp[[tt]][, iclust]) * (y - mumat)
   })
 
-  ## Calculate the inner product resid * sigma^-1 * t(resid)
+  ## Calculate the inner product: resid * sigma^-1 * t(resid)
   transformed_resids = do.call(rbind, wt_resids_list) %*% sigma_half
   resid.prods = rowSums(transformed_resids * transformed_resids)
   grand.sum = sum(resid.prods)
 
   ## Calculate the objective value
-  tol = 1E-8
-  obj = (1/2) * grand.sum + lambda * sum(abs(beta) > tol)
+  obj = (1/2) * grand.sum + lambda * sum(abs(beta) > zerothresh)
   return(obj)
 }
 
