@@ -66,7 +66,7 @@ covarem_once <- function(ylist, X,
                          admm = TRUE,
                          admm_rho = 10,
                          admm_err_rel = 1E-3,
-                         admm_niter =  1E4,
+                         admm_niter = (if(admm_local_adapt)3E2 else 1E4),
                          admm_local_adapt = FALSE,
                          admm_local_adapt_niter = 5
                          ){## Basic checks
