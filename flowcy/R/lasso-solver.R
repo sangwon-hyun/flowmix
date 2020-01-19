@@ -35,7 +35,8 @@ cvxr_lasso <- function(y, X,  lambda, Xorig=NULL,
                        refit = FALSE,
                        sel_coef = NULL,
                        ecos_thresh = 1E-8,
-                       scs_eps = 1E-5
+                       scs_eps = 1E-5,
+                       iclust ##temporary
                        ){
 
   ## Define dimensions
@@ -84,14 +85,21 @@ cvxr_lasso <- function(y, X,  lambda, Xorig=NULL,
     cat(err$message, fill=TRUE)
     return(NULL)
   })
+
+  ## If anything is wrong, flag to use SCS solver
+  scs = FALSE
   if(is.null(result)){
-    result <- tryCatch({
-      solve(prob, solver="SCS", eps = scs_eps)
-    }, error=function(err){
-      err$message = paste(err$message,
-                          "\n", "Lasso solver using both ECOS and SCS has failed." ,sep="")
-      stop(err$message, fill = TRUE)
-    })
+    scs = TRUE
+  } else {
+    if(result$status != "optimal") scs = TRUE
+  }
+
+  ## Use the SCS solver
+  if(scs){
+    result = solve(prob, solver="SCS", eps = scs_eps)
+    if(any(is.na(result$getValue(betamat)))){ ## A clumsy way to check.
+      stop("Lasso solver using both ECOS and SCS has failed.", sep="")
+    }
   }
   betahat <- result$getValue(betamat)
   return(betahat)

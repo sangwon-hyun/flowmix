@@ -66,9 +66,10 @@ covarem_once <- function(ylist, X,
                          admm = TRUE,
                          admm_rho = 10,
                          admm_err_rel = 1E-3,
-                         admm_niter = (if(admm_local_adapt)3E2 else 1E4),
-                         admm_local_adapt = FALSE,
-                         admm_local_adapt_niter = 5
+                         ## beta M step (Locally Adaptive ADMM) settings
+                         admm_local_adapt = TRUE,
+                         admm_local_adapt_niter = 5,
+                         admm_niter = (if(admm_local_adapt)3E2 else 1E4)
                          ){## Basic checks
 
   if(!is.null(maxdev)){ assert_that(maxdev!=0) } ## Preventing the maxdev=FALSE mistake.

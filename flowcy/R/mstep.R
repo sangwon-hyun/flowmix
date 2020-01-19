@@ -179,35 +179,26 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma,
   ## Obtain fitted beta, separately by cluster.
   results = lapply(1:numclust, function(iclust){
 
-    ## Give the glmnet function pre-calculated Y's and X's.
-    if(is.null(maxdev) & !refit){
-      res =  solve_lasso(x = Xtildes[[iclust]], y = yvecs[[iclust]], lambda = mean_lambda,
-                         intercept = FALSE,
-                         exclude.from.penalty = exclude.from.penalty)
-      ## Unravel to obtain the coef and fitted response
-      betahat = matrix(res$b, ncol=dimdat)
-    } else {
-      betahat = cvxr_lasso(X = Xtildes[[iclust]],
-                           Xorig = X,
-                           y = yvecs[[iclust]],
-                           lambda = mean_lambda,
-                           exclude.from.penalty = exclude.from.penalty,
-                           maxdev = maxdev,
-                           dimdat = dimdat,
-                           numclust = numclust,
-                           refit = refit,
-                           sel_coef = sel_coef$beta[[iclust]],
-                           ecos_thresh = cvxr_ecos_thresh, ## Temporary
-                           scs_eps = cvxr_scs_eps ## Temporary
-                           )
-      betahat[which(abs(betahat) < zerothresh, arr.ind = TRUE)] = 0
+    betahat = cvxr_lasso(X = Xtildes[[iclust]],
+                         Xorig = X,
+                         y = yvecs[[iclust]],
+                         lambda = mean_lambda,
+                         exclude.from.penalty = exclude.from.penalty,
+                         maxdev = maxdev,
+                         dimdat = dimdat,
+                         numclust = numclust,
+                         refit = refit,
+                         sel_coef = sel_coef$beta[[iclust]],
+                         ecos_thresh = cvxr_ecos_thresh,
+                         scs_eps = cvxr_scs_eps,
+                         iclust = iclust)## temporary
+    betahat[which(abs(betahat) < zerothresh, arr.ind = TRUE)] = 0
 
-      ## ## Double checking
-      ## xb = sqrt(rowSums((X %*% betahat[-1,])^2))
-      ## slack = 1E-2
-      ## assert_that(max(xb) <= 0.5 + slack)
+    ## ## Double checking
+    ## xb = sqrt(rowSums((X %*% betahat[-1,])^2))
+    ## slack = 1E-2
+    ## assert_that(max(xb) <= 0.5 + slack)
 
-    }
     yhat = Xa %*% betahat
     assert_that(all(dim(betahat) == c(p+1,dimdat)))
     return(list(betahat = betahat, yhat = yhat))
