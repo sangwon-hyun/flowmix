@@ -173,13 +173,23 @@ get_max_lambda <- function(ylist, X, numclust, maxfac=32, ...){
 
 
 
-##' Estimate maximum lambda values.
+##' Estimate maximum lambda values by brute force.  First starts with a large
+##' initial value \code{max_lambda_beta} and \code{max_lambda_alpha}, and runs
+##' the EM algorithm on decreasing grid of values. Either stop once you see any
+##' non-zero coefficients, or run algorithms on the entire grid (Set
+##' \code{parallelize=TRUE} and provide a \code{cl} object) and filter this grid
+##' (large factor to small), in order to return the *smallest* regularization
+##' (lambda) value pair that gives full sparsity.
+##'
 ##' @param ylist List of responses.
 ##' @param X Covariates.
 ##' @param numclust Number of clusters.
 ##' @param max_lambda_beta Defaults to 4000.
 ##' @param max_lambda_beta Defaults to 1000.
 ##' @param iimax Maximum value of x for 2^{-x} factors to try.
+##' @param parallelize TRUE if jobs are to be run in parallel.
+##' @param zero_stabilize Defaults to TRUE, in which case the EM is only run
+##'   until the zero pattern in the coefficients stabilize.
 ##' @param ... Other arguments to \code{covarem_once()}.
 ##' @return list containing the two maximum values to use.
 ##' @examples
@@ -227,6 +237,7 @@ get_max_lambda_new <- function(ylist, countslist = NULL, X, numclust,
                                iimax = 16,
                                parallelize = FALSE,
                                cl = NULL,
+                               zero_stabilize = TRUE, ## temporary
                                ...){
 
   ## Get range of regularization parameters.
@@ -235,7 +246,6 @@ get_max_lambda_new <- function(ylist, countslist = NULL, X, numclust,
   ## ################################
   ## ## First option: mclapply() ####
   ## ################################
-  ## if(is.null(mc.cores)) mc.cores=iimax
   mc.cores = 1
   facs = sapply(1:iimax, function(ii) 2^(-ii)) ## DECREASING order
   print("running the models once")
@@ -249,21 +259,31 @@ get_max_lambda_new <- function(ylist, countslist = NULL, X, numclust,
                     pie_lambda = max_lambda_alpha * facs[ii],
                     mean_lambda = max_lambda_beta * facs[ii],
                     verbose=TRUE,
+                    zero_stabilize = zero_stabilize, ## temporary
                     ...)
 
       ## Check zero-ness
-      toler = 0##1E-8
+      toler = 0
       sum_nonzero_alpha = sum(res$alpha[,-1] > toler)
       sum_nonzero_beta = sum(unlist(lapply(res$beta, function(cf){ sum(cf[-1,] > toler) })))
 
-      ## These will be T followed by F, like: TRUE TRUE FALSE FALSE FALSE
+
+      ## If there are *any* nonzero values, do one of the following
       if(sum_nonzero_alpha + sum_nonzero_beta != 0){
+
+
+        ## If there are *any* nonzero values at the first iter, prompt a restart
+        ## with higher initial lambda values.
         if(ii==1){
-        stop(paste0("Max lambdas: ", max_lambda_beta, " and ", max_lambda_alpha,
-                  " were too small as maximum reg. values. Go up and try again!!"))
+          stop(paste0("Max lambdas: ", max_lambda_beta, " and ",
+                      max_lambda_alpha,
+                      " were too small as maximum reg. values. Go up and try again!!"))
+
+
+        ## If there are *any* nonzero values, return the immediately preceding
+        ## lambda values -- these were the smallest values we had found that gives full sparsity.
         } else {
-          myfac = facs[ii-1]
-          return(list(beta = max_lambda_beta * myfac, alpha = max_lambda_alpha * myfac))
+          return(list(beta = max_lambda_beta * facs[ii-1], alpha = max_lambda_alpha *facs[ii-1]))
         }
       }
     }
@@ -282,9 +302,9 @@ get_max_lambda_new <- function(ylist, countslist = NULL, X, numclust,
       return(res[c("alpha", "beta", "mean_lambda", "pie_lambda")])
     })
 
-    ## Then, filter the grid for the number of zeros.
+    ## Then, filter the grid (large factor to small), to return the smallest
+    ## regularization value pair that gives full sparsity.
     print("filtering the results")
-    toler = 1E-8
     allzero = rep(NA, iimax)
     for(ii in 1:iimax){
       sum_nonzero_alpha = sum(reslist[[ii]]$alpha[,-1] > toler)

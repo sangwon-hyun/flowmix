@@ -53,6 +53,7 @@ covarem_once <- function(ylist, X,
                          manual.bin = FALSE,
                          manual.grid = NULL,
                          countslist_overwrite = NULL,
+                         zero_stabilize  = FALSE,
                          ## ridge = FALSE,
                          ## ridge_lambda = 0
                          plot = FALSE,
@@ -92,6 +93,7 @@ covarem_once <- function(ylist, X,
   objectives = c(+1E20, rep(NA, niter-1))
   sigma = init_sigma(ylist, numclust, TT, fac=sigma.fac) ## (T x numclust x dimdat x dimdat)
   sigma_eig_by_clust = NULL
+  zero.betas = zero.alphas = list()
 
   ## The least elegant solution i can think of.. used for blocked cv
   if(!is.null(countslist_overwrite))countslist = countslist_overwrite
@@ -99,6 +101,9 @@ covarem_once <- function(ylist, X,
 
   start.time = Sys.time()
   for(iter in 2:niter){
+    if(verbose){
+      printprogress(iter-1, niter-1, "EM iterations.", start.time = start.time)
+    }
 
     resp <- Estep_covar(mn, sigma, pie, ylist = ylist, numclust = numclust,
                         denslist_by_clust = denslist_by_clust,
@@ -160,6 +165,19 @@ covarem_once <- function(ylist, X,
     beta = res.beta$beta
     rm(res.beta)
 
+    ## Check if the number of zeros in the alphas and betas have stabilized.
+    zero.betas[[iter]] = lapply(beta, function(mybeta) which(mybeta==0))
+    zero.alphas[[iter]] = which(alpha==0)
+    sym_diff <- function(a,b) unique(c(setdiff(a,b), setdiff(b,a)))
+    if(zero_stabilize & iter >= 10){
+      beta.sym.diffs = Map(sym_diff, zero.betas[[iter]], zero.betas[[iter-1]])
+      sym_diff(zero.betas[[iter]][[3]], zero.betas[[iter-1]][[3]])
+      num.beta.sym.diffs = sapply(beta.sym.diffs, length)
+      zero.beta.stable = all(num.beta.sym.diffs <= 1)
+      zero.alpha.stable = (length(sym_diff(zero.alphas[[iter]], zero.alphas[[iter-1]])) <= 1)
+      if(zero.alpha.stable & zero.beta.stable) break
+    }
+
     ## 3. Sigma
     sigma = Mstep_sigma_covar(resp,
                               ylist,
@@ -183,12 +201,12 @@ covarem_once <- function(ylist, X,
                                              countslist = countslist)
 
     ## Temporary print message, to see sparsity.
-    ## print('beta')
-    ## for( b in beta){
-    ##   cat(sum(b[-1,]!=0), "out of", length(b[-1,]), fill=TRUE)
-    ## }
-    ## print('alpha')
-    ## cat(sum(alpha[,-1]!=0), "out of", length(alpha[,-1]), fill=TRUE)
+    print('beta')
+    for( b in beta){
+      cat(sum(b[-1,]!=0), "out of", length(b[-1,]), fill=TRUE)
+    }
+    print('alpha')
+    cat(sum(alpha[,-1]!=0), "out of", length(alpha[,-1]), fill=TRUE)
 
     ## print(gc())
 
@@ -199,11 +217,6 @@ covarem_once <- function(ylist, X,
       plot_iter(ylist, countslist, iter, tt=1, TT, mn, sigma, pie, objectives,
                 saveplot = TRUE,
                 plotdir = plotdir)
-    }
-
-    ## Run times
-    if(verbose){
-      printprogress(iter-1, niter-1, "EM iterations.", start.time = start.time)
     }
 
     ## Check convergence
