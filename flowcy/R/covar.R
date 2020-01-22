@@ -169,7 +169,7 @@ covarem_once <- function(ylist, X,
     zero.betas[[iter]] = lapply(beta, function(mybeta) which(mybeta==0))
     zero.alphas[[iter]] = which(alpha==0)
     sym_diff <- function(a,b) unique(c(setdiff(a,b), setdiff(b,a)))
-    if(zero_stabilize & iter >= 10){
+    if(zero_stabilize & iter >= 5){ ## If 5 is to low, try 10 instead of 5.
       beta.sym.diffs = Map(sym_diff, zero.betas[[iter]], zero.betas[[iter-1]])
       sym_diff(zero.betas[[iter]][[3]], zero.betas[[iter-1]][[3]])
       num.beta.sym.diffs = sapply(beta.sym.diffs, length)
