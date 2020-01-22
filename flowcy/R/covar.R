@@ -36,6 +36,7 @@ covarem <- function(..., nrep = 5){
 ##' @param sel_coef (Experimental feature) Boolean matrices of the same
 ##'   structure as beta and alpha, whose TRUE entries are the active
 ##'   coefficients to be refitted in a nonregularized way.
+##' @param tol_em Relative tolerance for EM convergence.
 ##' @return List containing fitted parameters and means and mixture weights,
 ##'   across algorithm iterations. beta is a (p+1 x 3 x dimdat) array. Alpha is
 ##'   a (dimdat x (p+1)) array.
@@ -46,7 +47,7 @@ covarem_once <- function(ylist, X,
                          numclust, niter = 1000,
                          mn = NULL, pie_lambda = 0,
                          mean_lambda = 0, verbose = FALSE,
-                         sigma.fac = 1, tol = 1E-5,
+                         sigma.fac = 1, tol_em = 1E-5,
                          refit = FALSE, ## EXPERIMENTAL FEATURE.
                          sel_coef = NULL,
                          maxdev = NULL,
@@ -170,6 +171,17 @@ covarem_once <- function(ylist, X,
     zero.alphas[[iter]] = which(alpha==0)
     sym_diff <- function(a,b) unique(c(setdiff(a,b), setdiff(b,a)))
     if(zero_stabilize & iter >= 5){ ## If 5 is to low, try 10 instead of 5.
+
+      ## Temporary print message, to see sparsity.
+      cat(fill = TRUE)
+      print('beta')
+      for( b in beta){
+        cat(sum(b[-1,]!=0), "out of", length(b[-1,]), fill=TRUE)
+      }
+      print('alpha')
+      cat(sum(alpha[,-1]!=0), "out of", length(alpha[,-1]), fill=TRUE)
+      ## End of temporary
+
       beta.sym.diffs = Map(sym_diff, zero.betas[[iter]], zero.betas[[iter-1]])
       sym_diff(zero.betas[[iter]][[3]], zero.betas[[iter-1]][[3]])
       num.beta.sym.diffs = sapply(beta.sym.diffs, length)
@@ -200,14 +212,6 @@ covarem_once <- function(ylist, X,
                                              denslist_by_clust = denslist_by_clust,
                                              countslist = countslist)
 
-    ## Temporary print message, to see sparsity.
-    print('beta')
-    for( b in beta){
-      cat(sum(b[-1,]!=0), "out of", length(b[-1,]), fill=TRUE)
-    }
-    print('alpha')
-    cat(sum(alpha[,-1]!=0), "out of", length(alpha[,-1]), fill=TRUE)
-
     ## print(gc())
 
     ########################
@@ -222,7 +226,7 @@ covarem_once <- function(ylist, X,
     ## Check convergence
     if(check_converge_rel(objectives[iter-1],
                           objectives[iter],
-                          tol = tol)) break
+                          tol = tol_em)) break
   }
 
   ## Measure time
