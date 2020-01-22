@@ -258,6 +258,7 @@ get_max_lambda_new <- function(ylist, countslist = NULL, X, numclust,
                     numclust = numclust,
                     pie_lambda = max_lambda_alpha * facs[ii],
                     mean_lambda = max_lambda_beta * facs[ii],
+                    admm = TRUE, ## new
                     verbose=TRUE,
                     zero_stabilize = zero_stabilize, ## temporary
                     ...)
