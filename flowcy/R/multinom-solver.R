@@ -2,28 +2,32 @@
 ## internally in this package.
 
 ##' (DOESN'T solve right problem) Solves the l1-penalized multinom problem:
+##'
 ##' \deqn{ \frac{1}{n} \sum_{i=1}^n
-##' \sum_{k=1}^K y_{ik} (\alpha_{0k} + x_i^T \alpha_k) - (\sum{k=1^K} y_{ik}) \log \left(
-##' \sum_{l=1}^K \exp ( \alpha_{0l} + x^T \alpha_l) \right) - \lambda
-##' \sum_{l=1}^K \left(\| \alpha_l \|_1 \right)} When there is no intercept,
-##' \eqn{\alpha_{0k}} is just set to zero.
+##' \sum_{k=1}^K y_{ik} (\alpha_{0k} + x_i^T \alpha_k)
+##' - (\sum{k=1^K} y_{ik}) \log \left( \sum_{l=1}^K \exp ( \alpha_{0l} + x^T \alpha_l) \right)
+##' - \lambda \sum_{l=1}^K \left(\| \alpha_l \|_1 \right)}
+##'
+##' When there is no intercept, \eqn{\alpha_{0k}} is just set to zero.
 ##' @param y response (TT by numclust).
 ##' @param X Covariates (TT by p).
 ##' @param lambda regularization parameter for l1 penalization.
 ##' @param intercept TRUE if intercept should be included in model. Intercept is
 ##'   not regularized.
 ##' @return A (p+1) by (numclust) matrix.
-solve_multinom <- function(y, X, lambda, intercept,
+solve_multinom <- function(y, X, lambda,
                            coef_limit=NULL, ## Experimental feature
                            alpha=1, ##  temporary
                            ntlist=NULL
                            ){
   if(is.null(ntlist))ntlist=rep(1,nrow(y))
-    fit <- glmnet::glmnet(x=X,
-                          y=y,
-                          lambda=lambda,
+
+  ysums = colSums(y)
+    fit <- glmnet::glmnet(x = X,
+                          y = y/ysums,
+                          lambda = TT / sum(wts) * lambda,
                           family="multinomial",
-                          intercept=intercept,
+                          intercept=TRUE,
                           weights=ntlist ## temporary
                           ## alpha=alpha
                           ## lower.limits=min(coef_limit),## Experimental feature
@@ -33,11 +37,21 @@ solve_multinom <- function(y, X, lambda, intercept,
     return(as.matrix(do.call(cbind,coef(fit))))
 }
 
-##' (NEW! Now handles the refitting) Solves, using CVXR, the l1-penalized
-##' multinom problem: \deqn{ \frac{1}{n} \sum_{i=1}^n \sum_{k=1}^K y_{ik} (
+##' Solves, using CVXR, the l1-penalized
+##' multinom problem:
+##'
+##' \deqn{\frac{1}{n} \sum_{i=1}^n \sum_{k=1}^K y_{ik} (
 ##' x_i^T \alpha_k) - \log \left( \sum_{l=1}^K \exp ( x^T \alpha_l) \right) -
 ##' \lambda \sum_{l=1}^K \left(\| \alpha_l \|_1 \right)}
-cvxr_multinom <- function(y, X, lambda, exclude.from.penalty=NULL, sel_coef=NULL, thresh = 1E-8, eps = 1E-5){
+##'
+##' @param y Matrix valued response; each row is an observation, and each column
+##'   is a discrete outcome out of K (n x K).
+##' @param X Covariate matrix (n x p)
+##' @param lambda Regularization parameter for l1 penalized estimation.
+##' @param thresh ECOS solver threshold.
+##'
+##' @return (p x K) coefficient matrix.
+cvxr_multinom <- function(y, X, lambda, exclude.from.penalty=NULL, thresh = 1E-8){
 
   ## Setup
   numclust = ncol(y)
@@ -51,51 +65,18 @@ cvxr_multinom <- function(y, X, lambda, exclude.from.penalty=NULL, sel_coef=NULL
   alphamat <- CVXR::Variable(p, numclust)
 
   ## First component
-  ## obj1 = CVXR::matrix_trace(t(y) %*% X %*% alphamat)
   obj1 = CVXR::sum_entries(CVXR::mul_elemwise(y, (X %*% alphamat)))
 
   ## Second component
-  ## obj2 <- sum(CVXR::log_sum_exp(diag(rowSums(y)) %*%  X %*% alphamat, 1))
   obj2 <- sum((CVXR::log_sum_exp( X %*% alphamat, 1)) * rowSums(y))
 
   ## Sum them
   obj <- (obj1  - obj2)  / TT - lambda * sum(abs(alphamat[v,]))
 
-  ## For refitting without regularization; this could easily be
-  constraints = list()
-  if(!is.null(sel_coef)){
-    assert_that(lambda==0)
-    if(!all(sel_coef==1)){
-      constraints = list(alphamat[!t(sel_coef)] == 0)
-    }
-  }
   ## Solve the problem using one of two CVXR solvers.
-  prob <- CVXR::Problem(CVXR::Maximize(obj), constraints)
-  result = NULL
-  tryCatch({
-    result <- solve(prob, solver="ECOS",
-                    FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
-  }, error=function(err){
-    err$message = paste(err$message,
-                        "\n", "Multinom solver using ECOS has failed." ,sep="")
-    cat(err$message, fill=TRUE)
-    return(NULL)
-  })
-  if(is.null(result)){
-
-    tryCatch({
-      result <- solve(prob, solver="ECOS",
-                      FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
-    }, error=function(err){
-
-
-      result <- solve(prob, solver="SCS", eps = eps)
-    }, error=function(err){
-      err$message = paste(err$message,
-                          "\n", "Multinom solver using SCS has failed." ,sep="")
-      stop(err$message)
-    })
-  }
+  prob <- CVXR::Problem(CVXR::Maximize(obj))
+  result <- solve(prob, solver="ECOS",
+                  FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
 
   ## If all goes well, return the optimizer.
   return(result$getValue(alphamat))

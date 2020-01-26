@@ -121,7 +121,7 @@ objective_per_cluster <- function(beta, ylist, Xa, resp, lambda, dimdat, iclust,
   grand.sum = sum(resid.prods)
 
   ## Calculate the objective value
-  obj = (1/2) * grand.sum + lambda * sum(abs(beta) > zerothresh)
+  obj = (1/(2 * TT)) * grand.sum + lambda * sum(abs(beta) > zerothresh)
   return(obj)
 }
 
@@ -129,9 +129,10 @@ objective_per_cluster <- function(beta, ylist, Xa, resp, lambda, dimdat, iclust,
 ##' Calculate a specific least squares problem \min_b \|c-Db\|^2.
 b_update  <- function(wvec, uw, Z, Uz, rho, yvec, D, DtDinv){
 
-  cvec = c(sqrt(1/2) * yvec,
-           sqrt(rho/2) * (wvec - uw/rho),
-           sqrt(rho/2) * as.numeric(t(Z - Uz/rho)))
+  TT = nrow(Z)
+  cvec = c(sqrt(1/(2 * TT)) * yvec,
+           sqrt(rho/(2 * TT)) * (wvec - uw/rho),
+           sqrt(rho/(2 * TT)) * as.numeric(t(Z - Uz/rho)))
   sol = DtDinv %*% crossprod(D, cvec)
   return(sol)
 }

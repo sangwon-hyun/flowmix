@@ -1,7 +1,9 @@
 ##' Conducts the M step for estimating the coefficients for the population
 ##' weights.
+##'
 ##' @param resp Is an (T x nt x K) array.
 ##' @param X Covariate matrix (T x dimdat).
+##'
 ##' @return The multinomial logit model coefficients. A matrix of dimension (K x
 ##'   (p+1)).
 Mstep_alpha <- function(resp, X, numclust, lambda = 0, alpha = 1,

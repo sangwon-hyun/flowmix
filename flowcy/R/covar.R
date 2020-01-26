@@ -110,11 +110,6 @@ covarem_once <- function(ylist, X,
                         denslist_by_clust = denslist_by_clust,
                         first_iter = (iter == 2), countslist = countslist)
 
-    ## If countslist is provided, further weight them.
-    if(!is.null(countslist)){
-      resp <- Map(function(myresp, mycount){ myresp * mycount },
-                  resp, countslist)
-    }
 
     ## M step (three parts)
     ## 1. Alpha

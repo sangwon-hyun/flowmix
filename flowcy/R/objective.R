@@ -68,6 +68,6 @@ objective_overall_cov <- function(mu, pie, sigma,
   l1norm <- function(coef){ sum(abs(coef)) }
   pen1 = pie_lambda * l1norm(as.numeric(unlist(alpha)))
   pen2 = mean_lambda * l1norm(as.numeric(unlist(beta)))
-  obj = - sum(unlist(loglik)) + pen1 + pen2
+  obj = - 1/TT * sum(unlist(loglik)) + pen1 + pen2
   return(obj)
 }

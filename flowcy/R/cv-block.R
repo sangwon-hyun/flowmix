@@ -6,7 +6,7 @@
 ##' @param ... default arguments to covarem().
 ##' @return List containing (1) the set of coefficients
 ##' @export
-blockcv <- function(cl, folds, cv.gridsize,
+blockcv <- function(cl, folds, cv_gridsize,
                     ylist, countslist, X,
                     mean_lambdas,
                     pie_lambdas,
@@ -22,10 +22,9 @@ blockcv <- function(cl, folds, cv.gridsize,
   ## ...
   ## 1125, 15, 15, 5
   nfold = length(folds)
-  iimat = make_iimat(cv.gridsize, nfold)
+  iimat = make_iimat(cv_gridsize, nfold)
   iimax = nrow(iimat)
   if(parallel){
-    print('parallel')
     parallel::parLapplyLB(cl,
     ## lapply(
         1:iimax, function(ii){
@@ -39,7 +38,6 @@ blockcv <- function(cl, folds, cv.gridsize,
       cat(fill=TRUE)
     })
   } else {
-    print('non parallel')
     ## Mirror copy of whatever goes in the parallel=TRUE block directly above.
     lapply(1:iimax, function(ii){
       ialpha = iimat[ii,"ialpha"]
@@ -67,7 +65,8 @@ blockcv_fitmodel <- function(cl, folds, destin,
                              pie_lambdas,
                              ...){
 
-  iimat = make_iimat_small(cv.gridsize)
+  args = list(...)
+  iimat = make_iimat_small(args$cv_gridsize)
   iimax = nrow(iimat)
   parallel::parLapplyLB(cl,
   ## 1:iimax, function(ii){
@@ -242,11 +241,11 @@ one_job_refit <- function(ialpha, ibeta, folds, destin,
 ##' ...
 ##' 1125, 15, 15, 5
 ##'
-##' @param cv.gridsize CV grid size.
+##' @param cv_gridsize CV grid size.
 ##' @param nfold Number of of CV folds.
-make_iimat <- function(cv.gridsize, nfold){
-  iimat = expand.grid(ialpha = 1:cv.gridsize,
-                      ibeta = 1:cv.gridsize,
+make_iimat <- function(cv_gridsize, nfold){
+  iimat = expand.grid(ialpha = 1:cv_gridsize,
+                      ibeta = 1:cv_gridsize,
                       ifold = 1:nfold)
   iimat = cbind(as.numeric(rownames(iimat)), iimat)
   return(iimat)
@@ -262,10 +261,10 @@ make_iimat <- function(cv.gridsize, nfold){
 ##' ...
 ##' 225, 15, 15
 ##'
-##' @param cv.gridsize CV grid size.
-make_iimat_small <- function(cv.gridsize){
-  iimat = expand.grid(ialpha = 1:cv.gridsize,
-                      ibeta = 1:cv.gridsize)
+##' @param cv_gridsize CV grid size.
+make_iimat_small <- function(cv_gridsize){
+  iimat = expand.grid(ialpha = 1:cv_gridsize,
+                      ibeta = 1:cv_gridsize)
   iimat = cbind(as.numeric(rownames(iimat)), iimat)
   return(iimat)
 }
@@ -275,15 +274,15 @@ make_iimat_small <- function(cv.gridsize){
 ##' Aggregate results from blocked CV.
 ##'
 ##' @param destin destination folder for output.
-##' @param cv.gridsize Grid size for cross validation.
+##' @param cv_gridsize Grid size for cross validation.
 ##' @param nfold Number of folds.
 ##'
 ##' @export
-blockcv_aggregate <- function(destin, cv.gridsize, nfold){
-  cvscore.array = array(0, dim=c(cv.gridsize, cv.gridsize, nfold))
-  cvscore.mat = matrix(0, nrow = cv.gridsize, ncol = cv.gridsize)
-  for(ialpha in 1:cv.gridsize){
-    for(ibeta in 1:cv.gridsize){
+blockcv_aggregate <- function(destin, cv_gridsize, nfold){
+  cvscore.array = array(0, dim=c(cv_gridsize, cv_gridsize, nfold))
+  cvscore.mat = matrix(0, nrow = cv_gridsize, ncol = cv_gridsize)
+  for(ialpha in 1:cv_gridsize){
+    for(ibeta in 1:cv_gridsize){
       cvscores <- sapply(1:nfold, function(igrid){
         filename = paste0(ialpha, "-", ibeta, "-", igrid, "-cvscore.Rdata")
         print(filename)

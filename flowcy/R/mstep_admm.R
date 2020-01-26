@@ -111,6 +111,7 @@ la_admm_oneclust <- function(K = 5,
 
   ## Run ADMM repeatedly with (1) double rho, and (2) previous b
   for(kk in 1:K){
+    ## printprogress(kk, K, "outer admm", fill=TRUE)
 
     ## Run ADMM
     if(kk > 1) args[['rho']] <- rho
@@ -146,8 +147,8 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
   colnames(resid_mat) = c("primresid", "primerr", "dualresid", "dualerr")
 
   ## Prepare an object for b_update()
-  Drest = rbind(sqrt(rho/2) * I_aug,
-                sqrt(rho/2) * X0)
+  Drest = rbind(sqrt(rho/(2*TT)) * I_aug,
+                sqrt(rho/(2*TT)) * X0)
   Drest_square = crossprod(Drest, Drest)
   Dfirst = sqrt(1/2) * Xtilde
   D = rbind(Dfirst, Drest)
@@ -171,6 +172,7 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
   fits = rep(NA, ceiling(niter/20))
 
   for(iter in 1:niter){
+    ## printprogress(iter, niter, "inner admm")
 
     ## If locally adaptive ADMM is used, first iteration is skipped because a
     ## warmstart beta has been provided.

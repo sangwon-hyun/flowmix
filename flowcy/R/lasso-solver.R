@@ -58,7 +58,7 @@ cvxr_lasso <- function(y, X,  lambda, Xorig=NULL,
   }
 
   ## Set up l1-penalized regression.
-  obj = CVXR::sum_squares(y - X %*% CVXR::vec(betamat)) / 2
+  obj = CVXR::sum_squares(y - X %*% CVXR::vec(betamat)) / (2 * TT)
   if(!refit) obj = obj + lambda * sum(abs(CVXR::vec(betamat)[v]))
 
   ## Setup the Xbeta penalty.

@@ -71,5 +71,12 @@ Estep_covar <- function(mn, sigma, pie, ylist=NULL,
 
     resp[[tt]] <- wt.densmat
   }
+
+  ## If |countslist| is provided, reweight the responsibilities.
+  if(!is.null(countslist)){
+    resp <- Map(function(myresp, mycount){ myresp * mycount },
+                resp, countslist)
+  }
+
   return(resp)
 }
