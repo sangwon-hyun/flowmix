@@ -63,6 +63,7 @@ Mstep_beta_admm <- function(resp,
   resid_mat_list = list()
   start.time = Sys.time()
   for(iclust in 1:numclust){
+    cat("cluster", iclust, fill=TRUE)
 
     ## Perform ADMM once.
     res = la_admm_oneclust(K = (if(local_adapt) local_adapt_niter else 1),
@@ -99,7 +100,7 @@ Mstep_beta_admm <- function(resp,
 
 
 ##' LA (locally adaptive) ADMM wrapper to \code{admm_oneclust()}.
-la_admm_oneclust <- function(K = 5,
+la_admm_oneclust <- function(K,
                              ...){
 
   ## Initialize arguments for ADMM.
@@ -117,12 +118,17 @@ la_admm_oneclust <- function(K = 5,
     if(kk > 1) args[['rho']] <- rho
     args[['beta']] <- beta
     res = do.call(admm_oneclust, args)
+    if(res$converge){
+      cat("converged with K=", kk, fill=TRUE)
+      break
+    }
 
     ## Update some parameters
     rho = args[['rho']]
     rho = rho * 2
     beta = res$beta
   }
+  if(!res$converge) c("didn't converge at all")
 
   return(res)
 }
@@ -170,6 +176,7 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
   Uz = matrix(0, nrow = TT, ncol = dimdat)
   C = maxdev
   fits = rep(NA, ceiling(niter/20))
+  converge = FALSE
 
   for(iter in 1:niter){
     ## printprogress(iter, niter, "inner admm")
@@ -211,7 +218,7 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
     ## print(max(as.numeric(Uz)))
 
     ## 3. Check convergence
-    if( iter > 1  & iter %% 5 == 0 & !local_adapt){
+    if( iter > 1  & iter %% 5 == 0){## & !local_adapt){
       obj = converge(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX = tX,
                      Xbeta1 = Xbeta1, err_rel = err_rel)
       ## ii = iter-1
@@ -223,6 +230,7 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
       ## Temporary print message
       if(obj$converge){
         print(paste('converged! in', iter, 'out of ', niter, 'steps!'))
+        converge = TRUE
         break
       }
     }
@@ -254,10 +262,8 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
   }
 
   ## Temporary print message
-  if(!local_adapt ){
-    if(!(obj$converge)){
-      print(paste("Didn't converge in", niter, 'steps!'))
-    }
+  if(!(obj$converge)){
+    print(paste("Didn't converge in", niter, 'steps!'))
   }
 
   ## Gather results.
@@ -265,5 +271,5 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
   beta[which(abs(beta) < zerothresh, arr.ind = TRUE)] = 0
   yhat = Xa %*% beta
 
-  return(list(beta = beta, yhat = yhat, resid_mat = resid_mat, fits = fits))
+  return(list(beta = beta, yhat = yhat, resid_mat = resid_mat, fits = fits, converge=converge))
 }

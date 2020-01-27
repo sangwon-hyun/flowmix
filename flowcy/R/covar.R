@@ -140,7 +140,8 @@ covarem_once <- function(ylist, X,
                                  sigma = sigma, maxdev = maxdev, rho = admm_rho,
                                  err_rel = admm_err_rel,
                                  niter = admm_niter,
-                                 local_adapt = admm_local_adapt)
+                                 local_adapt = admm_local_adapt,
+                                 local_adapt_niter = admm_local_adapt_niter)
     } else {
       res.beta = Mstep_beta(resp, ylist, X,
                             mean_lambda = mean_lambda,
