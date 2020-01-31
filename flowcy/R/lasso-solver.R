@@ -29,14 +29,13 @@
 cvxr_lasso <- function(y, X,  lambda, Xorig=NULL,
                        exclude.from.penalty = NULL,
                        thresh = 1E-8,
-                       maxdev = NULL,
-                       dimdat = NULL,
-                       numclust = NULL,
+                       maxdev,
+                       dimdat,
+                       N,
                        refit = FALSE,
                        sel_coef = NULL,
                        ecos_thresh = 1E-8,
-                       scs_eps = 1E-5,
-                       iclust ##temporary
+                       scs_eps = 1E-5
                        ){
 
   ## Define dimensions
@@ -58,7 +57,7 @@ cvxr_lasso <- function(y, X,  lambda, Xorig=NULL,
   }
 
   ## Set up l1-penalized regression.
-  obj = CVXR::sum_squares(y - X %*% CVXR::vec(betamat)) / (2 * TT)
+  obj = CVXR::sum_squares(y - X %*% CVXR::vec(betamat)) / (2 * N)
   if(!refit) obj = obj + lambda * sum(abs(CVXR::vec(betamat)[v]))
 
   ## Setup the Xbeta penalty.

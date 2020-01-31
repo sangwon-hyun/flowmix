@@ -1,4 +1,5 @@
 ##' Objectives.
+##'
 ##' @param pie matrix of mixture proportions, T by M.
 ##' @param mu array of dimension (T x dimdat x numclust ) ; old: T by M by p.
 ##' @param data TT lengthed list of data
@@ -6,7 +7,7 @@
 ##' @param alpha linear coefficients for regression on (log ratio of) pie.
 ##' @param beta linear coefficients for regression on mean.
 objective_overall_cov <- function(mu, pie, sigma,
-                                  TT, dimdat, numclust,
+                                  TT, N, dimdat, numclust,
                                   ylist,
                                   pie_lambda=0, mean_lambda=0,
                                   alpha=0, beta=0,
@@ -14,60 +15,57 @@ objective_overall_cov <- function(mu, pie, sigma,
                                   countslist=NULL
                                   ){
 
-
-  ## stopifnot(dim(mu) == c(TT, dimdat, numclust)) ## Too much
-  ## trouble.. just add to a unit test later.
-
-  ## TT = length(ylist)
   TT = dim(mu)[1]
   numclust = dim(mu)[3]
 
-  ## 1. Helper function: Calculates one particle's log likelihood using
-  ## precalculated data densities.
-  loglikelihood_tt_precalculate <- function(tt, denslist_by_clust, pie, countslist=NULL){
-
-    ## One particle's log likelihood (weighted density)
-    weighted.densities = lapply(1:numclust, function(iclust){
-      return(pie[tt,iclust] * denslist_by_clust[[iclust]][[tt]])
-    })
-    if(!is.null(countslist))counts = countslist[[tt]] else counts = 1
-
-    return(sum(log(Reduce("+", weighted.densities)) * counts))
-  }
-
-  ## 2. Second helper function: Calculates one particle's log likelihood without
-  ## any pre-calculated densities.
-  loglikelihood_tt <- function(ylist, tt, mu, sigma, pie, countlist=NULL){
-    ## One particle's log likelihood (weighted density)
-    weighted.densities = sapply(1:numclust, function(iclust){
-
-      mydat = ylist[[tt]]
-      mypie = pie[tt,iclust]
-      mymu = mu[tt,,iclust]
-      mysigma = as.matrix(sigma[iclust,,])
-      return(mypie * mvnfast::dmvn(mydat,
-                                   mu=mymu,
-                                   sigma=mysigma,
-                                   log=FALSE))
-    })
-    if(!is.null(countslist)) counts = countslist[[tt]] else counts = 1
-    return(sum(log(rowSums(weighted.densities)) * counts))
-  }
-
   ## Calculate the log likelihood
   loglik = sapply(1:TT, function(tt){
-
     if(is.null(denslist_by_clust)){
-      (loglikelihood_tt(ylist, tt, mu, sigma, pie, countslist))
+      return(loglikelihood_tt(ylist, tt, mu, sigma, pie, countslist))
     } else {
       return(loglikelihood_tt_precalculate(tt, denslist_by_clust, pie, countslist))
     }
   })
 
-  ## Return penalized
+  ## Return penalized likelihood
   l1norm <- function(coef){ sum(abs(coef)) }
-  pen1 = pie_lambda * l1norm(as.numeric(unlist(alpha)))
-  pen2 = mean_lambda * l1norm(as.numeric(unlist(beta)))
-  obj = - 1/TT * sum(unlist(loglik)) + pen1 + pen2
+
+  ## shouldn't this not incluide the intercept?
+  pen1 = pie_lambda * l1norm(as.numeric(unlist(alpha[,-1])))
+  pen2 = sum(sapply(beta, function(mybeta) l1norm(mybeta[-1,])))
+  obj = - 1/N * sum(unlist(loglik)) + pen1 + pen2
   return(obj)
+}
+
+
+## 1. Helper function: Calculates one particle's log likelihood using
+## precalculated data densities.
+loglikelihood_tt_precalculate <- function(tt, denslist_by_clust, pie, countslist=NULL){
+
+  ## One particle's log likelihood (weighted density)
+  weighted.densities = lapply(1:numclust, function(iclust){
+    return(pie[tt,iclust] * denslist_by_clust[[iclust]][[tt]])
+  })
+  if(!is.null(countslist))counts = countslist[[tt]] else counts = 1
+
+  return(sum(log(Reduce("+", weighted.densities)) * counts))
+}
+
+## 2. Second helper function: Calculates one particle's log likelihood without
+## any pre-calculated densities.
+loglikelihood_tt <- function(ylist, tt, mu, sigma, pie, countlist=NULL){
+  ## One particle's log likelihood (weighted density)
+  weighted.densities = sapply(1:numclust, function(iclust){
+
+    mydat = ylist[[tt]]
+    mypie = pie[tt,iclust]
+    mymu = mu[tt,,iclust]
+    mysigma = as.matrix(sigma[iclust,,])
+    return(mypie * mvnfast::dmvn(mydat,
+                                 mu=mymu,
+                                 sigma=mysigma,
+                                 log=FALSE))
+  })
+  if(!is.null(countslist)) counts = countslist[[tt]] else counts = 1
+  return(sum(log(rowSums(weighted.densities)) * counts))
 }

@@ -2,12 +2,12 @@
 soft_thresh <- function(a, b){
   return(sign(a) * pmax(0, abs(a)-b))
 
-  ## (Kind of) test for this function:
-  x = seq(from=-10, to=10, length=100)
-  plot(y=soft_thresh(x, 3), x=x)
-  abline(h=0)
-  abline(v=c(-3,3), col='grey')
-  abline(v=0)
+  ## ## (Kind of) test for this function:
+  ## x = seq(from=-10, to=10, length=100)
+  ## plot(y=soft_thresh(x, 3), x=x)
+  ## abline(h=0)
+  ## abline(v=c(-3,3), col='grey')
+  ## abline(v=0)
 }
 
 
@@ -89,7 +89,7 @@ converge <- function(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX, Xbeta1,
 ##' (Helper) calculates the per-cluster objective value for the ADMM. INCOMPLETE
 ##' because it is super inefficient right now.
 ##' @param beta p x d matrix
-objective_per_cluster <- function(beta, ylist, Xa, resp, lambda, dimdat, iclust, sigma, iter, zerothresh,
+objective_per_cluster <- function(beta, ylist, Xa, resp, lambda, N, dimdat, iclust, sigma, iter, zerothresh,
                                   first_iter, sigma_eig_by_clust=NULL, mc.cores = 1){
 
   ## Setup
@@ -121,18 +121,17 @@ objective_per_cluster <- function(beta, ylist, Xa, resp, lambda, dimdat, iclust,
   grand.sum = sum(resid.prods)
 
   ## Calculate the objective value
-  obj = (1/(2 * TT)) * grand.sum + lambda * sum(abs(beta) > zerothresh)
+  obj = (1/(2 * N)) * grand.sum + lambda * sum(abs(beta) > zerothresh)
   return(obj)
 }
 
 
 ##' Calculate a specific least squares problem \min_b \|c-Db\|^2.
-b_update  <- function(wvec, uw, Z, Uz, rho, yvec, D, DtDinv){
+b_update  <- function(wvec, uw, Z, Uz, rho, yvec, D, DtDinv, N){
 
-  TT = nrow(Z)
-  cvec = c(sqrt(1/(2 * TT)) * yvec,
-           sqrt(rho/(2 * TT)) * (wvec - uw/rho),
-           sqrt(rho/(2 * TT)) * as.numeric(t(Z - Uz/rho)))
+  cvec = c(sqrt(1/(2*N)) * yvec,
+           sqrt(rho/2) * (wvec - uw/rho),
+           sqrt(rho/2) * as.numeric(t(Z - Uz/rho)))
   sol = DtDinv %*% crossprod(D, cvec)
   return(sol)
 }

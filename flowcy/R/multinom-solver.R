@@ -1,57 +1,56 @@
-## Synopsis: these are the specific, scale-consistent multinom lasso solvers used
-## internally in this package.
+## Synopsis: these are the specific, scale-consistent sparse multinom solvers
+## used internally in this package.
 
-##' (DOESN'T solve right problem) Solves the l1-penalized multinom problem:
+##' Solves the l1-penalized multinom problem using GLMNET (not assuming that $y$
+##' have row sums of 1):
 ##'
-##' \deqn{ \frac{1}{n} \sum_{i=1}^n
-##' \sum_{k=1}^K y_{ik} (\alpha_{0k} + x_i^T \alpha_k)
-##' - (\sum{k=1^K} y_{ik}) \log \left( \sum_{l=1}^K \exp ( \alpha_{0l} + x^T \alpha_l) \right)
-##' - \lambda \sum_{l=1}^K \left(\| \alpha_l \|_1 \right)}
+##' \deqn{\frac{1}{n} \sum_{i=1}^n \sum_{k=1}^K y_{ik} ( \alpha_{0k} +
+##' \alpha_k^T X^{(t)}) - \log \left( \sum_{l=1}^K y_{ik} \exp ( \alpha_{0l} +
+##' \alpha_l^T X^{(t)}) \right) - \lambda \sum_{l=1}^K \left(\| \alpha_l \|_1
+##' \right)}
 ##'
-##' When there is no intercept, \eqn{\alpha_{0k}} is just set to zero.
+##' Note, this should have exactly the same output as cvxr_multinom() (using
+##' cbind(1, X) instead of X, and exclude.from.penalty=1) which is an internal
+##' tester.
+##'
 ##' @param y response (TT by numclust).
 ##' @param X Covariates (TT by p).
 ##' @param lambda regularization parameter for l1 penalization.
-##' @param intercept TRUE if intercept should be included in model. Intercept is
-##'   not regularized.
+##'
 ##' @return A (p+1) by (numclust) matrix.
-solve_multinom <- function(y, X, lambda,
-                           coef_limit=NULL, ## Experimental feature
-                           alpha=1, ##  temporary
-                           ntlist=NULL
-                           ){
-  if(is.null(ntlist))ntlist=rep(1,nrow(y))
+solve_multinom <- function(y, X, lambda){
 
-  ysums = colSums(y)
-    fit <- glmnet::glmnet(x = X,
-                          y = y/ysums,
-                          lambda = TT / sum(wts) * lambda,
-                          family="multinomial",
-                          intercept=TRUE,
-                          weights=ntlist ## temporary
-                          ## alpha=alpha
-                          ## lower.limits=min(coef_limit),## Experimental feature
-                          ## upper.limits=max(coef_limit)## Experimental feature
-                          ## exclude=exclude ## Experimental feature
-                          )
-    return(as.matrix(do.call(cbind,coef(fit))))
+  TT = nrow(X)
+  ysums = rowSums(y)
+  N = sum(ysums)
+  fit <- glmnet::glmnet(x = X,
+                        y = y/ysums,
+                        lambda = lambda,
+                        family = "multinomial",
+                        intercept = TRUE,
+                        weights = ysums / N * TT)
+  return(as.matrix(do.call(cbind,coef(fit))))
 }
 
-##' Solves, using CVXR, the l1-penalized
-##' multinom problem:
+##' Solves, using CVXR, the l1-penalized multinom problem (not assuming that $y$
+##' have row sums of 1):
 ##'
-##' \deqn{\frac{1}{n} \sum_{i=1}^n \sum_{k=1}^K y_{ik} (
-##' x_i^T \alpha_k) - \log \left( \sum_{l=1}^K \exp ( x^T \alpha_l) \right) -
-##' \lambda \sum_{l=1}^K \left(\| \alpha_l \|_1 \right)}
+##' \deqn{\frac{1}{n} \sum_{i=1}^n \sum_{k=1}^K y_{ik} ( \alpha_{0k} +
+##' \alpha_k^T X^{(t)}) - \log \left( \sum_{l=1}^K y_{ik} \exp ( \alpha_{0l} +
+##' \alpha_l^T X^{(t)}) \right) - \lambda \sum_{l=1}^K \left(\| \alpha_l \|_1
+##' \right)}
 ##'
 ##' @param y Matrix valued response; each row is an observation, and each column
 ##'   is a discrete outcome out of K (n x K).
 ##' @param X Covariate matrix (n x p)
 ##' @param lambda Regularization parameter for l1 penalized estimation.
 ##' @param thresh ECOS solver threshold.
+##' @param N Total number of particles in all cytograms i.e. \deqn{N=\sum_t n_t}.
 ##'
 ##' @return (p x K) coefficient matrix.
-cvxr_multinom <- function(y, X, lambda, exclude.from.penalty=NULL, thresh = 1E-8){
+cvxr_multinom <- function(y, X, lambda,
+                          exclude.from.penalty=NULL, thresh = 1E-8,
+                          N){
 
   ## Setup
   numclust = ncol(y)
@@ -71,13 +70,16 @@ cvxr_multinom <- function(y, X, lambda, exclude.from.penalty=NULL, thresh = 1E-8
   obj2 <- sum((CVXR::log_sum_exp( X %*% alphamat, 1)) * rowSums(y))
 
   ## Sum them
-  obj <- (obj1  - obj2)  / TT - lambda * sum(abs(alphamat[v,]))
+  ## obj <- (obj1  - obj2)  / TT - lambda * sum(abs(alphamat[v,]))
+  obj <- (obj1  - obj2)  / N - lambda * sum(abs(alphamat[v,])) ## Putting things in the scale of a single particle.
 
-  ## Solve the problem using one of two CVXR solvers.
+  ## Solve the problem using the default, ECOS CVXR solver.
   prob <- CVXR::Problem(CVXR::Maximize(obj))
   result <- solve(prob, solver="ECOS",
                   FEASTOL = thresh, RELTOL = thresh, ABSTOL = thresh)
 
   ## If all goes well, return the optimizer.
-  return(result$getValue(alphamat))
+  alphamat = result$getValue(alphamat)
+  alphamat[which(abs(alphamat) < 1E-8)] = 0
+  return(alphamat)
 }

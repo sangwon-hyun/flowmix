@@ -23,6 +23,7 @@ covarem <- function(..., nrep = 5){
 }
 
 ##' Main function for covariate EM.
+##'
 ##' @param ylist T-length list each containing response matrices of size (nt x
 ##'   3), which contains coordinates of the 3-variate particles, organized over
 ##'   time (T) and with (nt) particles at every time.
@@ -36,7 +37,10 @@ covarem <- function(..., nrep = 5){
 ##' @param sel_coef (Experimental feature) Boolean matrices of the same
 ##'   structure as beta and alpha, whose TRUE entries are the active
 ##'   coefficients to be refitted in a nonregularized way.
-##' @param tol_em Relative tolerance for EM convergence.
+##' @param tol_em Relative tolerance for EM convergence. Defaults to 1E-4.
+##' @param zero_stabilize Defaults to TRUE, in which case the EM is only run
+##'   until the zero pattern in the coefficients stabilize.
+##'
 ##' @return List containing fitted parameters and means and mixture weights,
 ##'   across algorithm iterations. beta is a (p+1 x 3 x dimdat) array. Alpha is
 ##'   a (dimdat x (p+1)) array.
@@ -45,9 +49,9 @@ covarem <- function(..., nrep = 5){
 covarem_once <- function(ylist, X,
                          countslist = NULL,
                          numclust, niter = 1000,
-                         mn = NULL, pie_lambda = 0,
-                         mean_lambda = 0, verbose = FALSE,
-                         sigma.fac = 1, tol_em = 1E-5,
+                         mn = NULL, pie_lambda,
+                         mean_lambda, verbose = FALSE,
+                         sigma.fac = 1, tol_em = 1E-4,
                          refit = FALSE, ## EXPERIMENTAL FEATURE.
                          sel_coef = NULL,
                          maxdev = NULL,
@@ -66,27 +70,29 @@ covarem_once <- function(ylist, X,
                          zerothresh = 1E-6,
                          ## beta Mstep (ADMM) settings
                          admm = TRUE,
-                         admm_rho = 10,
+                         admm_rho = 0.1,
                          admm_err_rel = 1E-3,
                          ## beta M step (Locally Adaptive ADMM) settings
                          admm_local_adapt = TRUE,
-                         admm_local_adapt_niter = 5,
+                         admm_local_adapt_niter = 20,
                          admm_niter = (if(admm_local_adapt)3E2 else 1E4)
                          ){## Basic checks
 
-  if(!is.null(maxdev)){ assert_that(maxdev!=0) } ## Preventing the maxdev=FALSE mistake.
+  ## Basic checks
+  if(!is.null(maxdev)){ assertthat::assert_that(maxdev!=0) }
   ## assert_that(!(is.data.frame(ylist[[1]])))
-  assert_that(sum(is.na(X)) == 0)
-  assert_that(length(ylist) == nrow(X))
+  assertthat::assert_that(sum(is.na(X)) == 0)
+  assertthat::assert_that(length(ylist) == nrow(X))
+  assertthat::assert_that(pie_lambda > 0)
 
-
-  ## Setup.
+  ## Setup
   TT = length(ylist)
   dimdat = ncol(ylist[[1]])
   p = ncol(X)
   if(is.null(mn)) mn = init_mn(ylist, numclust, TT, dimdat, countslist)
   ntlist = sapply(ylist, nrow)
   bin = !is.null(countslist)
+  N = sum(ntlist)
 
   ## Initialize some objects
   pie = calc_pie(TT, numclust) ## Let's just say it is all 1/K for now.
@@ -96,31 +102,26 @@ covarem_once <- function(ylist, X,
   sigma_eig_by_clust = NULL
   zero.betas = zero.alphas = list()
 
-  ## The least elegant solution i can think of.. used for blocked cv
-  if(!is.null(countslist_overwrite))countslist = countslist_overwrite
+  ## The least elegant solution I can think of.. used only for blocked cv
+  if(!is.null(countslist_overwrite)) countslist = countslist_overwrite
   if(bin) check_trim(ylist, countslist)
 
   start.time = Sys.time()
-  for(iter in 2:niter){
-    if(verbose){
-      printprogress(iter-1, niter-1, "EM iterations.", start.time = start.time)
-    }
-
-    resp <- Estep_covar(mn, sigma, pie, ylist = ylist, numclust = numclust,
-                        denslist_by_clust = denslist_by_clust,
-                        first_iter = (iter == 2), countslist = countslist)
+  for(iter in 2:niter){if(verbose){
+                         printprogress(iter-1, niter-1, "EM iterations.", start.time = start.time)
+                       }
+                         resp <- Estep_covar(mn, sigma, pie, ylist = ylist, numclust = numclust,
+                                             denslist_by_clust = denslist_by_clust,
+                                             first_iter = (iter == 2), countslist = countslist)
 
 
     ## M step (three parts)
     ## 1. Alpha
     res.alpha = Mstep_alpha(resp, X, numclust, lambda = pie_lambda,
-                            refit = refit, sel_coef = sel_coef, bin = bin,
-                            ## thresh = thresh,
-                            cvxr_ecos_thresh = mstep_cvxr_ecos_thresh,
                             zerothresh = zerothresh)
-    pie = res.alpha$pie
-    alpha = res.alpha$alpha
-    rm(res.alpha)
+                         pie = res.alpha$pie
+                         alpha = res.alpha$alpha
+                         rm(res.alpha)
 
     ## print(iter)
     ## if(iter==2){
@@ -144,18 +145,14 @@ covarem_once <- function(ylist, X,
                                  local_adapt_niter = admm_local_adapt_niter)
     } else {
       res.beta = Mstep_beta(resp, ylist, X,
-                            mean_lambda = mean_lambda,
-                            sigma = sigma,
-                            maxdev = maxdev,
-                            ## This is fluff:
-                            ## refit = refit,
-                            ## sel_coef = sel_coef,
-                            ## end of fluff
-                            sigma_eig_by_clust = sigma_eig_by_clust,
-                            first_iter = (iter == 2), bin = bin,
-                            cvxr_ecos_thresh = mstep_cvxr_ecos_thresh,
-                            cvxr_scs_eps = mstep_cvxr_scs_eps,
-                            zerothresh = zerothresh)
+                             mean_lambda = mean_lambda,
+                             sigma = sigma,
+                             maxdev = maxdev,
+                             sigma_eig_by_clust = sigma_eig_by_clust,
+                             first_iter = (iter == 2), bin = bin,
+                             cvxr_ecos_thresh = mstep_cvxr_ecos_thresh,
+                             cvxr_scs_eps = mstep_cvxr_scs_eps,
+                             zerothresh = zerothresh)
     }
 
     mn = res.beta$mns
@@ -200,7 +197,7 @@ covarem_once <- function(ylist, X,
                                              countslist)
 
     ## Calculate the objectives
-    objectives[iter] = objective_overall_cov(mn, pie, sigma, TT, dimdat,
+    objectives[iter] = objective_overall_cov(mn, pie, sigma, TT, N, dimdat,
                                              numclust, ylist,
                                              pie_lambda = pie_lambda,
                                              mean_lambda = mean_lambda,
@@ -216,6 +213,7 @@ covarem_once <- function(ylist, X,
     if(plot){
       plot_iter(ylist, countslist, iter, tt=1, TT, mn, sigma, pie, objectives,
                 saveplot = TRUE,
+                ## saveplot = FALSE,
                 plotdir = plotdir)
     }
 
@@ -223,9 +221,13 @@ covarem_once <- function(ylist, X,
     if(check_converge_rel(objectives[iter-1],
                           objectives[iter],
                           tol = tol_em)) break
+    if(objectives[iter] > objectives[iter-1] * 1.01 ) break # Additional stopping
+                                        # of the likelihood
+                                        # increasing more
+                                        # than 1%.
   }
 
-  ## Measure time
+  ## measure time
   lapsetime = difftime(Sys.time(), start.time, units = "secs")
   time_per_iter = lapsetime / (iter-1)
 
@@ -234,8 +236,7 @@ covarem_once <- function(ylist, X,
                         mn = mn,
                         pie = pie,
                         sigma = sigma,
-                        ## resp = resp, ## Temporary
-                        denslist_by_clust = denslist_by_clust, ## Temporary
+                        ## denslist_by_clust = denslist_by_clust,
                         objectives = objectives[1:iter],
                         final.iter = iter,
                         time_per_iter = time_per_iter,
@@ -425,20 +426,35 @@ plot_iter <- function(ylist, countslist, iter=NULL, tt = 1, TT, mn, sigma, pie, 
   } else {
     cex = .5
   }
-  ylist_collapsed = do.call(rbind, ylist)
-  ntsum = nrow(ylist_collapsed)
-  ylist_collapsed = ylist_collapsed[sample(1:ntsum, 10000),]
+
   if(saveplot){
     png(file=file.path(plotdir,
                      paste0("iteration-", iter, ".png")), width=1200, height=1200)
     print(  file.path(plotdir,
           paste0("iteration-", iter, ".png")))
-    }
-  par(mfrow=c(2,2))
-  dimslist = list(1:2, 2:3, c(3,1))
-  for(dims in dimslist){
-    xlim = range(ylist_collapsed[,dims[1]])
-    ylim = range(ylist_collapsed[,dims[2]])
+  }
+
+  dimdat = ncol(ylist[[1]])
+  if(dimdat==3){
+    par(mfrow=c(2,2))
+    dimslist = list(1:2, 2:3, c(3,1))
+  }
+  if(dimdat==2){
+    par(mfrow=c(1,2))
+    dimslist = list(1:2)
+  }
+
+  ylist_collapsed = do.call(rbind, ylist)
+  xlims = lapply(dimslist, function(dims) range(ylist_collapsed[,dims[1]]))
+  ylims = lapply(dimslist, function(dims) range(ylist_collapsed[,dims[2]]))
+  ntsum = nrow(ylist_collapsed)
+  if(ntsum>10000) ylist_collapsed = ylist_collapsed[sample(1:ntsum, 10000),]
+
+  ## Make the plots
+  for(ii in 1:length(dimslist)){
+    dims = dimslist[[ii]]
+    xlim = xlims[[ii]]
+    ylim = ylims[[ii]]
     names = c("fsc_small", "chl_small","pe")
     plot(x=ylist[[tt]][,dims[1]],
          y=ylist[[tt]][,dims[2]],

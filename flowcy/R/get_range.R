@@ -4,7 +4,10 @@
 ##' non-zero coefficients, or run algorithms on the entire grid (Set
 ##' \code{parallelize=TRUE} and provide a \code{cl} object) and filter this grid
 ##' (large factor to small), in order to return the *smallest* regularization
-##' (lambda) value pair that gives full sparsity.
+##' (lambda) value pair that gives full sparsity. Note that the
+##' \code{zero_stabilize=TRUE} option is used in \code{covarem()}, which
+##' basically means the EM algorithm runs only until the zero pattern
+##' stabilizes.
 ##'
 ##' @param ylist List of responses.
 ##' @param X Covariates.
@@ -13,8 +16,6 @@
 ##' @param max_lambda_beta Defaults to 1000.
 ##' @param iimax Maximum value of x for 2^{-x} factors to try.
 ##' @param parallelize TRUE if jobs are to be run in parallel.
-##' @param zero_stabilize Defaults to TRUE, in which case the EM is only run
-##'   until the zero pattern in the coefficients stabilize.
 ##' @param ... Other arguments to \code{covarem_once()}.
 ##' @return list containing the two maximum values to use.
 ##' @examples
@@ -30,7 +31,7 @@
 ##'
 ##' ## No parallel:
 ##' numclust = 4
-##' maxres = get_max_lambda(ybin_list, counts_list, X, numclust, verbose=TRUE,
+##' maxres = calc_max_lambda(ybin_list, counts_list, X, numclust, verbose=TRUE,
 ##'                             nrep = 4,
 ##'                             ## Function settings
 ##'                             parallelize = FALSE,
@@ -45,7 +46,7 @@
 ##' cl = get_cl(3)
 ##' parallel::clusterExport(cl, ls())
 ##' parallel::clusterCall(cl, function(){ load_all("~/repos/flowcy/flowcy")}) ## directory that contains the R package.
-##' maxres = get_max_lambda(ybin_list, counts_list, X, numclust, verbose=TRUE,
+##' maxres = calc_max_lambda(ybin_list, counts_list, X, numclust, verbose=TRUE,
 ##'                             nrep = 4,
 ##'                             ## Function settings
 ##'                             parallelize = TRUE,
@@ -55,14 +56,13 @@
 ##'                             max_lambda_alpha = 10000,
 ##'                             tol = 1E-3 ## This doesn't need to be so low here.
 ##'                             )
-get_max_lambda <- function(ylist, countslist = NULL, X, numclust,
+calc_max_lambda <- function(ylist, countslist = NULL, X, numclust,
                                max_lambda_beta = 4000,
                                max_lambda_alpha = 1000,
                                verbose=FALSE,
                                iimax = 16,
                                parallelize = FALSE,
                                cl = NULL,
-                               zero_stabilize = TRUE, ## temporary
                                ...){
 
   ## Get range of regularization parameters.
@@ -78,14 +78,14 @@ get_max_lambda <- function(ylist, countslist = NULL, X, numclust,
     for(ii in 1:iimax){
       if(verbose) printprogress(ii, iimax, fill=TRUE)
       res = covarem_once(ylist = ylist,
-                    countslist = countslist,
-                    X = X,
-                    numclust = numclust,
-                    pie_lambda = max_lambda_alpha * facs[ii],
-                    mean_lambda = max_lambda_beta * facs[ii],
-                    verbose = TRUE,
-                    zero_stabilize = zero_stabilize, ## temporary
-                    ...)
+                         countslist = countslist,
+                         X = X,
+                         numclust = numclust,
+                         pie_lambda = max_lambda_alpha * facs[ii],
+                         mean_lambda = max_lambda_beta * facs[ii],
+                         verbose = TRUE,
+                         zero_stabilize =TRUE,
+                         ...)
 
       ## Check zero-ness
       toler = 0
@@ -147,45 +147,51 @@ get_max_lambda <- function(ylist, countslist = NULL, X, numclust,
                   " were too small as maximum reg. values. Go up and try again!!"))
     }
   }
+}
 
-  ## ## #################################################
-  ## ## ## New: Do this on a 2d grid; using parLapply. ##
-  ## ## #################################################
-  ## res0 = list(max_lambda_beta = 2000, max_lambda_alpha = 20)
-  ## facs = sapply(1:8, function(ii) 2^(-ii))
+##' A wrapper for \code{calc_max_lambda}. Saves the two maximum lambda values in
+##' a file.
+##'
+##' @param destin Where to save the output (A two-lengthed list called
+##'   "maxres").
+##' @param maxres_file Filename for output. Defaults to maxres.Rdata.
+##' @param ... Additional arguments to \code{covarem()}.
+##'
+##' @return No return
+get_max_lambda <- function(destin, maxres_file = "maxres.Rdata",
+                           ylist,
+                           countslist,
+                           X,
+                           numclust,
+                           maxdev,
+                           max_lambda_alpha,
+                           max_lambda_beta,
+                           ...){
 
-  ## ## Do the full 2d thing.
-  ## iimat = expand.grid(1:8, 1:8)
-  ## iimax = nrow(iimat)
-  ## cl1 = get_cl()
-  ## reslist = parLapplyLB(cl1, 1:iimax, function(ii){
-  ##   fac1 = 2000 * facs[iimat[ii,1]]
-  ##   fac2 = 20 * facs[iimat[ii,2]]
-  ##   res = covarem(ylist = ylist,
-  ##                 X = X,
-  ##                 numclust = numclust,
-  ##                 mean_lambda = res0$max_lambda_beta,
-  ##                 pie_lambda = res0$max_lambda_alpha,
-  ##                 ...)
-  ##   return(res[c("alpha", "beta", "mean_lambda", "pie_lambda")])
-  ## })
-
-  ## ## Then, filter the grid for the number of zeros.
-  ## tol = 1E-8
-  ## zeromat = matrix(0, nrow = iimax, ncol = 2)
-  ## for(ii in 1:iimax){
-  ##   sum_zero_alpha = sum(reslist[[ii]]$alpha <= tol)
-  ##   sum_zero_beta = sum(unlist(lapply(res$beta, function(cf){ sum(cf[-1,]==0) })) <= tol)
-  ##   zeromat[ii,] = c(sum_zero_alpha, sum_zero_beta)
-  ## }
-
-  ## allzero = apply(zeromat, 1, function(myrow){
-  ##   all(myrow==0)
-  ## })
-
-  ## if(any(allzero)){
-  ##   ## Randomly choose a guy out of these, and return.
-  ##   inds = iimat[sample(which(allzero), 1),]
-  ##   return(c(2000 * facs[inds[1]], 20 * facs[inds[2]]))
-  ## }
+  maxres_file = "maxres.Rdata"
+  if(file.exists(file.path(destin, maxres_file))){
+    load(file.path(destin, maxres_file))
+    cat("Maximum regularization values are loaded.", fill=TRUE)
+    return(maxres)
+  } else {
+    print(Sys.time())
+    cat("Maximum regularization values being calculated.", fill=TRUE)
+    print("with initial lambdas values (alpha and beta):")
+    print(max_lambda_alpha); print(max_lambda_beta);
+    maxres = calc_max_lambda(ylist = ylist,
+                             countslist = countslist,
+                             X = X,
+                             numclust = numclust,
+                             maxdev = maxdev,
+                             ## This function's settings
+                             parallelize = FALSE,
+                             ## cl = cl,
+                             max_lambda_alpha = max_lambda_alpha,
+                             max_lambda_beta = max_lambda_beta,
+                             ...)
+    save(maxres, file=file.path(destin, maxres_file))
+    cat("maximum regularization value calculation done.", fill=TRUE)
+    print(Sys.time())
+    return(maxres)
+  }
 }

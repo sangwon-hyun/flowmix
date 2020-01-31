@@ -6,66 +6,35 @@
 ##'
 ##' @return The multinomial logit model coefficients. A matrix of dimension (K x
 ##'   (p+1)).
-Mstep_alpha <- function(resp, X, numclust, lambda = 0, alpha = 1,
-                        refit = FALSE,
-                        sel_coef = NULL,
-                        bin = FALSE, ##temporary
-                        cvxr_ecos_thresh = 1E-8,
-                        zerothresh = 1E-8
-                        ){
+Mstep_alpha <- function(resp, X, numclust, lambda,
+                        zerothresh = 1E-8){
 
+  ## Basic checks
+  if(lambda == 0) stop("lambda=0 is not supported, since model is unidentifiable.")
   TT = nrow(X)
   p = ncol(X)
 
   ## Calculate the summed responsibilities
   resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
-
-  ## Temporary: eventually make into sparse Matrix, but for now, CVXR doesn't
-  ## take sparse Matrix.
   resp.sum = as.matrix(resp.sum)
   stopifnot(dim(resp) == c(TT, numclust))
 
-  ## Fit the model, possibly with some regularization
-  if(!refit){
-    ## ## TODO: wrap a try-catch around this; catch this precise message and end
-    ## ## the entire algorithm by returning a flag or NULL, when this happens.
-    ## fit = glmnet::glmnet(x = X, y = resp.sum, family = "multinomial",
-    ##                      alpha = alpha, lambda = lambda) ## This
-    ## Question: why isn't the weight of n_t becing used?
-    ## ## The coefficients for the multinomial logit model are (K x (p+1))
-    ## alphahat = do.call(rbind,
-    ##                    lapply(coef(fit), as.numeric))
+  ## Fit the model
+  alpha = solve_multinom(resp.sum, X, lambda)
+  alpha[which(abs(alpha) < zerothresh, arr.ind = TRUE)] = 0
+  alpha = t(as.matrix(alpha))
+  stopifnot(all(dim(alpha) == c(numclust, (p + 1))))
 
-    ## Until we find an equivalence between glmnet and cvxr (unlikely), use cvxr
-    ## (slow but correct):
-    Xa = cbind(1, X)
-    alphahat = cvxr_multinom(X = Xa, y = resp.sum, lambda = lambda, ## This was lambda=0 for no good reason
-                                 exclude = 1, thresh = cvxr_ecos_thresh)
-    stopifnot(all(!is.na(alphahat)))
-    alphahat[which(abs(alphahat) < zerothresh, arr.ind = TRUE)] = 0
-    alphahat = t(as.matrix(alphahat))
-    stopifnot(all(dim(alphahat) == c(numclust, (p + 1))))
-
-  } else {
-    Xa = cbind(1, X)
-    alphahat = cvxr_multinom(X = Xa, y = resp.sum, lambda = lambda, ## This was lambda=0 for no good reason
-                                 sel_coef = sel_coef$alpha,
-                                 exclude = 1)
-    alphahat[which(abs(alphahat) < zerothresh, arr.ind = TRUE)] = 0
-    alphahat = t(as.matrix(alphahat))
-    stopifnot(all(dim(alphahat) == c(numclust, (p + 1))))
-  }
-
-
-  ## While you're at it, calculate the fitted values (\pi) as well:
-  piehatmat = as.matrix(exp(cbind(1, X) %*% t(alphahat)))
+  ## Calculate the fitted values (\pi) as well:
+  Xa = cbind(1, X)
+  piehatmat = as.matrix(exp(Xa %*% t(alpha)))
   piehat = piehatmat / rowSums(piehatmat)
 
+  ## Checking dimensions one last time.
   stopifnot(all(dim(piehat) == c(TT,numclust)))
   stopifnot(all(piehat >= 0))
-  ## This should be dimension (T x K)
 
-  return(list(pie = piehat, alpha = alphahat))
+  return(list(pie = piehat, alpha = alpha))
 }
 
 ##' Estimates sigma. TODO: Change the format of the sigma matrix so that the
@@ -150,6 +119,7 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma,
   numclust = ncol(resp[[1]])
   dimdat = ncol(ylist[[1]])
   ntlist = sapply(ylist, nrow)
+  N = sum(ntlist)
   p = ncol(X)
   Xa = cbind(1, X)
   dimsigma = dim(sigma)
@@ -188,12 +158,11 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma,
                          exclude.from.penalty = exclude.from.penalty,
                          maxdev = maxdev,
                          dimdat = dimdat,
-                         numclust = numclust,
+                         N = N,
                          refit = refit,
                          sel_coef = sel_coef$beta[[iclust]],
                          ecos_thresh = cvxr_ecos_thresh,
-                         scs_eps = cvxr_scs_eps,
-                         iclust = iclust)## temporary
+                         scs_eps = cvxr_scs_eps)## temporary
     betahat[which(abs(betahat) < zerothresh, arr.ind = TRUE)] = 0
 
     ## ## Double checking
