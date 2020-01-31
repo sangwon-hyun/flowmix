@@ -72,11 +72,14 @@ calc_max_lambda <- function(ylist, countslist = NULL, X, numclust,
   ## ## First option: mclapply() ####
   ## ################################
   mc.cores = 1
-  facs = sapply(1:iimax, function(ii) 2^(-ii)) ## DECREASING order
+  facs = sapply(1:iimax, function(ii) 2^(-ii+1)) ## DECREASING order
   print("running the models once")
   if(!parallelize){
     for(ii in 1:iimax){
       if(verbose) printprogress(ii, iimax, fill=TRUE)
+      cat("============================================================", fill=TRUE)
+      cat("lambda_alpha = ", max_lambda_alpha * facs[ii],
+          " and lambda_beta = ", max_lambda_beta * facs[ii], "being tested.", fill=TRUE)
       res = covarem_once(ylist = ylist,
                          countslist = countslist,
                          X = X,
@@ -177,7 +180,7 @@ get_max_lambda <- function(destin, maxres_file = "maxres.Rdata",
     print(Sys.time())
     cat("Maximum regularization values being calculated.", fill=TRUE)
     print("with initial lambdas values (alpha and beta):")
-    print(max_lambda_alpha); print(max_lambda_beta);
+    print(c(max_lambda_alpha, max_lambda_beta));
     maxres = calc_max_lambda(ylist = ylist,
                              countslist = countslist,
                              X = X,

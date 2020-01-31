@@ -52,14 +52,13 @@ blockcv <- function(cl, folds, cv_gridsize,
   }
 }
 
-##' Synopsis: BLOCKED cross-validation function goes here.
 
 ##' CV wrapper for covarem().
 ##' @param nsplit Number of CV splits. Defaults to 5.
 ##' @param ... default arguments to covarem().
 ##' @return List containing (1) the set of coefficients
 ##' @export
-blockcv_fitmodel <- function(cl, folds, destin,
+blockcv_fitmodel <- function(cl, destin,
                              ylist, countslist, X,
                              mean_lambdas,
                              pie_lambdas,
@@ -76,7 +75,7 @@ blockcv_fitmodel <- function(cl, folds, destin,
     ibeta = iimat[ii, "ibeta"]
     print('iii=')
     print(c(ialpha, ibeta))
-    one_job_refit(ialpha, ibeta, folds, destin,
+    one_job_refit(ialpha, ibeta, destin,
                   mean_lambdas, pie_lambdas,
                   ylist, countslist, X,
                   ...)
@@ -143,7 +142,7 @@ one_job <- function(ialpha, ibeta, ifold, folds, destin,
   mean_lambda = mean_lambdas[ibeta]
   pie_lambda = pie_lambdas[ialpha]
 
-  tryCatch({
+  ## tryCatch({
 
     ## Run algorithm on training data,
     res.train = covarem(ylist = train.dat,
@@ -167,12 +166,15 @@ one_job <- function(ialpha, ibeta, ifold, folds, destin,
     cvscore = objective_overall_cov(mu = pred$newmn,
                                     pie = pred$newpie,
                                     sigma = pred$sigma,
+                                    TT = pred$TT,
+                                    N = pred$N,
                                     ylist = test.dat,
                                     countslist = NULL,
                                     pie_lambda = 0,
                                     mean_lambda = 0,
                                     alpha = res.train$alpha,
                                     beta = res.train$beta)
+
     time_per_iter = res.train$time_per_iter
     final_iter = res.train$final.iter
     total_time = res.train$total_time
@@ -197,14 +199,14 @@ one_job <- function(ialpha, ibeta, ifold, folds, destin,
 
     return(NULL)
 
-  }, error = function(err) {
-    err$message = paste(err$message,
-                        "\n(No file will be saved for the lambdas ",
-                        pie_lambdas[ialpha], ",", mean_lambdas[ibeta],
-                        "whose indices are", ialpha, "-", ibeta, "-", ifold,
-                        " .)",sep="")
-    cat(err$message, fill=TRUE)
-    warning(err)})
+  ## }, error = function(err) {
+  ##   err$message = paste(err$message,
+  ##                       "\n(No file will be saved for the lambdas ",
+  ##                       pie_lambdas[ialpha], ",", mean_lambdas[ibeta],
+  ##                       "whose indices are", ialpha, "-", ibeta, "-", ifold,
+  ##                       " .)",sep="")
+  ##   cat(err$message, fill=TRUE)
+  ##   warning(err)})
 }
 
 
@@ -214,7 +216,7 @@ one_job <- function(ialpha, ibeta, ifold, folds, destin,
 #############################
 
 ##' Refit one job
-one_job_refit <- function(ialpha, ibeta, folds, destin,
+one_job_refit <- function(ialpha, ibeta, destin,
                           mean_lambdas, pie_lambdas,
                           ## The rest that is needed explicitly for covarem()
                           ylist, countslist, X,

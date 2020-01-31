@@ -1,6 +1,6 @@
 context("Test internal sparse multinomial regression solver.")
 
-test_that("Sparse multinomial solver helper work as expected.", {
+test_that("Sparse multinomial solver (using glmnet) is consistent with CVXR.", {
 
   multinom_objective <- function(alpha, x, y, lambda,
                                           exclude.from.penalty=NULL) {
@@ -19,126 +19,68 @@ test_that("Sparse multinomial solver helper work as expected.", {
   }
 
 
+  mytest <- function(seed){
+
+    ## Generate some data
+    TT = 1000
+    p = 10
+    set.seed(seed)
+    X = matrix(rnorm(p * TT), ncol=p, nrow=TT)
+    X = scale(X)
+    Xa = cbind(1, X)
+
+    eta <- Xa %*% c(2, 1, rep(0, p-1))
+    prob <- 1/(1 + exp(-eta))
+    yy <- ( runif(TT) < prob )
+    yorig <- cbind(yy, 1 - yy)
+    wts = rep(c(1, 10), TT / 2)
+    y <- yorig * wts
+    N = sum(y)
+
+    par(mfrow=c(4,4))
+    for(lambda in seq(from = 0, to = 0.05, length = 8)){
+
+        ## What we use.
+        coef.glmnet <- solve_multinom(y, X, lambda)
+        ## What we test against.
+        coef.cvxr = cvxr_multinom(y, Xa,
+                                  lambda,
+                                  exclude.from.penalty = 1,
+                                  thresh = 1E-10,
+                                  N = N)
+        objective.cvxr = multinom_objective(coef.cvxr, Xa, y, lambda, exclude.from.penalty=1)
+        objective.glmnet = multinom_objective(coef.glmnet, Xa, y, lambda, exclude.from.penalty=1)
+
+        ## Estimated probabilities
+        eta2 = Xa %*% coef.cvxr[,2]
+        eta1 = Xa %*% coef.cvxr[,1]
+        probs.cvxr = exp(eta1)/(exp(eta1) + exp(eta2))
+
+        eta1 = Xa %*% coef.glmnet[,1]
+        eta2 = Xa %*% coef.glmnet[,2]
+        probs.glmnet = exp(eta1)/(exp(eta1) + exp(eta2))
 
 
-
-  ## Generate some data
-  TT = 20
-  p = 3
-  numclust = 2
-  lambda = 0.1
-      seed=0
-
-  ## Generate some dummy data.
-  for(seed in c(0,1,2,3,4,5,6,7,8,9,10)){
-  set.seed(seed)
-  print("====== Seed =============================================")
-  print(seed)
-  X = matrix(rnorm(p * TT), ncol=p, nrow=TT)
-  X = scale(X)
-  Xa = cbind(1, X)
-
-  eta <- Xa %*% c(1, 1, 0, 0)
-  prob <- 1/(1 + exp(-eta))
-  yy <- runif(TT) < prob
-  y <- cbind(yy, 1 - yy)
-  wts = rep(c(1,200), 10)
-  y2 <- y * wts
-
-  ## CURRENT ISSUE: when y do not have row sum of 1, results differ  ##########
-
-  ## Without intercept ########################################################
-
-  ## Solve it two different ways
-  res1 = solve_multinom(y, X, lambda, intercept=FALSE, ntlist = wts)
-  res2 = cvxr_multinom(y2, X, lambda)
-
-  ## ## These two are the same
-  ## res1 = solve_multinom(y2, X, lambda, intercept=FALSE, ntlist=1/wts)
-  ## res2 = cvxr_multinom(y, X, lambda)
-
-  print("glmnet")
-  print(round(res1[-1,],3))
-  print("cvxr")
-  print(round(res2,3))
-  print("cvxr old")
-  print(round(res3,3))
-
-  ## Compare fitted coefficients
-  ## expect_true(max(abs(res2 - res1[-1,])) < 1E-2)
-
-  ## Compare objective values.
-  objective1 = multinom_objective(res1[-1,], X, y, lambda)
-  objective2 = multinom_objective(res2, X, y, lambda)
-  objective3 = multinom_objective(res3, X, y, lambda)
-  ## expect_true(abs((objective2 - objective1)/objective1) < 1E-4)
-  print("glmnet")
-  print(objective1)
-  print("cvxr")
-  print(objective2)
-  print("cvxr old")
-  print(objective3)
-
-  ## With intercept ########################################################
-
-
-  ## ## Temporary
-  ## ntlist = sapply(ylist2, nrow)
-  ## res1 = solve_multinom(X = as.matrix(X[,5:7]), y = resp.sum,
-  ##                       lambda = lambda, intercept = TRUE,
-  ##                       ntlist = ntlist)
-  ## scaled.resp.sum = resp.sum/ntlist
-  ## Xa = cbind(1, as.matrix(X[,5:7]))
-  ## res2 = cvxr_multinom(resp.sum, Xa, lambda, 1)
-  ## res2[-1,]
-  ## res1[-1,]
-  ## ## End of Temporary
-
-  ## Solve it two different ways
-  res1 = solve_multinom(y, X, lambda, intercept=TRUE)
-  res2 = cvxr_multinom(y, Xa, lambda, 1)
-
-  ## Compare fitted coefficients.
-  expect_true(max(abs(res2[-1,] - res1[-1,])) < 2E-2)
-
-  ## Compare objective values.
-  objective1 = multinom_objective(res1, Xa, y, lambda, exclude.from.penalty=1)
-  objective2 = multinom_objective(res2, Xa, y, lambda, exclude.from.penalty=1)
-  expect_true(abs((objective2-objective1)/objective1) < 1E-3)
-
-
-  ## When rowsums not 1, with intercept #####################################
-  set.seed(0)
-  y = matrix(runif(TT * 2), ncol=2)
-
-  ## Solve it two different ways
-  for(lambda in c(0.01) * c(2:10)){
-    res1 = solve_multinom(y, X, lambda, intercept=TRUE)
-    res2 = cvxr_multinom(y, Xa, lambda, 1)
-
-    ## Compare fitted coefficients.
-    expect_true(max(abs(res2[-1,] - res1[-1,])) < 1E-2)
-
-    ## Compare objective values.
-    objective1 = multinom_objective(res1, Xa, y, lambda, exclude.from.penalty=1)
-    objective2 = multinom_objective(res2, Xa, y, lambda, exclude.from.penalty=1)
-    expect_true(abs((objective2-objective1)/objective1) < 1E-3)
+      ## Make plots of estimated probabilities, and coefficients
+        plot(y = probs.cvxr, x = probs.glmnet,
+             xlab = "GLMNET-estimated class 1 probability",
+             ylab = "CVXR-estimated class 1 probability")
+      plot(x = abs(coef.cvxr),
+           y = abs(coef.glmnet),
+           pch = 16,
+           cex = 2,
+           main = paste0("lambda=", round(lambda, 3),
+                         "\n objective values",
+                         round(objective.cvxr,3),",", round(objective.glmnet, 3)),
+           log = "xy",
+           xlab = "CVXR",
+           ylab = "GLMNET")
+      abline(0,1)
+    }
   }
 
-  ## When rowsums not 1 and no intercept #####################################
-
-  ## Solve it two different ways
-  for(lambda in (3:10) * 0.01){
-    res1 = solve_multinom(y, X, lambda, intercept=FALSE)
-    res2 = cvxr_multinom(y, X, lambda)
-
-    ## Compare fitted coefficients.
-    expect_true(max(abs(res2 - res1[-1,])) < 1E-2)
-
-    ## Compare objective values.
-    objective1 = multinom_objective(res1[-1,], X, y, lambda, exclude.from.penalty=1)
-    objective2 = multinom_objective(res2, X, y, lambda, exclude.from.penalty=1)
-    expect_true(abs((objective2-objective1)/objective1) < 1E-3)
-  }
+  ## Condut the tests
+  mytest(1)
+  mytest(2)
 
 })

@@ -167,11 +167,11 @@ covarem_once <- function(ylist, X,
 
       ## Temporary print message, to see sparsity.
       cat(fill = TRUE)
-      print('beta')
+      print('#Zeros in beta is')
       for( b in beta){
         cat(sum(b[-1,]!=0), "out of", length(b[-1,]), fill=TRUE)
       }
-      print('alpha')
+      print('And #zero in alpha is')
       cat(sum(alpha[,-1]!=0), "out of", length(alpha[,-1]), fill=TRUE)
       ## End of temporary
 
@@ -221,7 +221,7 @@ covarem_once <- function(ylist, X,
     if(check_converge_rel(objectives[iter-1],
                           objectives[iter],
                           tol = tol_em)) break
-    if(objectives[iter] > objectives[iter-1] * 1.01 ) break # Additional stopping
+    ## if(objectives[iter] > objectives[iter-1] * 1.01 ) break # Additional stopping
                                         # of the likelihood
                                         # increasing more
                                         # than 1%.
@@ -244,6 +244,7 @@ covarem_once <- function(ylist, X,
                         ## Above is output, below are data/algorithm settings.
                         dimdat = dimdat,
                         TT = TT,
+                        N = N,
                         p = p,
                         numclust = numclust,
                         X = X,
@@ -316,7 +317,9 @@ predict.covarem <- function(res, newx = NULL){
   ## Return all three things
   return(list(newmn = newmn_array,
               newpie = newpie,
-              sigma = res$sigma))
+              sigma = res$sigma,
+              TT = res$TT,
+              N = res$N))
 }
 
 
