@@ -83,7 +83,7 @@ covarem_once <- function(ylist, X,
   ## assert_that(!(is.data.frame(ylist[[1]])))
   assertthat::assert_that(sum(is.na(X)) == 0)
   assertthat::assert_that(length(ylist) == nrow(X))
-  assertthat::assert_that(pie_lambda > 0)
+  ## assertthat::assert_that(pie_lambda > 0)
 
   ## Setup
   TT = length(ylist)

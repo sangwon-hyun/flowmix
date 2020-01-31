@@ -10,7 +10,6 @@ Mstep_alpha <- function(resp, X, numclust, lambda,
                         zerothresh = 1E-8){
 
   ## Basic checks
-  if(lambda == 0) stop("lambda=0 is not supported, since model is unidentifiable.")
   TT = nrow(X)
   p = ncol(X)
 
