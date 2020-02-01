@@ -225,15 +225,14 @@ get_cv_score_onesplit_prebinned <- function(test.isplit, splits, ylist, X, refit
   stopifnot(all(pred$newpie >= 0))
 
   ## Calculate objective (penalized likelihood)
-  objective_overall_cov(pred$newmn,
-                        pred$newpie,
-                        pred$sigma,
-                        TT, dimdat, numclust,
-                        ylist.test,
-                        pie_lambda = 0,
-                        mean_lambda = 0,
-                        alpha = res.train$alpha,
-                        beta = res.train$beta)
+  objective(pred$newmn,
+            pred$newpie,
+            pred$sigma,
+            ylist.test,
+            pie_lambda = 0,
+            mean_lambda = 0,
+            alpha = res.train$alpha,
+            beta = res.train$beta)
 }
 
 ##' Inner  function  for calculating  cross-validated  test  likelihood for  one
@@ -282,15 +281,14 @@ get_cv_score_onesplit <- function(test.isplit, splits, ylist, X, refit, ...){##,
   stopifnot(all(pred$newpie >= 0))
 
   ## Calculate objective (penalized likelihood)
-  objective_overall_cov(pred$newmn,
-                        pred$newpie,
-                        pred$sigma,
-                        TT, dimdat, numclust,
-                        ylist.test,
-                        pie_lambda = 0,
-                        mean_lambda = 0,
-                        alpha = res.train$alpha,
-                        beta = res.train$beta)
+  objective(pred$newmn,
+            pred$newpie,
+            pred$sigma,
+            ylist.test,
+            pie_lambda = 0,
+            mean_lambda = 0,
+            alpha = res.train$alpha,
+            beta = res.train$beta)
 }
 
 

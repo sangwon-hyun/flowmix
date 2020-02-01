@@ -197,13 +197,12 @@ covarem_once <- function(ylist, X,
                                              countslist)
 
     ## Calculate the objectives
-    objectives[iter] = objective_overall_cov(mn, pie, sigma, TT, N, dimdat,
-                                             numclust, ylist,
-                                             pie_lambda = pie_lambda,
-                                             mean_lambda = mean_lambda,
-                                             alpha = alpha, beta = beta,
-                                             denslist_by_clust = denslist_by_clust,
-                                             countslist = countslist)
+    objectives[iter] = objective(mn, pie, sigma, ylist,
+                                 pie_lambda = pie_lambda,
+                                 mean_lambda = mean_lambda,
+                                 alpha = alpha, beta = beta,
+                                 denslist_by_clust = denslist_by_clust,
+                                 countslist = countslist)
 
     ## print(gc())
 

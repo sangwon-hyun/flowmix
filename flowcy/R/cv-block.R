@@ -86,7 +86,7 @@ blockcv_fitmodel <- function(cl, destin,
 
 
 
-##' Define the folds.
+##' Define the folds for nfold-CV.
 blockcv_make_folds <- function(ylist, nfold, verbose=FALSE){
 
   if(verbose) print("Large consecutive time blocks used for CV (block type 1)")
@@ -163,17 +163,15 @@ one_job <- function(ialpha, ibeta, ifold, folds, destin,
     stopifnot(all(pred$newpie >= 0))
 
     ## Evaluate on test data, by calculating objective (penalized likelihood)
-    cvscore = objective_overall_cov(mu = pred$newmn,
-                                    pie = pred$newpie,
-                                    sigma = pred$sigma,
-                                    TT = pred$TT,
-                                    N = pred$N,
-                                    ylist = test.dat,
-                                    countslist = NULL,
-                                    pie_lambda = 0,
-                                    mean_lambda = 0,
-                                    alpha = res.train$alpha,
-                                    beta = res.train$beta)
+    cvscore = objective(mu = pred$newmn,
+                        pie = pred$newpie,
+                        sigma = pred$sigma,
+                        ylist = test.dat,
+                        countslist = NULL,
+                        pie_lambda = 0,
+                        mean_lambda = 0,
+                        alpha = res.train$alpha,
+                        beta = res.train$beta)
 
     time_per_iter = res.train$time_per_iter
     final_iter = res.train$final.iter
