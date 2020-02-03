@@ -65,3 +65,4 @@ covarem_once(ylist, X, numclust=4, verbose = TRUE,
              mean_lambda = .1,
              manual.bin = TRUE,
              manual.grid = dat.grid)
+

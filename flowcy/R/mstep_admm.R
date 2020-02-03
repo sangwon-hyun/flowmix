@@ -7,9 +7,8 @@
 ##' @param sigma (numclust x dimdat x dimdat) matrix.
 ##' @param local_adapt TRUE if locally adaptive ADMM (LA-ADMM) is to be used. If
 ##'   so, \code{niter} becomes the inner number of iterations, and
-##'   \code{local_adapt_niter} becomes the number of outer iterations. Also, if
-##'   TRUE, \code{err_rel} is not used.
-##' @param local_adapt_niter Number of outer iterations for LA-ADMM.
+##'   \code{local_adapt_niter} becomes the number of outer iterations.
+##' ##' @param local_adapt_niter Number of outer iterations for LA-ADMM.
 ##'
 ##' @return Result of M step; a |numclust| length list of (p+1)x(d) matrices,
 ##'   each containing the estimated coefficients for the mean estimation.
@@ -24,6 +23,7 @@ Mstep_beta_admm <- function(resp,
                             niter = 1E4,
                             rho = 100, ## Some default
                             err_rel = 1E-3,
+                            err_abs = 0,
                             zerothresh = 1E-6,
                             plot.admm = FALSE,
                             local_adapt = FALSE,
@@ -50,7 +50,7 @@ Mstep_beta_admm <- function(resp,
   ##########################################
   ## Run ADMM separately on each cluster ##
   #########################################
-  betas = yhats = vector(length = numclust, mode = "list")
+  betas = yhats = admm_niters = vector(length = numclust, mode = "list")
   fits = matrix(NA, ncol = numclust, nrow = ceiling(niter / 20))
 
   ## 1. Form tilde objects for b update. Only do once!
@@ -78,6 +78,7 @@ Mstep_beta_admm <- function(resp,
                            intercept_inds = intercept_inds, lambda = lambda,
                            resp = resp, ylist = ylist, X = X, tX = tX,
                            err_rel = err_rel,
+                           err_abs = err_abs,
                            zerothresh = zerothresh,
                            plot = plot.admm)
 
@@ -85,6 +86,12 @@ Mstep_beta_admm <- function(resp,
     betas[[iclust]] = res$beta
     yhats[[iclust]] = res$yhat
     fits[,iclust] = res$fits
+    admm_niters[[iclust]] = res$kk
+
+    ## Store some additional things
+
+
+
     resid_mat_list[[iclust]] = res$resid_mat ## temporary
   }
 
@@ -96,7 +103,9 @@ Mstep_beta_admm <- function(resp,
   return(list(beta = betas,
               mns = yhats_array,
               fits = fits,
-              resid_mat_list = resid_mat_list
+              resid_mat_list = resid_mat_list,
+              admm_niters = admm_niters ## Temporary: Seeing the number of outer
+                                        ## iterations it took to converge.
               ))
 }
 
@@ -165,7 +174,11 @@ la_admm_oneclust <- function(K,
 
   }
   ## Sys.sleep(5) ## Temporary
-  if(!res$converge) c("didn't converge at all")
+  if(!res$converge) print("Didn't converge at all")
+
+  ## Gather results that are related to how long the admm took; in terms of
+  ## iterations.
+  res$kk = kk
 
   return(res)
 }
@@ -180,7 +193,7 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
                           TT, N, dimdat, maxdev, Xa, rho,
                           X0, I_aug,
                           intercept_inds, lambda,
-                          resp, ylist, X, tX, err_rel,
+                          resp, ylist, X, tX, err_rel, err_abs,
                           zerothresh,
                           ## Warm startable variables
                           beta,
@@ -259,18 +272,27 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
     ## 3. Check convergence
     if( iter > 1  & iter %% 5 == 0){## & !local_adapt){
       obj = converge(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX = tX,
-                     Xbeta1 = Xbeta1, err_rel = err_rel)
+                     Xbeta1 = Xbeta1, err_rel = err_rel,
+                     err_abs = err_abs)
       ## ii = iter-1
       jj = (iter/ 5)
       resid_mat[jj,] = c(norm(obj$primal_resid, "F"),
                          obj$primal_err,
                          norm(obj$dual_resid,"F"),
                          obj$dual_err)
+
       ## Temporary print message
-      if(obj$converge){
-        ## print(paste('converged! in', iter, 'out of ', niter, 'steps!'))
-        converge = TRUE
-        break
+      if(is.null(obj$converge)){
+        print(obj)
+      }
+
+
+      if(!is.null(obj$converge)){ ## Sometimes obj doesn't contain converge.. not sure why yet.
+        if(obj$converge){
+          ## print(paste('converged! in', iter, 'out of ', niter, 'steps!'))
+          converge = TRUE
+          break
+        }
       }
     }
 

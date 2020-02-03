@@ -72,9 +72,12 @@ covarem_once <- function(ylist, X,
                          admm = TRUE,
                          admm_rho = 0.1,
                          admm_err_rel = 1E-3,
+                         admm_err_abs = 0,
                          ## beta M step (Locally Adaptive ADMM) settings
                          admm_local_adapt = TRUE,
-                         admm_local_adapt_niter = 20,
+                         admm_local_adapt_niter = 10, ## This spans rho=0.1 to
+                                                      ## 100, which is
+                                                      ## reasonable.
                          admm_niter = (if(admm_local_adapt)3E2 else 1E4)
                          ){## Basic checks
 
@@ -101,27 +104,30 @@ covarem_once <- function(ylist, X,
   sigma = init_sigma(ylist, numclust, TT, fac=sigma.fac) ## (T x numclust x dimdat x dimdat)
   sigma_eig_by_clust = NULL
   zero.betas = zero.alphas = list()
+  admm_niters = list()
 
   ## The least elegant solution I can think of.. used only for blocked cv
   if(!is.null(countslist_overwrite)) countslist = countslist_overwrite
   if(bin) check_trim(ylist, countslist)
 
   start.time = Sys.time()
-  for(iter in 2:niter){if(verbose){
-                         printprogress(iter-1, niter-1, "EM iterations.", start.time = start.time)
-                       }
-                         resp <- Estep_covar(mn, sigma, pie, ylist = ylist, numclust = numclust,
-                                             denslist_by_clust = denslist_by_clust,
-                                             first_iter = (iter == 2), countslist = countslist)
+  for(iter in 2:niter){
+    if(verbose){
+      printprogress(iter-1, niter-1, "EM iterations.", start.time = start.time)
+    }
+    resp <- Estep_covar(mn, sigma, pie, ylist = ylist, numclust = numclust,
+                        denslist_by_clust = denslist_by_clust,
+                        first_iter = (iter == 2), countslist = countslist)
 
 
     ## M step (three parts)
     ## 1. Alpha
     res.alpha = Mstep_alpha(resp, X, numclust, lambda = pie_lambda,
                             zerothresh = zerothresh)
-                         pie = res.alpha$pie
-                         alpha = res.alpha$alpha
-                         rm(res.alpha)
+                            ## iter=iter)
+    pie = res.alpha$pie
+    alpha = res.alpha$alpha
+    rm(res.alpha)
 
     ## print(iter)
     ## if(iter==2){
@@ -140,19 +146,43 @@ covarem_once <- function(ylist, X,
                                  sigma_eig_by_clust = sigma_eig_by_clust,
                                  sigma = sigma, maxdev = maxdev, rho = admm_rho,
                                  err_rel = admm_err_rel,
+                                 err_abs = admm_err_abs,
                                  niter = admm_niter,
                                  local_adapt = admm_local_adapt,
                                  local_adapt_niter = admm_local_adapt_niter)
+      browser()
+      admm_niters[[iter]] = unlist(res.beta$admm_niters)
     } else {
-      res.beta = Mstep_beta(resp, ylist, X,
+      ## res.beta = Mstep_beta(resp, ylist, X,
+      res.beta2 = Mstep_beta(resp, ylist, X,
                              mean_lambda = mean_lambda,
                              sigma = sigma,
                              maxdev = maxdev,
+                             ## Temporary
+                             ridge = ridge,
+                             ridge_lambda = ridge_lambda,
+                            ## End of temporary
                              sigma_eig_by_clust = sigma_eig_by_clust,
                              first_iter = (iter == 2), bin = bin,
                              cvxr_ecos_thresh = mstep_cvxr_ecos_thresh,
                              cvxr_scs_eps = mstep_cvxr_scs_eps,
                              zerothresh = zerothresh)
+
+      ## Temporary: compare the two
+      save(res.beta, res.beta2, file=file.path("~/Desktop", "res-temp.Rdata"))
+
+      par(mfrow=c(1,2))
+      plot(x=res.beta$mns,
+           y=res.beta2$mns)
+      b = unlist(lapply(res.beta$beta, function(mybeta) mybeta[-1,]))
+      b2 = unlist(lapply(res.beta2$beta, function(mybeta) mybeta[-1,]))
+      plot(x=b,
+           y=b2)
+      abline(0,1)
+
+      res.beta2
+      res.beta
+
     }
 
     mn = res.beta$mns
@@ -251,7 +281,8 @@ covarem_once <- function(ylist, X,
                         mean_lambda = mean_lambda,
                         maxdev=maxdev,
                         refit = refit,
-                        niter = niter
+                        niter = niter,
+                        admm_niters = admm_niters
                         ), class = "covarem"))
 }
 

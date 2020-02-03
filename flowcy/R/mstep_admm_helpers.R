@@ -52,8 +52,8 @@ projC <- function(v, C){
 ##' (Helper) Check convergence for ADMM.
 ##' @param err_rel = 1E-3
 converge <- function(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX, Xbeta1,
-                     err_rel = 1E-4
-                     ## , err_abs = 1E-3
+                     err_rel = 1E-4,
+                     err_abs = 0
                      ){
 
   ## Form primal and dual residuals, and other things.
@@ -67,9 +67,9 @@ converge <- function(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX, Xbeta1,
   tAU = Uw + tX %*% Uz
 
   ## Form primal and dual tolerances.
-  primal_err = ## sqrt(length(primal_resid)) * err_abs +
+  primal_err = sqrt(length(primal_resid)) * err_abs +
     err_rel * max(norm(prim1, "F"), norm(prim2, "F"))
-  dual_err = ## sqrt(length(dual_resid)) * err_abs +
+  dual_err = sqrt(length(dual_resid)) * err_abs +
     err_rel * norm(tAU, "F")
 
   ## Check convergence.
