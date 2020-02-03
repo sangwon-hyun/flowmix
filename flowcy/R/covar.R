@@ -146,19 +146,41 @@ covarem_once <- function(ylist, X,
                                  sigma_eig_by_clust = sigma_eig_by_clust,
                                  sigma = sigma, maxdev = maxdev, rho = admm_rho,
                                  err_rel = admm_err_rel,
+                                 err_abs = admm_err_abs,
                                  niter = admm_niter,
                                  local_adapt = admm_local_adapt,
                                  local_adapt_niter = admm_local_adapt_niter)
+      admm_niters[[iter]] = unlist(res.beta$admm_niters)
     } else {
       res.beta = Mstep_beta(resp, ylist, X,
                              mean_lambda = mean_lambda,
                              sigma = sigma,
                              maxdev = maxdev,
+                             ## Temporary
+                             ridge = ridge,
+                             ridge_lambda = ridge_lambda,
+                            ## End of temporary
                              sigma_eig_by_clust = sigma_eig_by_clust,
                              first_iter = (iter == 2), bin = bin,
                              cvxr_ecos_thresh = mstep_cvxr_ecos_thresh,
                              cvxr_scs_eps = mstep_cvxr_scs_eps,
                              zerothresh = zerothresh)
+
+      ## ## Temporary: compare the two
+      ## save(res.beta, res.beta2, file=file.path("~/Desktop", "res-temp.Rdata"))
+
+      ## par(mfrow=c(1,2))
+      ## plot(x=res.beta$mns,
+      ##      y=res.beta2$mns)
+      ## b = unlist(lapply(res.beta$beta, function(mybeta) mybeta[-1,]))
+      ## b2 = unlist(lapply(res.beta2$beta, function(mybeta) mybeta[-1,]))
+      ## plot(x=b,
+      ##      y=b2)
+      ## abline(0,1)
+
+      ## res.beta2
+      ## res.beta
+
     }
 
     mn = res.beta$mns
