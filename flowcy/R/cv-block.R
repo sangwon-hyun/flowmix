@@ -98,21 +98,28 @@ blockcv_make_folds <- function(ylist, nfold, verbose=FALSE){
   return(inds)
 }
 
-##' Define the folds for 1-hr-split CVs.
-blockcv_hourlong_make_folds <- function(ylist, nfold, verbose=FALSE){
+##' Define the folds for 1-hr-split CVs. (roughly, 1 hour = block size of 20).
+blockcv_hourlong_make_folds <- function(ylist, nfold, verbose=FALSE, blocksize=20){
 
   if(verbose) print("Hour-long time blocks used for CV (block type 2)")
+
   ## Make hour-long index list
   TT = length(ylist)
-  endpoints = round(seq(from = 1, to = TT, by = 20))
+  endpoints = round(seq(from = 0, to = TT + blocksize, by = blocksize))
   inds = Map(function(a,b){(a+1):b},
              endpoints[-length(endpoints)],
              endpoints[-1])
 
   ## Further make these into five blocks of test indices.
-  test.ii.list = lapply(1:5, function(ifold){
-    test.ii = seq(from=ifold, to=length(inds), by=5)
+  test.ii.list = lapply(1:nfold, function(ifold){
+    which.test.inds = seq(from=ifold, to=length(inds), by=5)
+    test.ii = unlist(inds[which.test.inds])
+    return(test.ii)
   })
+
+  ## plot(NA, xlim = c(0,TT), ylim=1:2)
+  ## lapply(1:nfold, function(ifold){a = test.ii.list[[ifold]]; abline(v=a, col=ifold)})
+
   return(test.ii.list)
 }
 
