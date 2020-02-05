@@ -151,6 +151,8 @@ covarem_once <- function(ylist, X,
 
     ## 2. Beta
     if(admm){
+      first_iter = (iter == 2)
+
       ## if(!always_first_iter) first_iter = (iter == 2)
       ## if(always_first_iter) first_iter=TRUE
       res.beta = Mstep_beta_admm(resp, ylist, X,
