@@ -280,10 +280,14 @@ manip_ridge <- function(ylist, X, resp, sigma, numclust,
     }
     Ytildes[[iclust]] = emptymat
   }
+
+  Xunderbar = diag(rep(1, dimdat)) %x% X
   Xtildes = lapply(1:numclust, function(iclust){
     Xtilde = sigma.inv.halves[iclust,,] %x% (sqrt(resp.sum[,iclust]) * X)
     ## Append rows for the ridge
-    Xridge = sqrt(ridge_lambda)  * ( diag(rep(1, dimdat)) %x% X) ##* sqrt(ridge_pie[,iclust]))
+    Xridge = sqrt(ridge_lambda)  * Xunderbar
+    ##* sqrt(ridge_pie[,iclust]))
+
     ## if(!is.null(ridge_pie)){
     ##   Xridge =  Xridge * sqrt(ridge_pie[,iclust]) ## I think this is right.
     ## }

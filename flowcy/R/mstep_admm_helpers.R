@@ -99,7 +99,7 @@ objective_per_cluster <- function(beta, ylist, Xa, resp, lambda, N, dimdat, iclu
 
   ## Obtain square root of sigma.
   if(first_iter){
-    sigma_half <- sigma_half_from_eig(eigendecomp_sigma_barebones(sigma))
+    sigma_half <- sigma_half_from_eig(eigendecomp_sigma_barebones(sigma[iclust,,]))
   } else {
     sigma_eig <- sigma_eig_by_clust[[iclust]]
     sigma_half <- sigma_eig$inverse_sigma_half
@@ -121,7 +121,7 @@ objective_per_cluster <- function(beta, ylist, Xa, resp, lambda, N, dimdat, iclu
   grand.sum = sum(resid.prods)
 
   ## Calculate the objective value
-  obj = (1/(2 * N)) * grand.sum + lambda * sum(abs(beta) > zerothresh)
+  obj = (1/(2 * N)) * grand.sum + lambda * sum(abs(beta[-1,]) > zerothresh) ## Another bug!
   return(obj)
 }
 

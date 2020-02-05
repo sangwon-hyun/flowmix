@@ -59,8 +59,10 @@ covarem_once <- function(ylist, X,
                          manual.grid = NULL,
                          countslist_overwrite = NULL,
                          zero_stabilize  = FALSE,
-                         ## ridge = FALSE,
-                         ## ridge_lambda = 0
+                         ## Temporary
+                         ridge = FALSE,
+                         ridge_lambda = 0,
+                         ## End of temporary
                          plot = FALSE,
                          plotdir = "~/Desktop",
                          init_mn_flatten = FALSE,
@@ -70,15 +72,16 @@ covarem_once <- function(ylist, X,
                          zerothresh = 1E-6,
                          ## beta Mstep (ADMM) settings
                          admm = TRUE,
-                         admm_rho = 0.1,
+                         admm_rho = 0.01,
                          admm_err_rel = 1E-3,
-                         admm_err_abs = 0,
+                         admm_err_abs = 1E-4,
                          ## beta M step (Locally Adaptive ADMM) settings
                          admm_local_adapt = TRUE,
                          admm_local_adapt_niter = 10, ## This spans rho=0.1 to
                                                       ## 100, which is
                                                       ## reasonable.
-                         admm_niter = (if(admm_local_adapt)3E2 else 1E4)
+                         admm_niter = (if(admm_local_adapt)1E3 else 1E4),
+                         always_first_iter## temporary
                          ){## Basic checks
 
   ## Basic checks
@@ -87,6 +90,7 @@ covarem_once <- function(ylist, X,
   assertthat::assert_that(sum(is.na(X)) == 0)
   assertthat::assert_that(length(ylist) == nrow(X))
   ## assertthat::assert_that(pie_lambda > 0)
+  if(ridge) assert_that(!admm) ## temporary
 
   ## Setup
   TT = length(ylist)
@@ -105,6 +109,13 @@ covarem_once <- function(ylist, X,
   sigma_eig_by_clust = NULL
   zero.betas = zero.alphas = list()
   admm_niters = list()
+
+  ## Warm startable variables
+  betas = NULL
+  Zs = NULL
+  wvecs = NULL
+  uws = NULL
+  Uzs = NULL
 
   ## The least elegant solution I can think of.. used only for blocked cv
   if(!is.null(countslist_overwrite)) countslist = countslist_overwrite
@@ -140,11 +151,23 @@ covarem_once <- function(ylist, X,
 
     ## 2. Beta
     if(admm){
+      if(!always_first_iter) first_iter = (iter == 2)
+      if(always_first_iter) first_iter=TRUE
       res.beta = Mstep_beta_admm(resp, ylist, X,
                                  mean_lambda = mean_lambda,
-                                 first_iter = (iter == 2),
+                                 ## first_iter = (iter == 2),
+                                 ## first_iter=TRUE,
+                                 first_iter = first_iter,
+                                 ## em_iter = iter,
                                  sigma_eig_by_clust = sigma_eig_by_clust,
                                  sigma = sigma, maxdev = maxdev, rho = admm_rho,
+
+                                 betas = betas,
+                                 Zs = Zs,
+                                 wvecs=wvecs,
+                                 uws=uws,
+                                 Uzs=Uzs,
+
                                  err_rel = admm_err_rel,
                                  err_abs = admm_err_abs,
                                  niter = admm_niter,
@@ -165,26 +188,17 @@ covarem_once <- function(ylist, X,
                              cvxr_ecos_thresh = mstep_cvxr_ecos_thresh,
                              cvxr_scs_eps = mstep_cvxr_scs_eps,
                              zerothresh = zerothresh)
-
-      ## ## Temporary: compare the two
-      ## save(res.beta, res.beta2, file=file.path("~/Desktop", "res-temp.Rdata"))
-
-      ## par(mfrow=c(1,2))
-      ## plot(x=res.beta$mns,
-      ##      y=res.beta2$mns)
-      ## b = unlist(lapply(res.beta$beta, function(mybeta) mybeta[-1,]))
-      ## b2 = unlist(lapply(res.beta2$beta, function(mybeta) mybeta[-1,]))
-      ## plot(x=b,
-      ##      y=b2)
-      ## abline(0,1)
-
-      ## res.beta2
-      ## res.beta
-
     }
 
+    ## Harvest means
     mn = res.beta$mns
-    beta = res.beta$beta
+    betas = beta = res.beta$betas
+
+    ## Harvest other things for next iteration's ADMM.
+    Zs = res.beta$Zs
+    wvecs = res.beta$wvecs
+    uws = res.beta$uws
+    Uzs = res.beta$Uzs
     rm(res.beta)
 
     ## Check if the number of zeros in the alphas and betas have stabilized.
