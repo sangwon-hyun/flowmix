@@ -26,7 +26,7 @@ objective <- function(mu, pie, sigma,
     if(is.null(denslist_by_clust)){
       return(loglikelihood_tt(ylist, tt, mu, sigma, pie, countslist))
     } else {
-      return(loglikelihood_tt_precalculate(tt, denslist_by_clust, pie, countslist))
+      return(loglikelihood_tt_precalculate(ylist, tt, denslist_by_clust, pie, countslist))
     }
   })
 
@@ -49,7 +49,7 @@ objective <- function(mu, pie, sigma,
 ##'
 ##' @return Log likelihood.
 ##'
-loglikelihood_tt_precalculate <- function(tt, denslist_by_clust, pie, countslist = NULL){
+loglikelihood_tt_precalculate <- function(ylist, tt, denslist_by_clust, pie, countslist = NULL){
 
   ## One particle's log likelihood (weighted density)
   weighted.densities = lapply(1:numclust, function(iclust){

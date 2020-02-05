@@ -411,7 +411,7 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
   beta[which(abs(beta) < zerothresh, arr.ind = TRUE)] = 0
   yhat = Xa %*% beta
 
-  fit = objective_per_cluster(beta, ylist, Xa, resp, mean_lambda, N, dimdat,
+  fit = objective_per_cluster(beta, ylist, Xa, resp, lambda, N, dimdat,
                               iclust, sigma, iter, zerothresh,
                               is.null(sigma_eig_by_clust), sigma_eig_by_clust)
 
