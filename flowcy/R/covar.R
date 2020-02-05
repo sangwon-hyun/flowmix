@@ -80,7 +80,7 @@ covarem_once <- function(ylist, X,
                          admm_local_adapt_niter = 10, ## This spans rho=0.1 to
                                                       ## 100, which is
                                                       ## reasonable.
-                         admm_niter = (if(admm_local_adapt)1E3 else 1E4),
+                         admm_niter = (if(admm_local_adapt)1E3 else 1E4)
                          ## always_first_iter## temporary
                          ){## Basic checks
 
