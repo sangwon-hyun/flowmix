@@ -223,7 +223,7 @@ la_admm_oneclust <- function(K,
     objectives = c(objectives, res$fit)
       ## if(em_iter>2) plot(fits, type='o', col=cols)
     if(outer_converge(objectives)){
-      cat("Outer ADMM converged with K=", kk, fill=TRUE)
+      ## cat("Outer ADMM converged with K=", kk, fill=TRUE)
 
       ## ylimlist = list(c(3.192, 3.291), c(2.918, 3.027), c(5.27,5.92), c(0.835,0.87))
       ## ylimlist = lapply(ylimlist, function(a) a*c(0.8, 1.2))
@@ -235,7 +235,7 @@ la_admm_oneclust <- function(K,
       break
     }
     if(res$converge){
-      cat("converged with K=", kk, fill=TRUE)
+      ## cat("converged with K=", kk, fill=TRUE)
       break
     }
 
