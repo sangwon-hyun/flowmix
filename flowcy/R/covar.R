@@ -151,8 +151,8 @@ covarem_once <- function(ylist, X,
 
     ## 2. Beta
     if(admm){
-      if(!always_first_iter) first_iter = (iter == 2)
-      if(always_first_iter) first_iter=TRUE
+      ## if(!always_first_iter) first_iter = (iter == 2)
+      ## if(always_first_iter) first_iter=TRUE
       res.beta = Mstep_beta_admm(resp, ylist, X,
                                  mean_lambda = mean_lambda,
                                  ## first_iter = (iter == 2),
