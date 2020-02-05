@@ -19,7 +19,16 @@ Mstep_alpha <- function(resp, X, numclust, lambda,
   stopifnot(dim(resp) == c(TT, numclust))
 
   ## Fit the model
-  alpha = solve_multinom(resp.sum, X, lambda)
+  alpha = NULL
+  tryCatch({
+    alpha = solve_multinom(resp.sum, X, lambda)
+  }, error=function(e){})
+  if(is.null(alpha)){
+    alpha = cvxr_multinom(resp.sum, cbind(1,X), lambda,
+                          exclude.from.penalty = 1,
+                          N = sum(resp.sum))
+  }
+
   alpha[which(abs(alpha) < zerothresh, arr.ind = TRUE)] = 0
   alpha = t(as.matrix(alpha))
   stopifnot(all(dim(alpha) == c(numclust, (p + 1))))
