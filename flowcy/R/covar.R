@@ -81,7 +81,7 @@ covarem_once <- function(ylist, X,
                                                       ## 100, which is
                                                       ## reasonable.
                          admm_niter = (if(admm_local_adapt)1E3 else 1E4),
-                         always_first_iter## temporary
+                         ## always_first_iter## temporary
                          ){## Basic checks
 
   ## Basic checks
