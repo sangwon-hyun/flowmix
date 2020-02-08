@@ -8,10 +8,13 @@
 ##' @param destin Destination directory.
 ##' @param mean_lambdas List of regularization parameters for mean model.
 ##' @param pie_lambdas List of regularization parameters for pie model.
+##' @param iirange Which of the \code{cv_gridsize^2*nfold*nrep} jobs (e.g. of
+##'   the form 5-3-2-5) to run. Defaults to \code{NULL}, in which case all jobs
+##'   are run in order of these indices i.e. 1-1-1-1, then 1-1-1-2, and so on.
 ##' @param ... default arguments to covarem().
 ##' @return List containing (1) the set of coefficients
 ##' @export
-blockcv <- function(cl, folds, cv_gridsize,
+blockcv <- function(cl, folds, cv_gridsize, iirange=NULL,
                     ylist, countslist, X,
                     mean_lambdas,
                     pie_lambdas,
@@ -43,8 +46,11 @@ blockcv <- function(cl, folds, cv_gridsize,
   nrep = args$nrep
   iimat = make_iimat(cv_gridsize, nfold, nrep)
   iimax = nrow(iimat)
+  if(!is.null(iirange)){
+    iirange = 1:iimax
+  }
   if(parallel){
-    parallel::parLapplyLB(cl, 1:iimax, function(ii){
+    parallel::parLapplyLB(cl, iirange, function(ii){
       ialpha = iimat[ii,"ialpha"]
       ibeta = iimat[ii,"ibeta"]
       ifold = iimat[ii,"ifold"]
@@ -57,7 +63,7 @@ blockcv <- function(cl, folds, cv_gridsize,
     })
   } else {
     ## Mirror copy of whatever goes in the parallel=TRUE block directly above.
-    lapply(1:iimax, function(ii){
+    lapply(iirange, function(ii){
       ialpha = iimat[ii,"ialpha"]
       ibeta = iimat[ii,"ibeta"]
       ifold = iimat[ii,"ifold"]
@@ -121,7 +127,7 @@ blockcv_hourlong_make_folds <- function(ylist, nfold, verbose=FALSE, blocksize=2
   ## Make hour-long index list
   TT = length(ylist)
   endpoints = round(seq(from = 0, to = TT + blocksize, by = blocksize))
-  inds = Map(function(a,b){(a+1):b},
+  inds = Map(function(a,b){(a+1):pmin(b,TT)},
              endpoints[-length(endpoints)],
              endpoints[-1])
 
@@ -171,7 +177,7 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
   train.count = countslist[-test.inds]
   train.X = X[-test.inds,]
 
-  ## Check whether this version has been done already.
+  ## Check whether this job has been done already.
   filename = paste0(ialpha, "-", ibeta, "-", ifold, "-", irep, "-cvscore.Rdata")
   if(file.exists(file.path(destin, filename))){
     cat("(ialpha, ibeta, ifold, irep) = (", ialpha, ibeta, ifold, irep, ") are already done.", fill=TRUE)
