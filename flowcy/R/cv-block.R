@@ -126,10 +126,19 @@ blockcv_hourlong_make_folds <- function(ylist, nfold, verbose=FALSE, blocksize=2
 
   ## Make hour-long index list
   TT = length(ylist)
-  endpoints = round(seq(from = 0, to = TT + blocksize, by = blocksize))
-  inds = Map(function(a,b){(a+1):pmin(b,TT)},
+  endpoints = round(seq(from = 0, to = TT + blocksize,
+                        by = blocksize))
+  inds = Map(function(a,b){
+    if(a>=TT) return(NULL)
+    (a+1):pmin(b,TT)
+  },
              endpoints[-length(endpoints)],
              endpoints[-1])
+  null.elt = sapply(inds, is.null)
+  if(any(null.elt)){
+    inds = inds[-which(null.elt)]
+  }
+  print(inds)
 
   ## Further make these into five blocks of test indices.
   test.ii.list = lapply(1:nfold, function(ifold){
