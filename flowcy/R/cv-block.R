@@ -3,6 +3,11 @@
 
 ##' CV wrapper for covarem().
 ##' @param nsplit Number of CV splits. Defaults to 5.
+##' @param folds CV folds.
+##' @param cv_gridsize Grid size of CV.
+##' @param destin Destination directory.
+##' @param mean_lambdas List of regularization parameters for mean model.
+##' @param pie_lambdas List of regularization parameters for pie model.
 ##' @param ... default arguments to covarem().
 ##' @return List containing (1) the set of coefficients
 ##' @export
@@ -17,36 +22,36 @@ blockcv <- function(cl, folds, cv_gridsize,
   ## First, save the meta information.
   nfold = length(folds)
   args = list(...)
-  save(folds,
-       nfold,
-       cv_gridsize,
-       mean_lambdas,
-       pie_lambdas,
-       ylist, countslist, X,
-       args,
-       ## Save the file
-       file = file.path(destin, 'meta.Rdata'))
+  ## save(folds,
+  ##      nfold,
+  ##      cv_gridsize,
+  ##      mean_lambdas,
+  ##      pie_lambdas,
+  ##      ylist, countslist, X,
+  ##      args,
+  ##      ## Save the file
+  ##      file = file.path(destin, 'meta.Rdata'))
 
-  ## iimat looks like this:
-  ## (#, ialpha, ibeta, ifold)
-  ## 1, 1, 1, 1
-  ## 2, 1, 1, 2
-  ## 3, 1, 1, 3
+  ## |iimat| looks like this:
+  ## (#, ialpha, ibeta, ifold, irep)
+  ## 1, 1, 1, 1, 1
+  ## 2, 1, 1, 1, 2
+  ## 3, 1, 1, 1, 3
   ## ...
-  ## 1125, 15, 15, 5
+  ## 5625, 15, 15, 5, 5
   nfold = length(folds)
-  iimat = make_iimat(cv_gridsize, nfold)
+  nrep = args$nrep
+  iimat = make_iimat(cv_gridsize, nfold, nrep)
   iimax = nrow(iimat)
   if(parallel){
-    parallel::parLapplyLB(cl,
-    ## lapply(
-        1:iimax, function(ii){
+    parallel::parLapplyLB(cl, 1:iimax, function(ii){
       ialpha = iimat[ii,"ialpha"]
       ibeta = iimat[ii,"ibeta"]
       ifold = iimat[ii,"ifold"]
-      cat('(ialpha, ibeta, ifold)=', c(ialpha, ibeta, ifold), fill=TRUE)
-      one_job(ialpha, ibeta, ifold, folds, destin,
-              mean_lambdas, pie_lambdas,
+      irep = iimat[ii,"irep"]
+      cat('(ialpha, ibeta, ifold, irep)=', c(ialpha, ibeta, ifold, irep), fill=TRUE)
+      one_job(ialpha, ibeta, ifold, irep,
+              folds, destin, mean_lambdas, pie_lambdas,
               ylist, countslist, X, ...)
       cat(fill=TRUE)
     })
@@ -56,9 +61,10 @@ blockcv <- function(cl, folds, cv_gridsize,
       ialpha = iimat[ii,"ialpha"]
       ibeta = iimat[ii,"ibeta"]
       ifold = iimat[ii,"ifold"]
-      cat('iii=', c(ialpha, ibeta, ifold), fill=TRUE)
-      one_job(ialpha, ibeta, ifold, folds, destin,
-              mean_lambdas, pie_lambdas,
+      irep = iimat[ii,"irep"]
+      cat('iii=', c(ialpha, ibeta, ifold, irep), fill=TRUE)
+      one_job(ialpha, ibeta, ifold, irep,
+              folds, destin, mean_lambdas, pie_lambdas,
               ylist, countslist, X, ...)
       cat(fill=TRUE)
     })
@@ -77,13 +83,9 @@ blockcv_fitmodel <- function(cl, destin,
                              pie_lambdas,
                              ...){
 
-  args = list(...)
   iimat = make_iimat_small(args$cv_gridsize)
   iimax = nrow(iimat)
-  parallel::parLapplyLB(cl,
-  ## 1:iimax, function(ii){
-  ## lapply(
-      1:iimax, function(ii){
+  parallel::parLapplyLB(cl, 1:iimax, function(ii){
     ialpha = iimat[ii, "ialpha"]
     ibeta = iimat[ii, "ibeta"]
     print('iii=')
@@ -137,8 +139,25 @@ blockcv_hourlong_make_folds <- function(ylist, nfold, verbose=FALSE, blocksize=2
 }
 
 
-##' Helper function to run ONE job for blockCV
-one_job <- function(ialpha, ibeta, ifold, folds, destin,
+##' Helper function to run ONE job for blockCV, in ialpha, ibeta, ifold, irep.
+##'
+##' @param ialpha Index for alpha.
+##' @param ibeta Index for beta.
+##' @param ifold Index for CV folds.
+##' @param irep Index for 1 through nrep.
+##' @param folds CV folds.
+##' @param destin Destination directory.
+##' @param mean_lambdas List of regularization parameters for mean model.
+##' @param pie_lambdas List of regularization parameters for pie model.
+##' @param ylist Data.
+##' @param countslist Counts or biomass.
+##' @param X Covariates.
+##' @param ... Rest of arguments for \code{covarem_once()}.
+##'
+##' @return Nothing is returned. Instead, a file named "1-1-1-1-cvscore.Rdata"
+##'   is saved in \code{destin}. (The indices here are ialpha-ibeta-ifold-irep).
+##'
+one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
                     mean_lambdas, pie_lambdas,
                     ## The rest that is needed explicitly for covarem()
                     ylist, countslist, X, ...){
@@ -152,30 +171,40 @@ one_job <- function(ialpha, ibeta, ifold, folds, destin,
   train.count = countslist[-test.inds]
   train.X = X[-test.inds,]
 
-
   ## Check whether this version has been done already.
-  filename = paste0(ialpha, "-", ibeta, "-", ifold, "-cvscore.Rdata")
+  filename = paste0(ialpha, "-", ibeta, "-", ifold, "-", irep, "-cvscore.Rdata")
   if(file.exists(file.path(destin, filename))){
-    cat("ialpha, ibeta ", ialpha, ibeta, "are already done.", fill=TRUE)
+    cat("(ialpha, ibeta, ifold, irep) = (", ialpha, ibeta, ifold, irep, ") are already done.", fill=TRUE)
     return(NULL)
   }
   mean_lambda = mean_lambdas[ibeta]
   pie_lambda = pie_lambdas[ialpha]
 
-  ## tryCatch({
+  ## Run the algorithm (all this trouble because of |nrep|)
+  args = list(...)
+  args$ylist = train.dat
+  args$countslist = train.count
+  args$X = train.X
+  args$mean_lambda = mean_lambda
+  args$pie_lambda = pie_lambda
+  args = args[-which(names(args) %in% "nrep")] ## remove |nrep| prior to feeding
+                                               ## to covarem_once().
+  res.train = do.call(covarem_once, args)
+
+  tryCatch({
 
     ## Run algorithm on training data,
-    res.train = covarem(ylist = train.dat,
-                        countslist = train.count,
-                        X = train.X,
-                        ## refit = FALSE, ## Is this necessary? Think about it for a sec.
-                        mean_lambda = mean_lambda,
-                        pie_lambda = pie_lambda,
-                        ## verbose=TRUE, ## TEMPORARY
-                        ## plot = TRUE,
-                        ## plotdir = paste0("~/Desktop/blockcv-test-figures/1-6"),
-                        ## filepath = file.path("~/Desktop/blockcv-test-figures/1-6", Sys.time()),
-                        ...)
+    ## res.train = covarem_once(ylist = train.dat,
+    ##                          countslist = train.count,
+    ##                          X = train.X,
+    ##                          ## refit = FALSE, ## Is this necessary? Think about it for a sec.
+    ##                          mean_lambda = mean_lambda,
+    ##                          pie_lambda = pie_lambda,
+    ##                          ## verbose=TRUE, ## TEMPORARY
+    ##                          ## plot = TRUE,
+    ##                          ## plotdir = paste0("~/Desktop/blockcv-test-figures/1-6"),
+    ##                          ## filepath = file.path("~/Desktop/blockcv-test-figures/1-6", Sys.time()),
+    ##                          ...)
     ## assert_that(!refit)
 
     ## Assign mn and pie
@@ -200,6 +229,8 @@ one_job <- function(ialpha, ibeta, ifold, folds, destin,
     alpha = res.train$alpha
 
     ## Save the CV results
+    print(destin)
+    print(filename)
     save(cvscore,
          ## Time
          time_per_iter,
@@ -214,17 +245,20 @@ one_job <- function(ialpha, ibeta, ifold, folds, destin,
          alpha,
          ## Save the file
          file = file.path(destin, filename))
+    ## Note to self: if the alpha, beta and lambdas are saved, one can recreate
+    ## the fitted solutions easily, by creating the means and pies.
 
     return(NULL)
 
-  ## }, error = function(err) {
-  ##   err$message = paste(err$message,
-  ##                       "\n(No file will be saved for the lambdas ",
-  ##                       pie_lambdas[ialpha], ",", mean_lambdas[ibeta],
-  ##                       "whose indices are", ialpha, "-", ibeta, "-", ifold,
-  ##                       " .)",sep="")
-  ##   cat(err$message, fill=TRUE)
-  ##   warning(err)})
+  }, error = function(err) {
+    err$message = paste(err$message,
+                        "\n(No file will be saved for the lambdas ",
+                        pie_lambdas[ialpha], ",", mean_lambdas[ibeta],
+                        "whose indices are",
+                        ialpha, "-", ibeta, "-", ifold, "-", irep,
+                        " .)",sep="")
+    cat(err$message, fill=TRUE)
+    warning(err)})
 }
 
 
@@ -235,22 +269,37 @@ one_job <- function(ialpha, ibeta, ifold, folds, destin,
 
 ##' Refit one job
 one_job_refit <- function(ialpha, ibeta, destin,
-                          mean_lambdas, pie_lambdas,
-                          ## The rest that is needed explicitly for covarem()
+                          mean_lambdas, pie_lambdas, nrep,
+                          ## The rest that is needed explicitly for covarem_once()
                           ylist, countslist, X,
                           ...){
+  for(irep in 1:nrep){
 
-  ## Get the fitted results on the entire data
-  res = covarem(ylist = ylist, countslist = countslist, X = X,
-                mean_lambda = mean_lambdas[ibeta],
-                pie_lambda = pie_lambdas[ialpha],
-                ...)
+    filename = paste0(ialpha, "-", ibeta, "-", irep, "-fit.Rdata")
+    if(file.exists(file.path(destin, filename))){
+      cat("Refitting for (ialpha, ibeta, irep) = (", ialpha, ibeta, irep, ") is already done.", fill=TRUE)
+      return(NULL)
+    } else {
 
-  ## Save the results
-  filename = paste0(ialpha, "-", ibeta, "-fit.Rdata")
-  save(res, file=file.path(destin, filename))
+    ## Get the fitted results on the entire data
+    args = list(...)
+    args$ylist = ylist
+    args$countslist = countslist
+    args$X = X
+    args$mean_lambda = mean_lambdas[ibeta]
+    args$pie_lambda = pie_lambdas[ibeta]
+    res = do.call(covarem_once, args)
+
+    ## res = covarem(ylist = ylist, countslist = countslist, X = X,
+    ##               mean_lambda = mean_lambdas[ibeta],
+    ##               pie_lambda = pie_lambdas[ialpha],
+    ##               ...)
+
+    ## Save the results
+    save(res, file=file.path(destin, filename))
+    }
+  }
 }
-
 
 ##' Indices for the cross validation jobs.
 ##' The resulting iimat looks like this:
@@ -263,10 +312,14 @@ one_job_refit <- function(ialpha, ibeta, destin,
 ##'
 ##' @param cv_gridsize CV grid size.
 ##' @param nfold Number of of CV folds.
-make_iimat <- function(cv_gridsize, nfold){
+##'
+##' @return Numeric matrix.
+##'
+make_iimat <- function(cv_gridsize, nfold, nrep){
   iimat = expand.grid(ialpha = 1:cv_gridsize,
                       ibeta = 1:cv_gridsize,
-                      ifold = 1:nfold)
+                      ifold = 1:nfold,
+                      irep = 1:nrep)
   iimat = cbind(as.numeric(rownames(iimat)), iimat)
   return(iimat)
 }
