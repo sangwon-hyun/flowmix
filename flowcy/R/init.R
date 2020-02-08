@@ -87,10 +87,8 @@ init_mn <- function(ylist, numclust, TT, dimdat, countslist = NULL){
   ## New (T x dimdat x numclust) array is created.
   muarray = array(NA, dim=c(TT, dimdat, numclust))
   for(tt in 1:TT){
-    muarray[tt,,] = mulist[[tt]]
+    muarray[tt,,] = as.matrix(mulist[[tt]])
   }
-
-  gc()
   return(muarray)
 }
 

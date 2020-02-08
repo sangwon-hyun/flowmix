@@ -14,6 +14,19 @@ blockcv <- function(cl, folds, cv_gridsize,
                     parallel=TRUE,
                     ...){
 
+  ## First, save the meta information.
+  nfold = length(folds)
+  args = list(...)
+  save(folds,
+       nfold,
+       cv_gridsize,
+       mean_lambdas,
+       pie_lambdas,
+       ylist, countslist, X,
+       args,
+       ## Save the file
+       file = file.path(destin, 'meta.Rdata'))
+
   ## iimat looks like this:
   ## (#, ialpha, ibeta, ifold)
   ## 1, 1, 1, 1
@@ -285,7 +298,13 @@ make_iimat_small <- function(cv_gridsize){
 ##' @param nfold Number of folds.
 ##'
 ##' @export
-blockcv_aggregate <- function(destin, cv_gridsize, nfold){
+## blockcv_aggregate <- function(destin, cv_gridsize, nfold){
+blockcv_aggregate <- function(destin){
+
+  ## Read the meta data (for |nfold|, |cv_gridsize|)
+  load(file = file.path(destin, 'meta.Rdata'))
+
+  ## Aggregate the results
   cvscore.array = array(0, dim=c(cv_gridsize, cv_gridsize, nfold))
   cvscore.mat = matrix(0, nrow = cv_gridsize, ncol = cv_gridsize)
   for(ialpha in 1:cv_gridsize){
