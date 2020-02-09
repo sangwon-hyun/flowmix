@@ -79,9 +79,12 @@ blockcv <- function(cl, folds, cv_gridsize, iirange=NULL,
 
 
 ##' CV wrapper for covarem().
+##'
 ##' @param nsplit Number of CV splits. Defaults to 5.
 ##' @param ... default arguments to covarem().
+##'
 ##' @return List containing (1) the set of coefficients
+##'
 ##' @export
 blockcv_fitmodel <- function(cl, destin,
                              ylist, countslist, X,
@@ -89,6 +92,7 @@ blockcv_fitmodel <- function(cl, destin,
                              pie_lambdas,
                              ...){
 
+  args = list(...)
   iimat = make_iimat_small(args$cv_gridsize)
   iimax = nrow(iimat)
   parallel::parLapplyLB(cl, 1:iimax, function(ii){
