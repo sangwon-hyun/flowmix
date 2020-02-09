@@ -245,6 +245,7 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
     total_time = res.train$total_time
     beta = res.train$beta
     alpha = res.train$alpha
+    objectives = res.train$objectives
 
     ## Save the CV results
     save(cvscore,
@@ -259,6 +260,7 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
          pie_lambdas,
          beta,
          alpha,
+         objectives,
          ## Save the file
          file = file.path(destin, filename))
     ## Note to self: if the alpha, beta and lambdas are saved, one can recreate
