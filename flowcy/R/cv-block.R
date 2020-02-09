@@ -46,7 +46,7 @@ blockcv <- function(cl, folds, cv_gridsize, iirange=NULL,
   nrep = args$nrep
   iimat = make_iimat(cv_gridsize, nfold, nrep)
   iimax = nrow(iimat)
-  if(!is.null(iirange)){
+  if(is.null(iirange)){
     iirange = 1:iimax
   }
   if(parallel){
@@ -142,7 +142,6 @@ blockcv_hourlong_make_folds <- function(ylist, nfold, verbose=FALSE, blocksize=2
   if(any(null.elt)){
     inds = inds[-which(null.elt)]
   }
-  print(inds)
 
   ## Further make these into five blocks of test indices.
   test.ii.list = lapply(1:nfold, function(ifold){
@@ -248,8 +247,6 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
     alpha = res.train$alpha
 
     ## Save the CV results
-    print(destin)
-    print(filename)
     save(cvscore,
          ## Time
          time_per_iter,
