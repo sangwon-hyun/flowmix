@@ -299,22 +299,23 @@ one_job_refit <- function(ialpha, ibeta, destin,
       return(NULL)
     } else {
 
-    ## Get the fitted results on the entire data
-    args = list(...)
-    args$ylist = ylist
-    args$countslist = countslist
-    args$X = X
-    args$mean_lambda = mean_lambdas[ibeta]
-    args$pie_lambda = pie_lambdas[ibeta]
-    res = do.call(covarem_once, args)
+      ## Get the fitted results on the entire data
+      args = list(...)
+      args$ylist = ylist
+      args$countslist = countslist
+      args$X = X
+      args$mean_lambda = mean_lambdas[ibeta]
+      args$pie_lambda = pie_lambdas[ibeta]
+        args = args[-which(names(args) %in% "nrep")] ## remove |nrep| prior to feeding
+      res = do.call(covarem_once, args)
 
-    ## res = covarem(ylist = ylist, countslist = countslist, X = X,
-    ##               mean_lambda = mean_lambdas[ibeta],
-    ##               pie_lambda = pie_lambdas[ialpha],
-    ##               ...)
+      ## res = covarem(ylist = ylist, countslist = countslist, X = X,
+      ##               mean_lambda = mean_lambdas[ibeta],
+      ##               pie_lambda = pie_lambdas[ialpha],
+      ##               ...)
 
-    ## Save the results
-    save(res, file=file.path(destin, filename))
+      ## Save the results
+      save(res, file=file.path(destin, filename))
     }
   }
 }
