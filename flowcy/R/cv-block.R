@@ -25,15 +25,15 @@ blockcv <- function(cl, folds, cv_gridsize, iirange=NULL,
   ## First, save the meta information.
   nfold = length(folds)
   args = list(...)
-  ## save(folds,
-  ##      nfold,
-  ##      cv_gridsize,
-  ##      mean_lambdas,
-  ##      pie_lambdas,
-  ##      ylist, countslist, X,
-  ##      args,
-  ##      ## Save the file
-  ##      file = file.path(destin, 'meta.Rdata'))
+  save(folds,
+       nfold,
+       cv_gridsize,
+       mean_lambdas,
+       pie_lambdas,
+       ylist, countslist, X,
+       args,
+       ## Save the file
+       file = file.path(destin, 'meta.Rdata'))
 
   ## |iimat| looks like this:
   ## (#, ialpha, ibeta, ifold, irep)

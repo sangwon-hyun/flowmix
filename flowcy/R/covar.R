@@ -220,8 +220,8 @@ covarem_once <- function(ylist, X,
       ## End of temporary
 
       beta.sym.diffs = Map(sym_diff, zero.betas[[iter]], zero.betas[[iter-1]])
-      sym_diff(zero.betas[[iter]][[3]], zero.betas[[iter-1]][[3]])
-      num.beta.sym.diffs = sapply(beta.sym.diffs, length)
+      ## sym_diff(zero.betas[[iter]][[3]], zero.betas[[iter-1]][[3]])
+      ## num.beta.sym.diffs = sapply(beta.sym.diffs, length)
       zero.beta.stable = all(num.beta.sym.diffs <= 1)
       zero.alpha.stable = (length(sym_diff(zero.alphas[[iter]], zero.alphas[[iter-1]])) <= 1)
       if(zero.alpha.stable & zero.beta.stable) break
