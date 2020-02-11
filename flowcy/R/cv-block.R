@@ -81,33 +81,45 @@ blockcv <- function(cl, folds, cv_gridsize, iirange=NULL,
 ##' CV wrapper for covarem().
 ##'
 ##' @param nsplit Number of CV splits. Defaults to 5.
-##' @param ... default arguments to covarem().
+##' @param ... Other arguments to covarem().
 ##'
 ##' @return List containing (1) the set of coefficients
 ##'
 ##' @export
 blockcv_fitmodel <- function(cl, destin,
-                             ylist, countslist, X,
+                             cv_gridsize,
                              mean_lambdas,
                              pie_lambdas,
+                             ## Arguments to covarem()
+                             ylist,
+                             countslist,
+                             X,
                              ...){
 
-  args = list(...)
-  iimat = make_iimat_small(args$cv_gridsize)
+  iimat = make_iimat_small(cv_gridsize)
   iimax = nrow(iimat)
   parallel::parLapplyLB(cl, 1:iimax, function(ii){
     ialpha = iimat[ii, "ialpha"]
     ibeta = iimat[ii, "ibeta"]
-    print('iii=')
-    print(c(ialpha, ibeta))
+    print('iii='); print(c(ialpha, ibeta))
     one_job_refit(ialpha, ibeta, destin,
                   mean_lambdas, pie_lambdas,
+                  ## Arguments to covarem()
                   ylist, countslist, X,
                   ...)
   })
-
 }
 
+## ##' A wrapper for \code{blockcv_make_folds()} and
+## ##' \code{blockcv_hourlong_make_folds()} that saves to and loads from an output
+## ##' file. (Incomplete)
+## ##'
+## ##' @param filenaem
+## ##'
+## ##' @return
+## ##'
+## blockcv_make_folds_saveload <- function(ylist, nfold){
+## }
 
 
 
@@ -287,10 +299,11 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
 
 ##' Refit one job
 one_job_refit <- function(ialpha, ibeta, destin,
-                          mean_lambdas, pie_lambdas, nrep,
+                          mean_lambdas, pie_lambdas,
                           ## The rest that is needed explicitly for covarem_once()
                           ylist, countslist, X,
                           ...){
+
   for(irep in 1:nrep){
 
     filename = paste0(ialpha, "-", ibeta, "-", irep, "-fit.Rdata")
@@ -306,7 +319,7 @@ one_job_refit <- function(ialpha, ibeta, destin,
       args$X = X
       args$mean_lambda = mean_lambdas[ibeta]
       args$pie_lambda = pie_lambdas[ibeta]
-        args = args[-which(names(args) %in% "nrep")] ## remove |nrep| prior to feeding
+      args = args[-which(names(args) %in% "nrep")] ## remove |nrep| prior to feeding
       res = do.call(covarem_once, args)
 
       ## res = covarem(ylist = ylist, countslist = countslist, X = X,
