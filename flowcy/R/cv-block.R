@@ -306,13 +306,17 @@ one_job_refit <- function(ialpha, ibeta, destin,
                           ylist, countslist, X,
                           ...){
 
+  args = list(...)
   nrep = args$nrep
   for(irep in 1:nrep){
 
     filename = paste0(ialpha, "-", ibeta, "-", irep, "-fit.Rdata")
+
     if(file.exists(file.path(destin, filename))){
+
       cat("Refitting for (ialpha, ibeta, irep) = (", ialpha, ibeta, irep, ") is already done.", fill=TRUE)
       return(NULL)
+
     } else {
 
       ## Get the fitted results on the entire data
@@ -331,6 +335,7 @@ one_job_refit <- function(ialpha, ibeta, destin,
       ##               ...)
 
       ## Save the results
+      cat("Saving file here:", file.path(destin, filename), fill=TRUE)
       save(res, file=file.path(destin, filename))
     }
   }
