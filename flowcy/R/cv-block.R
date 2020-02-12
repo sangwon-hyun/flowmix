@@ -306,6 +306,7 @@ one_job_refit <- function(ialpha, ibeta, destin,
                           ylist, countslist, X,
                           ...){
 
+  nrep = args$nrep
   for(irep in 1:nrep){
 
     filename = paste0(ialpha, "-", ibeta, "-", irep, "-fit.Rdata")
@@ -321,7 +322,7 @@ one_job_refit <- function(ialpha, ibeta, destin,
       args$X = X
       args$mean_lambda = mean_lambdas[ibeta]
       args$pie_lambda = pie_lambdas[ibeta]
-      args = args[-which(names(args) %in% "nrep")] ## remove |nrep| prior to feeding
+      if("nrep" %in% names(args)) args = args[-which(names(args) %in% "nrep")] ## remove |nrep| prior to feeding
       res = do.call(covarem_once, args)
 
       ## res = covarem(ylist = ylist, countslist = countslist, X = X,
