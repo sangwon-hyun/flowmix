@@ -217,8 +217,10 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
   args$X = train.X
   args$mean_lambda = mean_lambda
   args$pie_lambda = pie_lambda
+  if("nrep" %in% names(args)){
   args = args[-which(names(args) %in% "nrep")] ## remove |nrep| prior to feeding
                                                ## to covarem_once().
+  }
   res.train = do.call(covarem_once, args)
 
   tryCatch({
