@@ -73,15 +73,19 @@ converge <- function(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX, Xbeta1,
     err_rel * norm(tAU, "F")
 
   ## Check convergence.
-  primal_converge = ( norm(primal_resid, "F") <= primal_err )
-  dual_converge = ( norm(dual_resid, "F") <= dual_err )
+  primal_resid_size = norm(primal_resid, "F")
+  dual_resid_size = norm(dual_resid, "F")
+  primal_converge = ( primal_resid_size  <= primal_err )
+  dual_converge = ( dual_resid_size <= dual_err )
+
+  ## Some checks (trying to address problems with |converge|).
+  assertthat::assert_that(is.numeric(primal_resid_size))
+  assertthat::assert_that(is.numeric(primal_err))
+  assertthat::assert_that(is.numeric(dual_resid_size))
+  assertthat::assert_that(is.numeric(dual_err))
 
   ## return(primal_converge & dual_converge)
   converge = primal_converge & dual_converge
-
-  ## Check that |converge| is a boolean variable.
-  assertthat::assert_that(is.boolean(converge))
-  if(!is.boolean(converge)){ converge = FALSE }
 
   return(list(primal_resid = primal_resid,
               primal_err = primal_err,

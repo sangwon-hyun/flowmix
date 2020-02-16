@@ -20,20 +20,12 @@ blockcv <- function(cl, folds, cv_gridsize, iirange=NULL,
                     pie_lambdas,
                     destin,
                     parallel=TRUE,
+                    test=FALSE, ## temporary
                     ...){
 
   ## First, save the meta information.
   nfold = length(folds)
   args = list(...)
-  save(folds,
-       nfold,
-       cv_gridsize,
-       mean_lambdas,
-       pie_lambdas,
-       ylist, countslist, X,
-       args,
-       ## Save the file
-       file = file.path(destin, 'meta.Rdata'))
 
   ## |iimat| looks like this:
   ## (#, ialpha, ibeta, ifold, irep)
@@ -51,6 +43,7 @@ blockcv <- function(cl, folds, cv_gridsize, iirange=NULL,
   }
   if(parallel){
     parallel::parLapplyLB(cl, iirange, function(ii){
+      if(test) set.seed(ii)
       ialpha = iimat[ii,"ialpha"]
       ibeta = iimat[ii,"ibeta"]
       ifold = iimat[ii,"ifold"]
@@ -284,9 +277,9 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
 
   }, error = function(err) {
     err$message = paste(err$message,
-                        "\n(No file will be saved for the lambdas ",
-                        pie_lambdas[ialpha], ",", mean_lambdas[ibeta],
-                        "whose indices are",
+                        "\n(No file will be saved for lambdas (",
+                        signif(pie_lambdas[ialpha],3), ", ", signif(mean_lambdas[ibeta],3),
+                        ") whose indices are: ",
                         ialpha, "-", ibeta, "-", ifold, "-", irep,
                         " .)",sep="")
     cat(err$message, fill=TRUE)
@@ -392,31 +385,199 @@ make_iimat_small <- function(cv_gridsize){
 ##'
 ##' @export
 ## blockcv_aggregate <- function(destin, cv_gridsize, nfold){
-blockcv_aggregate <- function(destin){
+blockcv_aggregate <- function(destin, cv_gridsize, nfold, nrep){
 
-  ## Read the meta data (for |nfold|, |cv_gridsize|)
-  load(file = file.path(destin, 'meta.Rdata'))
+  ## ## Read the meta data (for |nfold|, |cv_gridsize|, |nrep|)
+  ## load(file = file.path(destin, 'meta.Rdata'))
 
   ## Aggregate the results
-  cvscore.array = array(0, dim=c(cv_gridsize, cv_gridsize, nfold))
-  cvscore.mat = matrix(0, nrow = cv_gridsize, ncol = cv_gridsize)
+  cvscore.array = array(NA, dim=c(cv_gridsize, cv_gridsize, nfold, nrep))
+  cvscore.mat = matrix(NA, nrow = cv_gridsize, ncol = cv_gridsize)
   for(ialpha in 1:cv_gridsize){
     for(ibeta in 1:cv_gridsize){
-      cvscores <- sapply(1:nfold, function(igrid){
-        filename = paste0(ialpha, "-", ibeta, "-", igrid, "-cvscore.Rdata")
-        print(filename)
-        tryCatch({
-          load(file.path(destin, filename))
-          return(cvscore)
-        }, error = function(e){
-          return(NA)
-        })
-      })
-      cvscore.mat[ialpha, ibeta] = mean(cvscores)
-      cvscore.array[ialpha, ibeta, ] = cvscores
+      ## cvscores <- sapply(1:nfold, function(igrid){
+      obj = matrix(0, nrow=nfold, ncol=nrep)
+      for(ifold in 1:nfold){
+        for(irep in 1:nrep){
+          filename = paste0(ialpha, "-", ibeta, "-", ifold,
+                            "-", irep, "-cvscore.Rdata")
+          tryCatch({
+            load(file.path(destin, filename))
+            ## print(filename)
+            cvscore.array[ialpha, ibeta, ifold, irep] = cvscore
+            obj[ifold, irep] = objectives[length(objectives)]
+          }, error = function(e){})
+        }
+      }
+
+      ## Pick out the CV scores with the biggest objective value
+      cvscores = cvscore.array[ialpha, ibeta,,]
+      best.cvscores = unlist(sapply(1:nfold, function(ifold){
+        cvscores[which.max(obj[,ifold]), ifold]
+      }))
+      cvscore.mat[ialpha, ibeta] = mean(best.cvscores, na.rm=TRUE)
     }
   }
+
+
+  ## Clean a bit
+  cvscore.mat[which(is.nan(cvscore.mat), arr.ind=TRUE)] = NA
+  rownames(cvscore.mat) = signif(pie_lambdas,3)
+  colnames(cvscore.mat) = signif(mean_lambdas,3)
+
   return(list(cvscore.array = cvscore.array,
-              cvscore.mat = cvscore.mat))
+              cvscore.mat = cvscore.mat,
+              mean_lambdas = mean_lambdas,
+              pie_lambdas = pie_lambdas))
 }
 
+
+
+
+##' Apply the 1SE rule (results are similar to those of get_optimal_info())
+##' @param outputdir Location of the output files. e.g. outputdir="~/output/vanilla"
+##' @return NULL.
+blockcv_onese <- function(destin,
+                          gridsize = 12){
+## outputdir="~/repos/flowcy/output/vanilla"
+
+  ## Gather the degrees of freedom
+  ## dfmat = aggregateres_df(gridsize, destin)
+  ## cvscoremat = aggregateres(gridsize, destin)
+  cvscoremat = blockcv_aggregate(destin, cv_gridsize, nfold, nrep)$cvscoremat
+
+  ## Add the line
+  ind = ind.min = which(cvscoremat == min(cvscoremat, na.rm=TRUE), arr.ind=TRUE)
+
+  ## Add horizontal lines
+  load(file=file.path(destin, paste0(ind[1], "-", ind[2], ".Rdata")))
+  se = sd(cvres$all)/sqrt(length(cvres$all))
+
+  ## Apply the 1SE rule
+  inds = which((cvscoremat <  cvscoremat[ind[1], ind[2]] + se &
+                cvscoremat >  cvscoremat[ind[1], ind[2]] - se &
+               dfmat < dfmat[ind[1], ind[2]]),
+               arr.ind = TRUE)
+  if(nrow(inds) > 0){
+
+    ## Pick the minimum CV error that is most parsimonious.
+    all.df = apply(inds, 1, function(myind){dfmat[myind[1],myind[2]]})
+    inds = inds[which(all.df==min(all.df)),,drop=FALSE]
+    all.cvscores = apply(inds, 1, function(myind){cvscoremat[myind[1],myind[2]]})
+    ind.min = inds[which.min(all.cvscores),,drop=FALSE]
+    assert_that(nrow(ind.min)==1)
+
+  }
+
+  ## Obtain the best parameters and return
+  filename = paste0(ind.min[1], "-", ind.min[2], ".Rdata")
+  load(file=file.path(destin, filename))
+  lambda_alpha = alpha_lambdas[ind.min[1]]
+  lambda_beta = beta_lambdas[ind.min[2]]
+
+  return(list(param = c(lambda_alpha, lambda_beta),
+              res = res,
+              se = se,
+              ind.min = ind.min,
+              cvscoremat = cvscoremat,
+              dfmat = dfmat))
+}
+
+
+
+##' Helper to aggregate parallelized CV results and obtain degrees of freedom
+##' (DF) estimate, saved in |destin|.
+##'
+##' @param gridsize Size of CV grid.
+##' @param destin Location of saved things.
+##'
+##' @return Matrix containing estimated degrees of freedom.
+blockcv_aggregate_df <- function(gridsize, destin){
+
+  df.array = df.alpha.array = df.beta.array = array(NA, dim=c(gridsize, gridsize, nrep))
+  df.mat = df.alpha.mat = df.beta.mat = matrix(NA, ncol=gridsize, nrow=gridsize)
+  for(ialpha in 1:gridsize){
+    for(ibeta in 1:gridsize){
+
+      ## Objective value
+      obj = rep(NA, nrep)
+      df = df.alpha = df.beta = rep(NA, nrep)
+      for(irep in 1:nrep){
+        filename = paste0(ialpha, "-", ibeta, "-",
+                          irep, "-fit.Rdata")
+        tryCatch({
+          ## Load fitted result
+          load(file.path(destin, filename))
+
+          ## Calculate DF
+          df[irep] = do.call(sum, lapply(res$beta, function(mybeta){
+            sum(mybeta[-1,]!=0)})) + sum(res$alpha[,-1]!=0)
+
+          df.alpha[irep] = sum(res$alpha[,-1]!=0)
+
+          df.beta[irep] = do.call(sum, lapply(res$beta, function(mybeta){
+            sum(mybeta[-1,]!=0)}))
+          ## Also calculate objective function
+          obj[irep] = objectives[length(objectives)]
+        }, error = function(e){})
+      }
+      df.array[ialpha, ibeta, ] = df
+      df.alpha.array[ialpha, ibeta, ] = df.alpha
+      df.beta.array[ialpha, ibeta, ] = df.beta
+
+      ## Calculate the df of the best model
+      if(!all(is.na(obj))){
+        df.mat[ialpha, ibeta] = df[which.max(obj)]
+      }
+    }
+  }
+  ## return(df.mat)
+  return(list(mat = df.mat, alpha.array = df.alpha.array, beta.array = df.beta.array,
+              array = df.array))
+}
+
+
+##' Helper to aggregate parallelized CV results and obtain the |res| object, all
+##' saved in |destin|.
+##'
+##' @param gridsize Size of CV grid.
+##' @param destin Location of saved things.
+##'
+##' @return List containing the "best" res objects (best in the sense that it
+##'   had the best likelihood value.
+blockcv_aggregate_res <- function(gridsize, destin){
+
+  ## df.mat = matrix(NA, ncol=gridsize, nrow=gridsize)
+  res.list = list()
+  for(ialpha in 1:gridsize){
+    for(ibeta in 1:gridsize){
+
+      ## Objective value
+      obj = rep(NA, nrep)
+      ## df = rep(NA, nrep) #
+      res.list.inner = list()
+      for(irep in 1:nrep){
+        filename = paste0(ialpha, "-", ibeta, "-",
+                          irep, "-fit.Rdata")
+        tryCatch({
+          ## Load fitted result
+          load(file.path(destin, filename))
+
+          ## Calculate DF
+          ## df[irep] = do.call(sum, lapply(res$beta, function(mybeta){
+          ##   sum(mybeta[-1,]!=0)})) + sum(res$alpha[,-1]!=0)
+          res.list.inner[[irep]] = res
+          ## Also calculate objective function
+          obj[irep] = objectives[length(objectives)]
+        }, error = function(e){})
+      }
+
+      ## Calculate the df of the best model
+      if(!all(is.na(obj))){
+        ## df.mat[ialpha, ibeta] = df[which.max(obj)    ]
+        res.list[[paste0(ialpha, "-", ibeta)]] = res.list.inner[[which.max(obj)]] ## which.min?
+      }
+    }
+  }
+  return(res.list)
+}
