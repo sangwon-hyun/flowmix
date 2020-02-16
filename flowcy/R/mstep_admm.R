@@ -348,27 +348,22 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
 
     ## 3. Check convergence
     if( iter > 1  & iter %% 5 == 0){## & !local_adapt){
+
+      ## Calculate convergence criterion
       obj = converge(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX = tX,
                      Xbeta1 = Xbeta1, err_rel = err_rel,
                      err_abs = err_abs)
-      ## ii = iter-1
       jj = (iter/ 5)
       resid_mat[jj,] = c(norm(obj$primal_resid, "F"),
                          obj$primal_err,
                          norm(obj$dual_resid,"F"),
                          obj$dual_err)
 
-      ## Temporary print message
-      if(is.null(obj$converge)){
-        print(obj)
-      }
-
-      if(!is.null(obj$converge)){ ## Sometimes obj doesn't contain converge.. not sure why yet.
-        if(obj$converge){
-          ## print(paste('converged! in', iter, 'out of ', niter, 'steps!'))
-          converge = TRUE
-          break
-        }
+      ## Sometimes obj doesn't contain converge.. not sure why yet.
+      if(obj$converge){
+        ## print(paste('converged! in', iter, 'out of ', niter, 'steps!'))
+        converge = TRUE
+        break
       }
     }
 
@@ -378,15 +373,15 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
     Z_prev = Z
 
     ## ## 4. Calculate things related to convergence (Slow).
-    if(iter %% 20 == 0 ){
-      ii = iter / 20
+    ## if(iter %% 20 == 0 ){
+    ##   ii = iter / 20
       ## if(em_iter>2){
       ## fits[ii] = objective_per_cluster(beta, ylist, Xa, resp, lambda,
       ##                                  N, dimdat, iclust, sigma, iter,
       ##                                  zerothresh,
       ##                                  TRUE) ## Just flagging first_iter=TRUE for now.
       ## }
-    }
+    ## }
   }
 
         ## plot(fits, type = 'l', main = paste("cluster", iclust))
