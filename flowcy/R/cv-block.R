@@ -317,8 +317,8 @@ one_job_refit <- function(ialpha, ibeta, destin,
       args$ylist = ylist
       args$countslist = countslist
       args$X = X
+      args$pie_lambda = pie_lambdas[ialpha] ## <-----There was a BUG!! pie_lambda[ialpha]
       args$mean_lambda = mean_lambdas[ibeta]
-      args$pie_lambda = pie_lambdas[ibeta]
       if("nrep" %in% names(args)) args = args[-which(names(args) %in% "nrep")] ## remove |nrep| prior to feeding
       res = do.call(covarem_once, args)
 
@@ -503,10 +503,10 @@ blockcv_aggregate_df <- function(gridsize, destin){
       obj = rep(NA, nrep)
       df = df.alpha = df.beta = rep(NA, nrep)
       for(irep in 1:nrep){
-        filename = paste0(ialpha, "-", ibeta, "-",
-                          irep, "-fit.Rdata")
+
         tryCatch({
           ## Load fitted result
+          filename = paste0(ialpha, "-", ibeta, "-", irep, "-fit.Rdata")
           load(file.path(destin, filename))
 
           ## Calculate DF
