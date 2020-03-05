@@ -270,9 +270,18 @@ covarem_once <- function(ylist, X,
                                         # than 1%.
   }
 
-  ## measure time
+  ## Measure time
   lapsetime = difftime(Sys.time(), start.time, units = "secs")
   time_per_iter = lapsetime / (iter-1)
+
+  ## Also calculate per-cytogram likelihoods (NOT divided by nt)
+  loglikelihoods = objective(mn, pie, sigma, ylist,
+                             pie_lambda = pie_lambda,
+                             mean_lambda = mean_lambda,
+                             alpha = alpha, beta = beta,
+                             denslist_by_clust = denslist_by_clust,
+                             countslist = countslist,
+                             each = TRUE)
 
   return(structure(list(alpha = alpha,
                         beta = beta,
@@ -284,6 +293,7 @@ covarem_once <- function(ylist, X,
                         final.iter = iter,
                         time_per_iter = time_per_iter,
                         total_time = lapsetime,
+                        loglikelihoods = loglikelihoods,
                         ## Above is output, below are data/algorithm settings.
                         dimdat = dimdat,
                         TT = TT,

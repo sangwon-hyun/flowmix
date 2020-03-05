@@ -6,27 +6,37 @@
 ##' @param sigma array of dimension T by M by p by p.
 ##' @param alpha linear coefficients for regression on (log ratio of) pie.
 ##' @param beta linear coefficients for regression on mean.
+##' @param N Sum of the counts/biomass across all cytograms.
+##'
+##' @return Either the original objective value or, T-lengthed vector of
+##'   objective values at each time point.
 objective <- function(mu, pie, sigma,
                       ## TT, N, dimdat, numclust,
                       ylist,
                       pie_lambda=0, mean_lambda=0,
                       alpha = NULL, beta = NULL,
                       denslist_by_clust = NULL,
-                      countslist = NULL){
+                      countslist = NULL,
+                      each = FALSE){
 
   ## Extract some things.
   TT = dim(mu)[1]
   numclust = dim(mu)[3]
-  ntlist = sapply(ylist, nrow)
-  N = sum(ntlist)
+  if(is.null(countslist)){
+    ntlist = sapply(ylist, nrow)
+    N = sum(ntlist)
+  } else {
+    Ntlist = sapply(countslist, sum)
+    N = sum(Ntlist)
+  }
   dimdat = ncol(ylist[[1]])
 
   ## Calculate the log likelihood
   loglik = sapply(1:TT, function(tt){
     if(is.null(denslist_by_clust)){
-      return(loglikelihood_tt(ylist, tt, mu, sigma, pie, countslist))
+      return(loglikelihood_tt(ylist, tt, mu, sigma, pie, countslist, numclust))
     } else {
-      return(loglikelihood_tt_precalculate(ylist, tt, denslist_by_clust, pie, countslist))
+      return(loglikelihood_tt_precalculate(ylist, tt, denslist_by_clust, pie, countslist, numclust))
     }
   })
 
@@ -37,7 +47,13 @@ objective <- function(mu, pie, sigma,
   pen1 = (if(!is.null(alpha)) pie_lambda * l1norm(alpha[,-1]) else 0)
   pen2 = (if(!is.null(beta)) sum(sapply(beta, function(mybeta) l1norm(mybeta[-1,]))) else 0)
   obj = - 1/N * sum(unlist(loglik)) + pen1 + pen2
-  return(obj)
+
+  ## Addition
+  if(each){
+    return(unlist(loglik))
+  } else {
+    return(obj)
+  }
 }
 
 ##' First helper function: Calculates one particle's log likelihood using
@@ -49,7 +65,7 @@ objective <- function(mu, pie, sigma,
 ##'
 ##' @return Log likelihood.
 ##'
-loglikelihood_tt_precalculate <- function(ylist, tt, denslist_by_clust, pie, countslist = NULL){
+loglikelihood_tt_precalculate <- function(ylist, tt, denslist_by_clust, pie, countslist = NULL, numclust){
 
   ## One particle's log likelihood (weighted density)
   weighted.densities = lapply(1:numclust, function(iclust){
@@ -72,7 +88,7 @@ loglikelihood_tt_precalculate <- function(ylist, tt, denslist_by_clust, pie, cou
 ##'
 ##' @return Log likelihood.
 ##'
-loglikelihood_tt <- function(ylist, tt, mu, sigma, pie, countslist = NULL){
+loglikelihood_tt <- function(ylist, tt, mu, sigma, pie, countslist = NULL, numclust){
   ### STUPID MISTAKE!!!!!!!!!!!!!! Although it's hard to see why this would affect things at iter>1
 
   ## One particle's log likelihood (weighted density)
