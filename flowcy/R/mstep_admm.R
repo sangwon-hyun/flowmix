@@ -37,7 +37,8 @@ Mstep_beta_admm <- function(resp,
                             zerothresh = 1E-6,
                             plot.admm = FALSE,
                             local_adapt = FALSE,
-                            local_adapt_niter = 5
+                            local_adapt_niter = 5,
+                            space = 50
                             ){
 
   ####################
@@ -62,7 +63,7 @@ Mstep_beta_admm <- function(resp,
   yhats = admm_niters = vector(length = numclust, mode = "list")
   if(first_iter) betas = vector(length = numclust, mode = "list")
   if(first_iter)  Zs =  wvecs =  uws =  Uzs = vector(length=numclust, mode="list")
-  fits = matrix(NA, ncol = numclust, nrow = ceiling(niter / 20))
+  fits = matrix(NA, ncol = numclust, nrow = ceiling(niter / space))
 
   ## 1. Form tilde objects for b update. Only do once!
   manip_obj = manip(ylist, Xa, resp, sigma, numclust,
@@ -95,6 +96,7 @@ Mstep_beta_admm <- function(resp,
                            zerothresh = zerothresh,
                            sigma_eig_by_clust = sigma_eig_by_clust,
                            plot = plot.admm,
+                           space = space,
 
                            ## Warm starts from previous *EM* iteration
                            first_iter = first_iter,
@@ -208,15 +210,15 @@ la_admm_oneclust <- function(K,
     ## args[['Uz']] <- Uz
     res = do.call(admm_oneclust, args)
 
-    ## ## Temporary: Plotting the objective function
-    fits = c(fits, res$fits)
-    cols = c(cols, rep(kk, length(res$fits)))
+    ## ## ## Temporary: Plotting the objective function
+    ## fits = c(fits, res$fits)
+    ## cols = c(cols, rep(kk, length(res$fits)))
     ## if(any(is.na(fits))) fits = fits[-which(is.na(fits))]
     ## if(length(fits)>0){
     ##   plot(fits, type='o', col=cols, main = paste0("rho=", signif(args$rho,3)))
     ##   ## Sys.sleep(1)
     ## }
-    ## End of temporary
+    ## ## End of temporary
 
 
     ## See if outer iterations should terminate
@@ -282,6 +284,7 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
                           local_adapt,
                           sigma_eig_by_clust,
                           sigma,
+                          space = 20,
                           plot = FALSE){
 
   resid_mat = matrix(NA, nrow = ceiling(niter/5), ncol = 4)
@@ -308,7 +311,7 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
   ## wvec = uw = rep(0, p * dimdat)
   ## Uz = matrix(0, nrow = TT, ncol = dimdat)
   C = maxdev
-  fits = rep(NA, ceiling(niter/20))
+  fits = rep(NA, ceiling(niter/space))
   converge = FALSE
 
   for(iter in 1:niter){
@@ -360,6 +363,17 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
                          obj$dual_err)
 
       ## Sometimes obj doesn't contain converge.. not sure why yet.
+      ## tryCatch({
+      ##     print(obj$converge)
+      ## }, error = function(e){
+      if(is.na(obj$converge)){
+        ## save(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX,
+        ##              Xbeta1, err_rel,
+        ##      err_abs,
+        ##      resid_mat,
+        ##     obj, file=file.path("~/Desktop/somefile.Rdata"))
+      }
+
       if(obj$converge){
         ## print(paste('converged! in', iter, 'out of ', niter, 'steps!'))
         converge = TRUE
@@ -373,17 +387,18 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
     Z_prev = Z
 
     ## ## 4. Calculate things related to convergence (Slow).
-    ## if(iter %% 20 == 0 ){
-    ##   ii = iter / 20
+    if(iter %% space == 0 ){
+      ii = iter / space
       ## if(em_iter>2){
       ## fits[ii] = objective_per_cluster(beta, ylist, Xa, resp, lambda,
       ##                                  N, dimdat, iclust, sigma, iter,
       ##                                  zerothresh,
       ##                                  TRUE) ## Just flagging first_iter=TRUE for now.
       ## }
-    ## }
+    }
   }
 
+  ## browser()
         ## plot(fits, type = 'l', main = paste("cluster", iclust))
 
   ## if(!obj$converge){

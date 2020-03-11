@@ -15,7 +15,7 @@ make_grid <- function(ylist, gridsize=5){
 }
 
 
-##' Main function for binning a cytogram (y).
+##' Main function for binning a cytogram (y). Only works for y whose dimension is 3.
 ##' @param y nt by dimdat matrix.
 ##' @param manual.grid grid, produced using \code{make_grid()}.
 ##' @param qc QC value, but in the original scale, NOT in the log scale.
@@ -24,6 +24,9 @@ make_grid <- function(ylist, gridsize=5){
 ##' @export
 bin_one_cytogram <- function(y, manual.grid, qc=NULL){
 
+  ## Basic checks
+  assertthat::assert_that(ncol(y) == 3)
+
   ## Obtain the midpoints of each box (d x d x d array)
   midpoints <- make_midpoints(manual.grid)
 
@@ -31,20 +34,12 @@ bin_one_cytogram <- function(y, manual.grid, qc=NULL){
   counts <- make_counts(y, manual.grid, qc)
 
   ## Aggregate all of this into a (d^3 x 4 array)
-  ybin_all <- make_ybin(counts, midpoints)
+  ybin_all <- make_ybin(counts, midpoints, colnames(y))
 
   ## Extract the ybin and counts
-  ybin <- ybin_all[,1:3]
+  ybin <- ybin_all[,1:3, drop=FALSE]
   counts <- ybin_all[,4]
-
-  ## if(trim){
-  ##   obj = trim_one_cytogram(ybin = ybin, counts = counts)
-  ##   return(list(ybin = obj$ybin,
-  ##               counts = obj$counts))
-  ## } else {
-  ##   return(list(ybin = NULL,
-  ##               counts = counts))
-  ## }
+  stopifnot(all(colnames(y) == colnames(ybin_all)[1:3]))
 
   obj = trim_one_cytogram(ybin = ybin, counts = counts)
   sparsecounts <- as(counts, "sparseVector")
@@ -54,29 +49,39 @@ bin_one_cytogram <- function(y, manual.grid, qc=NULL){
 }
 
 
-##' Main function for binning a cytogram (y).
-##' @param ylist TT lengthed list of (nt by dimdat) matrices.
+##' Main function for binning many cytograms (\code{ylist}). Only works for
+##' \code{ylist} whose dimension is 3.
+##'
+##' @param ylist \code{TT} lengthed list of (\code{nt} by \code{dimdat})
+##'   matrices.
 ##' @param manual.grid grid, produced using \code{make_grid()}.
 ##'
 ##' @return List containing *trimmed* ybin (a x 3) and counts (a).
+##'
 ##' @export
-bin_many_cytograms <- function(ylist, manual.grid, verbose=FALSE, mc.cores=1, qclist=NULL){
+bin_many_cytograms <- function(ylist, manual.grid, verbose = FALSE, mc.cores = 1, qclist = NULL){
 
+  ## Basic checks
   TT = length(ylist)
-  if(verbose) cat(fill=TRUE)
+  if(verbose) cat(fill = TRUE)
+  assertthat::assert_that(ncol(ylist[[1]]) == 3)
 
   ## Bin each cytogram:
   reslist = parallel::mclapply(1:TT, function(tt){
+  ## reslist = lapply(1:TT, function(tt){
     if(verbose & (tt %% 10 == 0 )) printprogress(tt, TT, "binning")
-    bin_one_cytogram(ylist[[tt]], manual.grid = manual.grid,
+    bin_one_cytogram(ylist[[tt]],
+                     manual.grid = manual.grid,
                      qc = qclist[[tt]])
-  }, mc.cores=mc.cores)
+  }, mc.cores = mc.cores)
+
+  ## if(is.null(qclist)) browser()
 
   ## Gather results and return
   ybin_list = lapply(reslist, function(res) res$ybin)
   counts_list = lapply(reslist, function(res) res$counts)
   sparsecounts_list = lapply(reslist, function(res) res$sparsecounts)
-  ybin_all = make_ybin(counts = NULL,  make_midpoints(manual.grid))
+  ybin_all = make_ybin(counts = NULL,  make_midpoints(manual.grid), colnames(ylist[[1]]))
 
   ## Name everything
   names(ybin_list) = names(ylist)
@@ -122,9 +127,10 @@ make_midpoints <- function(grid){
 ##' @param counts d x d x d array containing counts. If this is NULL, then dummy
 ##'   counts of -100 are added.
 ##' @param midpoints midpoints of each bin.
+##' @param names Names of the data columns.
 ##'
 ##' @return (d^3 x 4) matrix of rows that look like (x,y,z,count).
-make_ybin <- function(counts, midpoints){
+make_ybin <- function(counts, midpoints, names=NULL){
   gridsize = length(midpoints[[1]])
   d = gridsize
   mat = matrix(0, nrow=d^3, ncol=4)
@@ -145,6 +151,9 @@ make_ybin <- function(counts, midpoints){
         mm = mm + 1
       }
     }
+  }
+  if(!is.null(names)){
+    colnames(mat) = c(names, "")
   }
   return(mat)
 }
@@ -183,4 +192,20 @@ make_counts <- function(y, grid, qc=NULL){
     counts[ijk[1], ijk[2], ijk[3]]= counts[ijk[1], ijk[2], ijk[3]] + to_add
   }
   return(counts)
+}
+
+
+
+##' Trim single cytogram so that both the list of binned responses and counts
+##' don't have any zeros.
+##' @param ybin Binned data (assumed to be d^3 lengthed)
+##' @param counts Counts of binned data (assumed to be d^3 lengthed)
+trim_one_cytogram <- function(ybin, counts){
+  ## Trim both if necessary
+  if(any(counts==0)){
+    inds = which(counts==0)
+    ybin = ybin[-which(counts==0), ]
+    counts = as.numeric(counts[-which(counts==0)])
+  }
+  return(list(ybin = ybin, counts = counts))
 }

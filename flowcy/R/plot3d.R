@@ -472,7 +472,9 @@ one_dim_plot <- function(ylist, obj, tt, countslist = NULL, dims = c(1,2),
   allcounts = (sapply(countslist, sum))
   prop = allcounts[[tt]] / max(allcounts)
   bb = 1 - prop/5
-  ylim[1] = -1
+  yrange = ylim[2] - ylim[1]
+  ylim_other = ylim[1]
+  ylim[1] = ylim[1] - 1/5 * yrange
 
   ## Create empty plot
   main0 = ""
@@ -497,11 +499,14 @@ one_dim_plot <- function(ylist, obj, tt, countslist = NULL, dims = c(1,2),
   points(y, col=rgb(0 ,0, 1, 0.1), pch=16, cex=sqrt(cex) * 10)
 
   ## Add lines showing the likelihood
-  lines(x=seq(from=0,to=ylim[2], length=length(allcounts)),
-        y=allcounts/max(allcounts) - 1, lwd=2, col='grey80')
-  points(x=seq(from=0,to=ylim[2], length=length(allcounts))[tt],
-        y=(allcounts/max(allcounts) - 1)[tt], lwd=2, col='red', pch=16, cex=1.2)
-  text(x=xlim*0.9, y=-0.05, label="Total biomass")
+  lines(x=seq(from=xlim[1],to=xlim[2], length=length(allcounts)),
+        y = ylim[1] + (allcounts/max(allcounts)) * (ylim_other - ylim[1]),
+        lwd=2, col='grey80')
+  points(x=seq(from=xlim[1],to=xlim[2], length=length(allcounts))[tt],
+        y = (ylim[1] + (allcounts/max(allcounts)) * (ylim_other - ylim[1]))[tt],
+         lwd=2, col='red', pch=16, cex=1.2)
+  text(x=xlim[2] * 0.9,
+       y=ylim[1], label="Total biomass")
   ## abline(v=seq(from=0,to=ylim[2], length=length(allcounts))[tt])
 
 

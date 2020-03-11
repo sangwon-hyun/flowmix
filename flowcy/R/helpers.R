@@ -5,20 +5,6 @@ mymem <- function(msg){
 }
 
 
-##' Trim single cytogram so that both the list of binned responses and counts
-##' don't have any zeros.
-##' @param ybin Binned data (assumed to be d^3 lengthed)
-##' @param counts Counts of binned data (assumed to be d^3 lengthed)
-trim_one_cytogram <- function(ybin, counts){
-  ## Trim both if necessary
-  if(any(counts==0)){
-    inds = which(counts==0)
-    ybin = ybin[-which(counts==0), ]
-    counts = as.numeric(counts[-which(counts==0)])
-  }
-  return(list(ybin = ybin, counts = counts))
-}
-
 ##' Trim data so that both the list of binned responses and counts don't have
 ##' any zeros.
 ##' @param ybin_list List of binned data (assumed to be d^3 lengthed)
