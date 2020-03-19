@@ -65,14 +65,14 @@ Mstep_beta_admm <- function(resp,
   if(first_iter)  Zs =  wvecs =  uws =  Uzs = vector(length=numclust, mode="list")
   fits = matrix(NA, ncol = numclust, nrow = ceiling(niter / space))
 
-  ## 1. Form tilde objects for b update. Only do once!
+  ## Form tilde objects for b update. Only do once!
   manip_obj = manip(ylist, Xa, resp, sigma, numclust,
                     sigma_eig_by_clust = sigma_eig_by_clust,
                     first_iter = first_iter)
   Xtildes = manip_obj$Xtildes
   yvecs = manip_obj$yvecs
 
-  ## Temporary
+  ## For every cluster, run LA-ADMM
   resid_mat_list = list()
   start.time = Sys.time()
   for(iclust in 1:numclust){
@@ -80,14 +80,14 @@ Mstep_beta_admm <- function(resp,
     ## if(!first_iter & iclust == 2) browser()
     ## print(head(betas))
 
-    ## Perform ADMM once.
+    ## Perform LA-ADMM.
     res = la_admm_oneclust(K = (if(local_adapt) local_adapt_niter else 1),
                            local_adapt = local_adapt,
                            iclust = iclust,
                            niter = niter, Xtilde = Xtildes[[iclust]], yvec = yvecs[[iclust]],
                            p = p , TT = TT, N = N, dimdat = dimdat, maxdev = maxdev, Xa = Xa,
                            rho = rho,
-                           X0 = X0, I_aug,
+                           X0 = X0, I_aug = I_aug,
                            sigma = sigma,
                            intercept_inds = intercept_inds, lambda = mean_lambda,
                            resp = resp, ylist = ylist, X = X, tX = tX,
@@ -208,18 +208,19 @@ la_admm_oneclust <- function(K,
     ## args[['wvec']] <- wvec
     ## args[['uw']] <- uw
     ## args[['Uz']] <- Uz
-    res = do.call(admm_oneclust, args)
 
-    ## ## ## Temporary: Plotting the objective function
-    ## fits = c(fits, res$fits)
-    ## cols = c(cols, rep(kk, length(res$fits)))
-    ## if(any(is.na(fits))) fits = fits[-which(is.na(fits))]
-    ## if(length(fits)>0){
-    ##   plot(fits, type='o', col=cols, main = paste0("rho=", signif(args$rho,3)))
-    ##   ## Sys.sleep(1)
-    ## }
-    ## ## End of temporary
 
+    ## 1. Old call of function, which is slow and memory intensive.
+    ## res = do.call(admm_oneclust, args)
+
+    ## 2. New way no.1: Courtesy of Hadley Wickham
+    argn <- lapply(names(args), as.name)
+    names(argn) <- names(args)
+    call <- as.call(c(list(as.name("admm_oneclust")), argn))
+    res = eval(call, args)
+
+    ## 3. New way no.2: Courtesy of rmisc.
+    ## res = rlang::invoke("admm_oneclust", args)
 
     ## See if outer iterations should terminate
     objectives = c(objectives, res$fit)
@@ -347,7 +348,6 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
       Uz + rho * (Xbeta1 - Z)
     }
     Uz <- Uz_update(Uz, rho, Xbeta1, Z)
-    ## print(max(as.numeric(Uz)))
 
     ## 3. Check convergence
     if( iter > 1  & iter %% 5 == 0){## & !local_adapt){
@@ -362,20 +362,8 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
                          norm(obj$dual_resid,"F"),
                          obj$dual_err)
 
-      ## Sometimes obj doesn't contain converge.. not sure why yet.
-      ## tryCatch({
-      ##     print(obj$converge)
-      ## }, error = function(e){
-      if(is.na(obj$converge)){
-        ## save(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX,
-        ##              Xbeta1, err_rel,
-        ##      err_abs,
-        ##      resid_mat,
-        ##     obj, file=file.path("~/Desktop/somefile.Rdata"))
-      }
-
       if(obj$converge){
-        ## print(paste('converged! in', iter, 'out of ', niter, 'steps!'))
+        print(paste('Converged! in', iter, 'out of ', niter, 'steps!')) ## ADMM debug code
         converge = TRUE
         break
       }

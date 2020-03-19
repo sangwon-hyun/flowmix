@@ -57,13 +57,10 @@ converge <- function(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX, Xbeta1,
                      ){
 
   ## Form primal and dual residuals, and other things.
-  ## prim1 = A %*% beta1 ## old
-  ## prim2 = B %*% wz    ## old
-  prim1 = rbind(beta1, Xbeta1) ## new (although I don't like the rbind)
-  prim2 = - rbind(w, Z) ## new
+  prim1 = rbind(beta1, Xbeta1) ## (I don't like the rbind)
+  prim2 = - rbind(w, Z)
   primal_resid = prim1 + prim2
-  ## dual_resid = rho * tAB %*% (wz - wz_prev) ## old (No need for tAB).
-  dual_resid = -rho * ((w - w_prev) + (tX %*% (Z - Z_prev))) ## new
+  dual_resid = -rho * ((w - w_prev) + (tX %*% (Z - Z_prev)))
   tAU = Uw + tX %*% Uz
 
   ## Form primal and dual tolerances.

@@ -43,31 +43,16 @@ Estep_covar <- function(mn, sigma, pie, ylist=NULL,
                       tt, ylist_tt, mn, sigma,
                       denslist_by_clust, first_iter,
                       bin = bin)
-    ## } else {
-      ## denslist <- lapply(1:numclust,
-      ##                    calculate_dens,
-      ##                    ## Rest of arguments:
-      ##                    tt, ylist_tt, mn, sigma,
-      ##                    denslist_by_clust, first_iter,
-      ##                    bin = bin)
-      ## densmat = Matrix::Matrix(0,
-      ##                          ncol=ncol.pie,
-      ##                          nrow=ntlist[tt])
-      ## for(iclust in 1:numclust){ ## There must be a bettr way to do it.
-      ##   browser()
-      ##   densmat[,iclust] <- denslist[[iclust]]
-      ## }
-    ## }
 
     ## Weight them by pie, to produce responsibilities.
-    ## if(is.null(countslist)){
-      wt.densmat <- matrix(pie[tt,], nrow = ntlist[tt], ncol=ncol.pie, byrow=TRUE) * densmat
-      wt.densmat <- wt.densmat / rowSums(wt.densmat)
-    ## } else {
-    ##   wt.densmat <- Matrix::Matrix(pie[tt,], nrow = ntlist[tt], ncol=ncol.pie, byrow=TRUE) * densmat
-    ##   a = Matrix::rowSums(wt.densmat)
-    ##   wt.densmat <- wt.densmat / a
-    ## }
+    wt.densmat <- matrix(pie[tt,], nrow = ntlist[tt], ncol=ncol.pie, byrow=TRUE) * densmat
+    wt.densmat = wt.densmat + 1E-10 ## Add some small number to prevent ALL zeros. Explained below..
+    wt.densmat <- wt.densmat / rowSums(wt.densmat)
+
+    ## Q: why add a small number? This is practical because it likely won't
+    ## affect the end results and prevents clogging up the code. When all resp
+    ## Okay, now I thnk this happens when NONE of the $n_t$ particles are likely
+    ## to be in a cluster.
 
     resp[[tt]] <- wt.densmat
   }
