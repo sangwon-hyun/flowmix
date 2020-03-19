@@ -363,7 +363,7 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
                          obj$dual_err)
 
       if(obj$converge){
-        print(paste('Converged! in', iter, 'out of ', niter, 'steps!')) ## ADMM debug code
+        ## print(paste('Converged! in', iter, 'out of ', niter, 'steps!')) ## ADMM debug code
         converge = TRUE
         break
       }
