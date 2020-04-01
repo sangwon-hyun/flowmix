@@ -216,21 +216,21 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
   }
   res.train = do.call(covarem_once, args)
 
-  ## tryCatch({
+  tryCatch({
 
     ## Run algorithm on training data,
-    ## res.train = covarem_once(ylist = train.dat,
-    ##                          countslist = train.count,
-    ##                          X = train.X,
-    ##                          ## refit = FALSE, ## Is this necessary? Think about it for a sec.
-    ##                          mean_lambda = mean_lambda,
-    ##                          pie_lambda = pie_lambda,
-    ##                          ## verbose=TRUE, ## TEMPORARY
-    ##                          ## plot = TRUE,
-    ##                          ## plotdir = paste0("~/Desktop/blockcv-test-figures/1-6"),
-    ##                          ## filepath = file.path("~/Desktop/blockcv-test-figures/1-6", Sys.time()),
-    ##                          ...)
-    ## assert_that(!refit)
+    res.train = covarem_once(ylist = train.dat,
+                             countslist = train.count,
+                             X = train.X,
+                             ## refit = FALSE, ## Is this necessary? Think about it for a sec.
+                             mean_lambda = mean_lambda,
+                             pie_lambda = pie_lambda,
+                             ## verbose=TRUE, ## TEMPORARY
+                             ## plot = TRUE,
+                             ## plotdir = paste0("~/Desktop/blockcv-test-figures/1-6"),
+                             ## filepath = file.path("~/Desktop/blockcv-test-figures/1-6", Sys.time()),
+                             ...)
+    assert_that(!refit)
 
     ## Assign mn and pie
     pred = predict.covarem(res.train, newx = test.X)
@@ -255,35 +255,35 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
     objectives = res.train$objectives
 
     ## Save the CV results
-    ## save(cvscore,
-    ##      ## Time
-    ##      time_per_iter,
-    ##      final_iter,
-    ##      total_time,
-    ##      ## Results
-    ##      mean_lambda,
-    ##      pie_lambda,
-    ##      mean_lambdas,
-    ##      pie_lambdas,
-    ##      beta,
-    ##      alpha,
-    ##      objectives,
-    ##      ## Save the file
-    ##      file = file.path(destin, filename))
+    save(cvscore,
+         ## Time
+         time_per_iter,
+         final_iter,
+         total_time,
+         ## Results
+         mean_lambda,
+         pie_lambda,
+         mean_lambdas,
+         pie_lambdas,
+         beta,
+         alpha,
+         objectives,
+         ## Save the file
+         file = file.path(destin, filename))
     ## Note to self: if the alpha, beta and lambdas are saved, one can recreate
     ## the fitted solutions easily, by creating the means and pies.
 
-  ##   return(NULL)
+    return(NULL)
 
-  ## }, error = function(err) {
-  ##   err$message = paste(err$message,
-  ##                       "\n(No file will be saved for lambdas (",
-  ##                       signif(pie_lambdas[ialpha],3), ", ", signif(mean_lambdas[ibeta],3),
-  ##                       ") whose indices are: ",
-  ##                       ialpha, "-", ibeta, "-", ifold, "-", irep,
-  ##                       " .)",sep="")
-  ##   cat(err$message, fill=TRUE)
-  ##   warning(err)})
+  }, error = function(err) {
+    err$message = paste(err$message,
+                        "\n(No file will be saved for lambdas (",
+                        signif(pie_lambdas[ialpha],3), ", ", signif(mean_lambdas[ibeta],3),
+                        ") whose indices are: ",
+                        ialpha, "-", ibeta, "-", ifold, "-", irep,
+                        " .)",sep="")
+    cat(err$message, fill=TRUE)
+    warning(err)})
 }
 
 
