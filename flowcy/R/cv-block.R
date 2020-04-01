@@ -196,12 +196,12 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
 
   ## Check whether this job has been done already.
   filename = paste0(ialpha, "-", ibeta, "-", ifold, "-", irep, "-cvscore.Rdata")
-  if(file.exists(file.path(destin, filename))){
-    cat("(ialpha, ibeta, ifold, irep) = (", ialpha, ibeta, ifold, irep, ") are already done.", fill=TRUE)
-    return(NULL)
-  }
-  mean_lambda = mean_lambdas[ibeta]
+  ## if(file.exists(file.path(destin, filename))){
+  ##   cat("(ialpha, ibeta, ifold, irep) = (", ialpha, ibeta, ifold, irep, ") are already done.", fill=TRUE)
+  ##   return(NULL)
+  ## }
   pie_lambda = pie_lambdas[ialpha]
+  mean_lambda = mean_lambdas[ibeta]
 
   ## Run the algorithm (all this trouble because of |nrep|)
   args = list(...)
@@ -216,7 +216,7 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
   }
   res.train = do.call(covarem_once, args)
 
-  tryCatch({
+  ## tryCatch({
 
     ## Run algorithm on training data,
     ## res.train = covarem_once(ylist = train.dat,
@@ -255,42 +255,37 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
     objectives = res.train$objectives
 
     ## Save the CV results
-    save(cvscore,
-         ## Time
-         time_per_iter,
-         final_iter,
-         total_time,
-         ## Results
-         mean_lambda,
-         pie_lambda,
-         mean_lambdas,
-         pie_lambdas,
-         beta,
-         alpha,
-         objectives,
-         ## Save the file
-         file = file.path(destin, filename))
+    ## save(cvscore,
+    ##      ## Time
+    ##      time_per_iter,
+    ##      final_iter,
+    ##      total_time,
+    ##      ## Results
+    ##      mean_lambda,
+    ##      pie_lambda,
+    ##      mean_lambdas,
+    ##      pie_lambdas,
+    ##      beta,
+    ##      alpha,
+    ##      objectives,
+    ##      ## Save the file
+    ##      file = file.path(destin, filename))
     ## Note to self: if the alpha, beta and lambdas are saved, one can recreate
     ## the fitted solutions easily, by creating the means and pies.
 
-    return(NULL)
+  ##   return(NULL)
 
-  }, error = function(err) {
-    err$message = paste(err$message,
-                        "\n(No file will be saved for lambdas (",
-                        signif(pie_lambdas[ialpha],3), ", ", signif(mean_lambdas[ibeta],3),
-                        ") whose indices are: ",
-                        ialpha, "-", ibeta, "-", ifold, "-", irep,
-                        " .)",sep="")
-    cat(err$message, fill=TRUE)
-    warning(err)})
+  ## }, error = function(err) {
+  ##   err$message = paste(err$message,
+  ##                       "\n(No file will be saved for lambdas (",
+  ##                       signif(pie_lambdas[ialpha],3), ", ", signif(mean_lambdas[ibeta],3),
+  ##                       ") whose indices are: ",
+  ##                       ialpha, "-", ibeta, "-", ifold, "-", irep,
+  ##                       " .)",sep="")
+  ##   cat(err$message, fill=TRUE)
+  ##   warning(err)})
 }
 
-
-
-#############################
-### Helper to run one job ###
-#############################
 
 ##' Refit one job
 one_job_refit <- function(ialpha, ibeta, destin,
@@ -385,7 +380,8 @@ make_iimat_small <- function(cv_gridsize){
 ##'
 ##' @export
 ## blockcv_aggregate <- function(destin, cv_gridsize, nfold){
-blockcv_aggregate <- function(destin, cv_gridsize, nfold, nrep){
+blockcv_aggregate <- function(destin, cv_gridsize, nfold, nrep,
+                              save=FALSE, resfile = "all-cvres.Rdata"){
 
   ## ## Read the meta data (for |nfold|, |cv_gridsize|, |nrep|)
   ## load(file = file.path(destin, 'meta.Rdata'))
@@ -425,10 +421,27 @@ blockcv_aggregate <- function(destin, cv_gridsize, nfold, nrep){
   rownames(cvscore.mat) = signif(pie_lambdas,3)
   colnames(cvscore.mat) = signif(mean_lambdas,3)
 
+
+  ## Find the minimum
+  mat = cvscore.mat
+  min.inds = which(mat == min(mat, na.rm=TRUE), arr.ind=TRUE)
+
+  ## Recent addition
+  if(save){
+    cat("Saving aggregated results to ", file.path(destin, resfile))
+    save(cvscore.array,
+         cvscore.mat,
+         mean_lambdas,
+         pie_lambdas,
+         min.inds,
+         file = file.path(destin, resfile))
+  }
+
   return(list(cvscore.array = cvscore.array,
               cvscore.mat = cvscore.mat,
               mean_lambdas = mean_lambdas,
-              pie_lambdas = pie_lambdas))
+              pie_lambdas = pie_lambdas,
+              min.inds = min.inds))
 }
 
 
@@ -492,9 +505,10 @@ blockcv_onese <- function(destin,
 ##' @param destin Location of saved things.
 ##'
 ##' @return Matrix containing estimated degrees of freedom.
-blockcv_aggregate_df <- function(gridsize, destin){
+blockcv_aggregate_df <- function(gridsize, nrep, destin,
+                                 save=FALSE, resfile = "all-cvres-df.Rdata"){
 
-  df.array = df.alpha.array = df.beta.array = array(NA, dim=c(gridsize, gridsize, nrep))
+  df.array = obj.array = df.alpha.array = df.beta.array = array(NA, dim=c(gridsize, gridsize, nrep))
   df.mat = df.alpha.mat = df.beta.mat = matrix(NA, ncol=gridsize, nrow=gridsize)
   for(ialpha in 1:gridsize){
     for(ibeta in 1:gridsize){
@@ -517,23 +531,48 @@ blockcv_aggregate_df <- function(gridsize, destin){
 
           df.beta[irep] = do.call(sum, lapply(res$beta, function(mybeta){
             sum(mybeta[-1,]!=0)}))
+
           ## Also calculate objective function
+          objectives = res$objectives
           obj[irep] = objectives[length(objectives)]
+
         }, error = function(e){})
       }
       df.array[ialpha, ibeta, ] = df
+      obj.array[ialpha, ibeta,] = obj
       df.alpha.array[ialpha, ibeta, ] = df.alpha
       df.beta.array[ialpha, ibeta, ] = df.beta
 
       ## Calculate the df of the best model
       if(!all(is.na(obj))){
-        df.mat[ialpha, ibeta] = df[which.max(obj)]
+        ## df.mat[ialpha, ibeta] = df[which.max(obj, na.rm=TRUE)]
+        df.mat[ialpha, ibeta] = df[which(obj == min(obj, na.rm = TRUE))]
       }
     }
   }
+
+  ## Assign to new names
+  mat = df.mat
+  alpha.array = df.alpha.array
+  beta.array = df.beta.array
+
+  ## Recent addition
+  if(save){
+    cat("Saving aggregated results to ", file.path(destin, resfile))
+    save(mat,
+         alpha.array,
+         beta.array,
+         df.array,
+         file = file.path(destin, resfile))
+  }
+
+
   ## return(df.mat)
-  return(list(mat = df.mat, alpha.array = df.alpha.array, beta.array = df.beta.array,
-              array = df.array))
+  return(list(mat = mat,
+              alpha.array = alpha.array,
+              beta.array = beta.array,
+              df.array = df.array,
+              obj.array = obj.array))
 }
 
 
@@ -543,9 +582,11 @@ blockcv_aggregate_df <- function(gridsize, destin){
 ##' @param gridsize Size of CV grid.
 ##' @param destin Location of saved things.
 ##'
-##' @return List containing the "best" res objects (best in the sense that it
-##'   had the best likelihood value.
-blockcv_aggregate_res <- function(gridsize, destin){
+##' @return List containing, for every (ialpha, ibeta), the "best" result
+##'   objects (best in the sense that it had the best likelihood value out of
+##'   the |nrep| replicates.)
+blockcv_aggregate_res <- function(gridsize, nrep, destin,
+                                  save=FALSE, resfile = "best-res.Rdata"){
 
   ## df.mat = matrix(NA, ncol=gridsize, nrow=gridsize)
   res.list = list()
@@ -568,7 +609,7 @@ blockcv_aggregate_res <- function(gridsize, destin){
           ##   sum(mybeta[-1,]!=0)})) + sum(res$alpha[,-1]!=0)
           res.list.inner[[irep]] = res
           ## Also calculate objective function
-          obj[irep] = objectives[length(objectives)]
+          obj[irep] = res$objectives[length(res$objectives)]
         }, error = function(e){})
       }
 
@@ -579,5 +620,12 @@ blockcv_aggregate_res <- function(gridsize, destin){
       }
     }
   }
+
+  ## Recent addition
+  if(save){
+    cat("Saving aggregated results to ", file.path(destin, resfile))
+    save(res.list, file=file.path(destin, resfile))
+  }
+
   return(res.list)
 }

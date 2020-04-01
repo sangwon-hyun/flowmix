@@ -368,23 +368,16 @@ onese_plot <- function(isim, outputdir,
 ##' Apply the 1SE rule (results are similar to those of get_optimal_info())
 ##' @param outputdir Location of the output files. e.g. outputdir="~/output/vanilla"
 ##' @return NULL.
-onese <- function(isim=NULL, outputdir,
-                       gridsize=12){
+onese <- function(destin,
+                  gridsize = 12){
 ## outputdir="~/repos/flowcy/output/vanilla"
-
-  ## Load data
-  if(!is.null(isim)){
-    destin = file.path(outputdir, paste0("isim-", isim))
-  } else {
-    destin = outputdir
-  }
 
   ## Gather the degrees of freedom
   dfmat = aggregateres_df(gridsize, destin)
   cvscoremat = aggregateres(gridsize, destin)
 
   ## Add the line
-  ind = ind.min = which(cvscoremat==min(cvscoremat, na.rm=TRUE), arr.ind=TRUE)
+  ind = ind.min = which(cvscoremat == min(cvscoremat, na.rm=TRUE), arr.ind=TRUE)
 
   ## Add horizontal lines
   load(file=file.path(destin, paste0(ind[1], "-", ind[2], ".Rdata")))
@@ -413,13 +406,9 @@ onese <- function(isim=NULL, outputdir,
   lambda_beta = beta_lambdas[ind.min[2]]
 
   return(list(param = c(lambda_alpha, lambda_beta),
-              res=res,
-              se=se,
-              ind.min=ind.min,
-              cvscoremat=cvscoremat,
-              dfmat=dfmat))
-
+              res = res,
+              se = se,
+              ind.min = ind.min,
+              cvscoremat = cvscoremat,
+              dfmat = dfmat))
 }
-
-
-

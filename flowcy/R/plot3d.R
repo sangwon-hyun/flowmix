@@ -6,8 +6,8 @@
 ##' @param tt Time point.
 ##' @param ... Other arguments to plot3d.covarem().
 ##'
-plot3d_cytogram <- function(ylist, countslist=NULL, tt, ...){
-  plot3d.covarem(NULL, ylist, countslist, tt, show.xb.constraint = FALSE, ...)
+plot3d_cytogram <- function(ylist, X, countslist=NULL, tt, ...){
+  plot3d.covarem(NULL, ylist, X, countslist, tt, show.xb.constraint = FALSE, ...)
 }
 
 ##' Main 3d plotting function. It's possible to call this function without an
@@ -22,89 +22,84 @@ plot3d_cytogram <- function(ylist, countslist=NULL, tt, ...){
 ##' @param show.xb.constraint If TRUE, show the ball constraint boundaries.
 ##'
 ##' @export
-plot3d.covarem <- function(obj, ylist, countslist=NULL, tt, show.xb.constraint = FALSE,
-                           steady_total = FALSE){
+plot3d.covarem <- function(obj,
+                           ## Understandably, data (ylist) might not be in the object.
+                           ylist, countslist = NULL,
+                           ## The time point of interest, out of 1:TT
+                           tt,
+                           ## Other options.
+                           show.xb.constraint = FALSE,
+                           steady_total = FALSE,
+                           cex.fac = 1
+                           ){
 
   ## Make plot layout
-  ## m = matrix(c(1, 1, 2, 2, 3, 3,
-  ##              1, 1, 2, 2, 3, 3,
-  ##              4, 4, 5, 5, 7, 7,
-  ##              4, 4, 6, 6, 7, 7),
-  ##            nrow = 4, ncol = 6, byrow=TRUE)
+  ## m = matrix(c(1, 1, 2, 2, 3, 3, 4, 4, 5, 5,
+  ##              1, 1, 2, 2, 3, 3, 4, 4, 5, 5,
+  ##              6, 6, 7, 7, 8, 8, 9, 9, 10, 10,
+  ##              6, 6, 7, 7, 8, 8, 9, 9, 10, 10,
+  ##              11, 11, 11, 11, 12, 12, 14, 14, 14, 14,
+  ##              11, 11, 11, 11, 13, 13, 14, 14, 14, 14),
+  ##            nrow = 6, ncol = 10, byrow = TRUE)
 
-    ## m = matrix(c(1, 1, 2, 2, 3, 3,
-    ##              1, 1, 2, 2, 3, 3,
-    ##              4, 4, 5, 5, 6, 6,
-    ##              4, 4, 5, 5, 6, 6,
-    ##              7, 7, 8, 8, 10, 10,
-    ##              7, 7, 9, 9, 10, 10),
-    ##            nrow = 6, ncol = 6, byrow=TRUE)
+  m = matrix(c(1, 1, 2, 2, 3, 3, 4, 4, 5, 5,
+               1, 1, 2, 2, 3, 3, 4, 4, 5, 5,
+               6, 6, 6, 6, 7, 7, 8, 8, 8, 8,
+               6, 6, 6, 6, 7, 7, 8, 8, 8, 8,
+               11, 11, 11, 11, 12, 12, 14, 14, 14, 14,
+               11, 11, 11, 11, 13, 13, 14, 14, 14, 14),
+             nrow = 6, ncol = 10, byrow = TRUE)
 
 
-  ## if(is.null(obj)){
-  ##   m = matrix(c(c(1, 1, 2, 2, 3, 3, 4, 4, 5, 5,
-  ##                1, 1, 2, 2, 3, 3, 4, 4, 5, 5),
-  ##                ## 6, 6, 7, 7, 8, 8, 9, 9, 10, 10,
-  ##                ## 6, 6, 7, 7, 8, 8, 9, 9, 10, 10,
-  ##                c(11, 11, 11, 11, 12, 12, 14, 14, 14, 14,
-  ##                11, 11, 11, 11, 13, 13, 14, 14, 14, 14)-5),
-  ##              nrow = 4, ncol = 10, byrow = TRUE)
-  ## } else {
-    m = matrix(c(1, 1, 2, 2, 3, 3, 4, 4, 5, 5,
-                 1, 1, 2, 2, 3, 3, 4, 4, 5, 5,
-                 6, 6, 7, 7, 8, 8, 9, 9, 10, 10,
-                 6, 6, 7, 7, 8, 8, 9, 9, 10, 10,
-                 11, 11, 11, 11, 12, 12, 14, 14, 14, 14,
-                 11, 11, 11, 11, 13, 13, 14, 14, 14, 14),
-               nrow = 6, ncol = 10, byrow = TRUE)
-  ## }
-
+  ## Handle the case where obj is missing; only the cytograms are to be plotted.
   if(is.null(obj)){
     m = m[1:4,]
+    ## if(!is.null(X)){ m[3:4,] = 6 }
   }
+
+  ## Define layout
   layout(m)
   par(oma=c(3,1,2,1)) ## setting outer margin
 
   ## Setup
-  if(!is.null(obj)){
+  TT = length(ylist)
+  assert_that(tt %in% 1:TT)
+  all.y = do.call(rbind, ylist)
+  only_plot_cytograms = (is.null(obj))
+  if(!only_plot_cytograms){
     mns = obj$mn
     numclust = obj$numclust
     p = ncol(obj$X)
   }
-  TT = length(ylist)
-  ## TT = length(TT)
-  assert_that(tt %in% 1:TT)
-  all.y = do.call(rbind, ylist)
-
-
-  ## If desired
 
   ###############################
   ## Make the three data plots ##
   ###############################
   dimslist = list(1:2, 2:3, c(3,1))
   for(dims in dimslist){
-    one_dim_plot(ylist, obj, tt, countslist = countslist, dims = dims, steady_total = steady_total)
+    one_dim_scatterplot(ylist, obj, tt,
+                        countslist = countslist,
+                        dims = dims,
+                        steady_total = steady_total,
+                        cex.fac = cex.fac)
   }
 
   par(mar=c(1,1,3,1))
-  phis = c(10,20,30,50,70,80,100)
-  ## phis = c(10,50)
+  ## phis = c(10,20,30,50,70,80,100)
+  ## if(only_plot_cytograms){  phis = phis[1:2]  }
+  phis = c(10,50)
   for(phi in phis){
-    one_3d_plot(ylist, obj, tt, countslist = countslist, phi = phi, steady_total = steady_total)
+    one_3d_plot(ylist, obj, tt, countslist = countslist, phi = phi, steady_total = steady_total,
+                cex.fac = cex.fac)
   }
 
-  if(!is.null(obj)){
 
   ######################
   ## Plot covariates ###
   ######################
-
-  par(mar=c(5,5,2,2))
-  par(cex.axis=2)
-  par(cex.lab=2)
-  ## par(cex.name=1.5)
-  ylim.cov=range(obj$X) * 1
+  par(mar=c(5,5,2,2), cex.axis=2, cex.lab=2)
+  ## ylim.cov=range(obj$X) * 1
+  ylim.cov=range(obj$X) * c(1,0.7) ## temporary
   plot(NA, xlim=c(0,TT*1), ylim = ylim.cov,
        ylab = "Covariates", xlab="time, t=1,..,T", axes=FALSE)
   title( main = "Covariates", cex.main = 2)
@@ -112,7 +107,7 @@ plot3d.covarem <- function(obj, ylist, countslist=NULL, tt, show.xb.constraint =
   axis(2)
   ## lwd = c(3,3,0.5,0.5,0.5)
   for(ii in 1:p){
-    if(colnames(X)[ii] %in% c("sss", "sst", "sss_cruise", "sst_cruise", "par")){
+    if(colnames(obj$X)[ii] %in% c("sss", "sst", "sss_cruise", "sst_cruise", "par")){
       lwd = 3; col = ii;##'red';
     } else {
       lwd = 0.5; col = 'grey';
@@ -120,6 +115,8 @@ plot3d.covarem <- function(obj, ylist, countslist=NULL, tt, show.xb.constraint =
     lines(obj$X[,ii], col = col, lwd=lwd, type='l')
   }
   abline(v = tt, col='green')
+
+  if(!only_plot_cytograms){
 
   ######################
   ## Plot pies twice ###
@@ -164,7 +161,7 @@ plot3d.covarem <- function(obj, ylist, countslist=NULL, tt, show.xb.constraint =
     } else {
       ntlist = sapply(ylist, nrow)
     }
-  plot(obj$likelihoods / ntlist, type='o', axes=FALSE,
+  plot(obj$loglikelihoods / ntlist, type='o', axes=FALSE,
        cex.lab = 2, ylab = "In-sample Log likelihoods",
        xlab = "time, t=1,..,T")
   axis(1); axis(2)
@@ -444,15 +441,86 @@ get_range_from_ylist <- function(ylist){
 }
 
 
-##' Making data plot for two dimensions of the original three (those in |ind|).
-one_dim_plot <- function(ylist, obj, tt, countslist = NULL, dims = c(1,2),
+##' Making *heatmap* for two dimensions of the original three (those in |ind|).
+one_dim_heatmap <- function(ylist, obj, tt, countslist = NULL, dims = c(1,2),
                          steady_total = FALSE){
 
   ## Extract data
   y = ylist[[tt]][,dims]
   labs = colnames(ylist[[1]])
   maxcount = max(unlist(countslist))
+  if(!is.null(obj)){
+    mns = obj$mn
+    TT = obj$TT
+    numclust = obj$numclust
+  }
 
+  ## Get plot ranges
+  ranges = get_range_from_ylist(ylist)
+  ylim = ranges[,dims[2]]
+  xlim = ranges[,dims[1]]##range(all.y[,dims[1]])
+  ylab = labs[dims[2]]
+  xlab = labs[dims[1]]
+
+  ## Making the background color different
+  allcounts = (sapply(countslist, sum))
+  prop = allcounts[[tt]] / max(allcounts)
+  yrange = ylim[2] - ylim[1]
+  ylim_other = ylim[1]
+  ylim[1] = ylim[1] - 1/5 * yrange
+
+  ## Create empty plot
+  main0 = ""
+  plot(NA, ylim = ylim, xlim = xlim, cex = 3,
+       ylab = ylab, xlab = xlab,
+       cex.lab = 2,
+       cex.axis = 2)
+  title(main = main0, cex.main = 3)
+
+  ## Add heatplot, using the *sparse* (full d^3) counts
+  ymat = y_to_ymat(y, grid, dims)
+  drawmat_precise2(ymat)
+
+  make_ymat <- function(y, counts, grid, dims){
+
+    ## Extract only the two columns of interest
+    y = y[,dims]
+
+    ## Then, collapse the data
+    y = ybin_list[[100]]
+    z = y[,1:2]
+    dim(z)
+    dim(unique(z))
+
+    ## Make into a sparse grid.
+
+
+
+
+    ## Then, collapse
+
+  }
+
+  ##  Input: a d x d matrix
+
+  ## 1. Collapse the ylist.
+
+
+  ylist[]
+
+
+
+}
+
+##' Making data plot for two dimensions of the original three (those in |ind|).
+one_dim_scatterplot <- function(ylist, obj, tt, countslist = NULL, dims = c(1,2),
+                                steady_total = FALSE,
+                                cex.fac = 1){
+
+  ## Extract data
+  y = ylist[[tt]][,dims]
+  labs = colnames(ylist[[1]])
+  maxcount = max(unlist(countslist))
 
   if(!is.null(obj)){
     mns = obj$mn
@@ -485,6 +553,7 @@ one_dim_plot <- function(ylist, obj, tt, countslist = NULL, dims = c(1,2),
   title(main = main0, cex.main = 3)
 
   ## Add datapoints
+  cex = 0.5
   if(is.null(countslist)){
     cex = 0.5
   } else {
@@ -495,6 +564,8 @@ one_dim_plot <- function(ylist, obj, tt, countslist = NULL, dims = c(1,2),
       cex = cex / maxcount
     }
   }
+  cex = cex * cex.fac
+
   ## points(y, col=rgb(0 ,0, 1, 0.1), pch=16, cex=sqrt(cex) * 10)
   points(y, col=rgb(0 ,0, 1, 0.1), pch=16, cex=sqrt(cex) * 10)
 
@@ -584,7 +655,9 @@ one_dim_plot <- function(ylist, obj, tt, countslist = NULL, dims = c(1,2),
 
 
 ##' Making a 3d scatter plot with a certain angle..
-one_3d_plot <- function(ylist, obj=NULL, tt, countslist=NULL, phi = 40, steady_total=FALSE){
+one_3d_plot <- function(ylist, obj=NULL, tt, countslist=NULL, phi = 40,
+                        steady_total=FALSE,
+                        cex.fac = 1){
 
   maxcount = max(unlist(countslist))
   y = ylist[[tt]]
@@ -601,6 +674,7 @@ one_3d_plot <- function(ylist, obj=NULL, tt, countslist=NULL, phi = 40, steady_t
     } else {
       cex = cex / maxcount
     }
+    cex = cex * cex.fac
     ## cols = sapply(cex, function(cx) rgb(0, 0, 1, cx))
   }
 
@@ -625,7 +699,7 @@ one_3d_plot <- function(ylist, obj=NULL, tt, countslist=NULL, phi = 40, steady_t
 
   ## Plot the data points.
   plot3D::scatter3D(y[,1], y[,2], y[,3],
-            col = rgb(0,0,1,0.2),
+            col = rgb(0,0,1,0.1),
             pch = 16,
             bty='g', phi=phi,
             xlim = xlim, ylim = ylim, zlim = zlim,

@@ -33,3 +33,39 @@ check_trim <- function(ylist, countslist){
   num_zeros_in_counts = sapply(countslist,function(a) sum(a==0))
   assert_that(all(num_zeros_in_counts==0))
 }
+
+
+##' Prettifying the coefficients alpha and beta.
+##'
+##' @param alpha Alpha coefficients.
+##' @param beta Beta coefficients.
+##' @param p p
+##' @param numclust numclust
+##' @param dimdat dimdat
+##'
+##' @return list containing prettified alpha and beta.
+reformat_coef <- function(alpha, beta,
+                          p, numclust, dimdat){
+  ## p = ncol(best.res$X)
+  ## numclust = best.res$numclust
+  ## dimdat = best.res$dimdat
+
+  ## Reformat betas
+  beta = lapply(beta, function(b){
+    ## b = round(b,2)
+    colnames(b) = paste0("dim-", 1:dimdat)
+    rownames(b) = c("intp", paste0("X", 1:p))
+    return(b)
+  })
+  names(beta) = paste0("clust-", 1:numclust)
+
+  ## Reformat alphas
+  ## alpha = round(best.res$alpha,2)
+  if(!is.null(alpha)){
+    rownames(alpha) = paste0("clust-", 1:numclust)
+    colnames(alpha)[(1:(p+1))] = c("intp", paste0("X", 1:p))
+  }
+
+  return(list(alpha = alpha,
+              beta = beta))
+}

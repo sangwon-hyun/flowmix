@@ -2,13 +2,19 @@
 add_growth <- function(X){
   ## Sunlight variable
   par = X[,"par"]
+  par = par - min(par)
   ## plot(par, type='l', ylim = c(-2000,5000))
 
   ## Starting to make growth variable.
   growth0 = par
-  cap = 100
+  rng = range(par)
+  cap = rng[1] + 0.05*(rng[2]-rng[1])
   growth0[growth0 >= cap] = cap
 
+  ## ## Temporary attempt:
+  ## par = X[,"par"]
+  ## par = par + min(par)
+  ## growth0 = par
 
   ## Use a "cumsum" loop to make growth variable.
   nighttime = which(growth0!=cap)
@@ -33,17 +39,16 @@ add_growth <- function(X){
 add_div <- function(X){
   ## Sunlight variable
   par = X[,"par"]
+  par = par - min(par)
   ## plot(par, type='l', ylim = c(-2000,5000))
 
-  ## Starting to make growth variable.
-  growth0 = par
-  cap = 100
-  growth0[growth0 >= cap] = cap
-
+  ## cap = 100
+  rng = range(par)
+  cap = rng[1] + 0.05*(rng[2]-rng[1])
 
   ## Also make a nightime variable
   div0 = rep(0, length(par))
-  nighttime = which(par < 100)
+  nighttime = which(par < cap)
   div0[nighttime] = -cap
   ## points(cumsum(div0), type = 'l', lwd=3, col='yellow')
 

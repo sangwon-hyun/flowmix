@@ -91,6 +91,7 @@ covarem_once <- function(ylist, X,
   assertthat::assert_that(length(ylist) == nrow(X))
   ## assertthat::assert_that(pie_lambda > 0)
   if(ridge) assert_that(!admm) ## temporary
+  assertthat::assert_that(numclust > 1)
 
   ## Setup
   TT = length(ylist)
@@ -129,7 +130,6 @@ covarem_once <- function(ylist, X,
     resp <- Estep_covar(mn, sigma, pie, ylist = ylist, numclust = numclust,
                         denslist_by_clust = denslist_by_clust,
                         first_iter = (iter == 2), countslist = countslist)
-
 
     ## M step (three parts)
     ## 1. Alpha
@@ -283,6 +283,11 @@ covarem_once <- function(ylist, X,
                              countslist = countslist,
                              each = TRUE)
 
+  ## Also reformat the coefficients
+  obj <- reformat_coef(alpha, beta, p, numclust, dimdat)
+  alpha = obj$alpha
+  beta = obj$beta
+
   return(structure(list(alpha = alpha,
                         beta = beta,
                         mn = mn,
@@ -309,7 +314,6 @@ covarem_once <- function(ylist, X,
                         admm_niters = admm_niters
                         ), class = "covarem"))
 }
-
 
 ## ## Some tests to add
 ## ## object is the result of having run covarem() or covarem_once().
