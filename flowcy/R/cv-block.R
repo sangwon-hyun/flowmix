@@ -196,10 +196,10 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
 
   ## Check whether this job has been done already.
   filename = paste0(ialpha, "-", ibeta, "-", ifold, "-", irep, "-cvscore.Rdata")
-  ## if(file.exists(file.path(destin, filename))){
-  ##   cat("(ialpha, ibeta, ifold, irep) = (", ialpha, ibeta, ifold, irep, ") are already done.", fill=TRUE)
-  ##   return(NULL)
-  ## }
+  if(file.exists(file.path(destin, filename))){
+    cat("(ialpha, ibeta, ifold, irep) = (", ialpha, ibeta, ifold, irep, ") are already done.", fill=TRUE)
+    return(NULL)
+  }
   pie_lambda = pie_lambdas[ialpha]
   mean_lambda = mean_lambdas[ibeta]
 
