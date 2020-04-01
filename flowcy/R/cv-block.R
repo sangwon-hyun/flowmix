@@ -218,19 +218,19 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
 
   tryCatch({
 
-    ## Run algorithm on training data,
-    res.train = covarem_once(ylist = train.dat,
-                             countslist = train.count,
-                             X = train.X,
-                             ## refit = FALSE, ## Is this necessary? Think about it for a sec.
-                             mean_lambda = mean_lambda,
-                             pie_lambda = pie_lambda,
-                             ## verbose=TRUE, ## TEMPORARY
-                             ## plot = TRUE,
-                             ## plotdir = paste0("~/Desktop/blockcv-test-figures/1-6"),
-                             ## filepath = file.path("~/Desktop/blockcv-test-figures/1-6", Sys.time()),
-                             ...)
-    assert_that(!refit)
+    ## ## Run algorithm on training data,
+    ## res.train = covarem_once(ylist = train.dat,
+    ##                          countslist = train.count,
+    ##                          X = train.X,
+    ##                          ## refit = FALSE, ## Is this necessary? Think about it for a sec.
+    ##                          mean_lambda = mean_lambda,
+    ##                          pie_lambda = pie_lambda,
+    ##                          ## verbose=TRUE, ## TEMPORARY
+    ##                          ## plot = TRUE,
+    ##                          ## plotdir = paste0("~/Desktop/blockcv-test-figures/1-6"),
+    ##                          ## filepath = file.path("~/Desktop/blockcv-test-figures/1-6", Sys.time()),
+    ##                          ...)
+    ## assert_that(!refit)
 
     ## Assign mn and pie
     pred = predict.covarem(res.train, newx = test.X)
