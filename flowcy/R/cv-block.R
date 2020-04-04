@@ -214,7 +214,13 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
   args = args[-which(names(args) %in% "nrep")] ## remove |nrep| prior to feeding
                                                ## to covarem_once().
   }
-  res.train = do.call(covarem_once, args)
+
+  ## New and better do.call() statement:
+  ## res.train = do.call(covarem_once, args) ## Old
+  argn <- lapply(names(args), as.name)
+  names(argn) <- names(args)
+  call <- as.call(c(list(as.name("covarem_once")), argn))
+  res.train = eval(call, args)
 
   tryCatch({
 
@@ -315,7 +321,14 @@ one_job_refit <- function(ialpha, ibeta, destin,
       args$pie_lambda = pie_lambdas[ialpha] ## <-----There was a BUG!! pie_lambda[ialpha]
       args$mean_lambda = mean_lambdas[ibeta]
       if("nrep" %in% names(args)) args = args[-which(names(args) %in% "nrep")] ## remove |nrep| prior to feeding
-      res = do.call(covarem_once, args)
+
+
+      ## Better do.call statement:
+      ## res = do.call(covarem_once, args)
+      argn <- lapply(names(args), as.name)
+      names(argn) <- names(args)
+      call <- as.call(c(list(as.name("covarem_once")), argn))
+      res = eval(call, args)
 
       ## res = covarem(ylist = ylist, countslist = countslist, X = X,
       ##               mean_lambda = mean_lambdas[ibeta],
