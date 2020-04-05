@@ -48,8 +48,11 @@ eigendecomp_sigma_barebones <- function(sigma){
   ## Do eigendecomposition
   eig = eigen(sigma)
 
+  values = eig$values
+  if(length(sigma)==1) values = as.matrix(values)
+
   ## Gather and return results
-  sigma_eig <- list(values = eig$values, vectors = eig$vectors)
+  sigma_eig <- list(values = values, vectors = eig$vectors)
   return(sigma_eig)
 }
 
@@ -116,7 +119,7 @@ det_from_eig <- function(sigma_eig){
 ##' @param sigma_eig Eigendecomposition (from \code{get_sigma_eig()}) of sigma.
 ##' @return Inverse of sigma.
 sigma_inv_from_eig <- function(sigma_eig){
-  (sigma_eig$vectors %*% diag(as.matrix(1/sigma_eig$values)) %*% t(sigma_eig$vectors))
+  (sigma_eig$vectors %*% diag(1/sigma_eig$values) %*% t(sigma_eig$vectors))
 }
 
 
@@ -126,7 +129,7 @@ sigma_inv_from_eig <- function(sigma_eig){
 ##'   \code{sigma_half}, we should have \code{sigma_half %*% sigma_half ==
 ##'   sigma}.
 sigma_half_from_eig <- function(sigma_eig){
-  (sigma_eig$vectors %*% diag(sqrt(as.matrix(sigma_eig$values))) %*% t(sigma_eig$vectors))
+  (sigma_eig$vectors %*% diag(sqrt(sigma_eig$values)) %*% t(sigma_eig$vectors))
 }
 
 
@@ -136,7 +139,7 @@ sigma_half_from_eig <- function(sigma_eig){
 ##'   \code{sigma_half}, we should have \code{sigma_half %*% sigma_half ==
 ##'   sigma}.
 inverse_sigma_half_from_eig <- function(sigma_eig){
-  (sigma_eig$vectors %*% diag(1/sqrt(as.matrix(sigma_eig$values))) %*% t(sigma_eig$vectors))
+  (sigma_eig$vectors %*% diag(1/sqrt(sigma_eig$values)) %*% t(sigma_eig$vectors))
 } ## TODO Test this.
 
 ##' From a (numclust x dimdat x dimdat) array whose [ii,,]'th entry is
@@ -149,7 +152,7 @@ eigendecomp_sigma_array <- function(sigma_array){
 
   ## Only need to calculate once because sigmas are the same across tt=1:TT
   eig_by_clust = lapply(1:numclust, function(idim){
-    eigendecomp_sigma(sigma_array[idim, , ,drop=FALSE])
+    eigendecomp_sigma(sigma_array[idim, , ])
   })
 
   return(eig_by_clust)
