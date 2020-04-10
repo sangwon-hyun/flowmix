@@ -45,16 +45,26 @@ check_trim <- function(ylist, countslist){
 ##'
 ##' @return list containing prettified alpha and beta.
 reformat_coef <- function(alpha, beta,
-                          p, numclust, dimdat){
+                          p, numclust, dimdat,
+                          X){
   ## p = ncol(best.res$X)
   ## numclust = best.res$numclust
   ## dimdat = best.res$dimdat
+
+
+  ## All X names
+  if(is.null(colnames(X))){
+    Xnames = paste0("X", 1:p)
+  } else {
+    Xnames = colnames(X)
+    stopifnot(length(Xnames)==p)
+  }
 
   ## Reformat betas
   beta = lapply(beta, function(b){
     ## b = round(b,2)
     colnames(b) = paste0("dim-", 1:dimdat)
-    rownames(b) = c("intp", paste0("X", 1:p))
+    rownames(b) = c("intp", Xnames) ##paste0("X", 1:p)
     return(b)
   })
   names(beta) = paste0("clust-", 1:numclust)
@@ -63,7 +73,7 @@ reformat_coef <- function(alpha, beta,
   ## alpha = round(best.res$alpha,2)
   if(!is.null(alpha)){
     rownames(alpha) = paste0("clust-", 1:numclust)
-    colnames(alpha)[(1:(p+1))] = c("intp", paste0("X", 1:p))
+    colnames(alpha)[(1:(p+1))] = c("intp", Xnames)
   }
 
   return(list(alpha = alpha,

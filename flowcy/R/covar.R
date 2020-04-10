@@ -284,7 +284,7 @@ covarem_once <- function(ylist, X,
                              each = TRUE)
 
   ## Also reformat the coefficients
-  obj <- reformat_coef(alpha, beta, p, numclust, dimdat)
+  obj <- reformat_coef(alpha, beta, p, numclust, dimdat, X)
   alpha = obj$alpha
   beta = obj$beta
 
