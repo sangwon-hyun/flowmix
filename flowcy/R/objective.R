@@ -45,7 +45,7 @@ objective <- function(mu, pie, sigma,
 
   ## Recent change: This now excludes the intercept!!!!
   pen1 = (if(!is.null(alpha)) pie_lambda * l1norm(alpha[,-1]) else 0)
-  pen2 = (if(!is.null(beta)) sum(sapply(beta, function(mybeta) l1norm(mybeta[-1,]))) else 0)
+  pen2 = (if(!is.null(beta)) mean_lambda * sum(sapply(beta, function(mybeta) l1norm(mybeta[-1,]))) else 0)
   obj = - 1/N * sum(unlist(loglik)) + pen1 + pen2
 
   ## Addition
