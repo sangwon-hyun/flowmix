@@ -261,13 +261,15 @@ covarem_once <- function(ylist, X,
     }
 
     ## Check convergence
-    if(check_converge_rel(objectives[iter-1],
-                          objectives[iter],
-                          tol = tol_em)) break
+    if(iter > 20){ ## don't stop super early.
+      if(check_converge_rel(objectives[iter-1],
+                            objectives[iter],
+                            tol = tol_em)) break
+    }
     ## if(objectives[iter] > objectives[iter-1] * 1.01 ) break # Additional stopping
-                                        # of the likelihood
-                                        # increasing more
-                                        # than 1%.
+                                        ## of the likelihood
+                                        ## increasing more
+                                        ## than 1%.
   }
 
   ## Measure time
