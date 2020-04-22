@@ -62,8 +62,8 @@ Mstep_alpha <- function(resp, X, numclust, lambda,
 
   ## Checking dimensions one last time.
   stopifnot(all(dim(piehat) == c(TT,numclust)))
-  if(any(is.na(piehat))) print(piehat) stop("piehat was erroneous")
-  if(!(all(piehat >=0))) print(piehat) stop("piehat was erroneous")
+  if(any(is.na(piehat))) print(piehat); stop("piehat was erroneous")
+  if(!(all(piehat >=0))) print(piehat); stop("piehat was erroneous")
   stopifnot(all(piehat >= 0))
 
   return(list(pie = piehat, alpha = alpha))
