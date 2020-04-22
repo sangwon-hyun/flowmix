@@ -1,24 +1,10 @@
-##' Initialization of beta.
-##' @return A (p+1 by 3 by numclust) array.
-init_beta <- function(p, dimdat, numclust){
-  return(array(0, dim = c(p+1, dimdat, numclust)))
-}
-
-
-##' Initialization of alpha.
-##' @return A dimdat by p+1 array
-init_alpha <- function(dimdat, p){
-  return(matrix(0, ncol=(p+1), nrow=dimdat))
-}
-
-
 ##' The only role is to calculate the fitted values /given/ beta.
 calc_mu <- function(beta, X, dimdat, numclust){
-  ## mu = beta %*% X ## Literally all that needs to happen, more or less.
-  X.aug = cbind(rep(1, nrow(X)),X)
+
+  X.aug = cbind(1, X)
 
   ## We want (T x dimdat x K) fitted values, each row is a fitted mean
-  fitted = array(NA, dim=c(TT, dimdat, numclust))
+  fitted = array(NA, dim = c(TT, dimdat, numclust))
   for(iclust in 1:numclust){ ## dimdat=3
     for(idim in 1:dimdat){
       fitted[,idim,iclust] = rowSums(beta[,,idim, iclust] * X.aug) ## Elementwise operation
@@ -49,29 +35,53 @@ init_mn <- function(ylist, numclust, TT, dimdat, countslist = NULL){
 
   if(!is.null(countslist)){
 
-    ## ## (Commented out for now) Flatten the countslist
-    ## countslist_flattened = countslist
-    ## for(tt in 1:TT){
-    ##   ## Take the 60th percentile, and flatten the peaks.
-    ##   thresh = quantile(countslist_flattened[[tt]], 0.6)
-    ##   above.thresh = which(countslist_flattened[[tt]] >= thresh)
-    ##   if(length(above.thresh) > 0){
-    ##     countslist_flattened[[tt]][above.thresh] = thresh
-    ##   }
-    ## }
+    ## #### Temporary testing code ###
+    ## la("flowcy")
+    ## obj = make_data75()
+    ## names(obj)
+    ## list2env(obj, globalenv())
+    ## #### End of temporary ##########
 
-    ## Initialize the means by randomly sampling data from each time point.
-    mulist = lapply(1:TT, function(tt){
+    ## NEW: initialize the means by (1) collapsing to one cytogram (2) random
+    ## sampling from this distribution, after truncation,
+    TT = length(ylist)
+    ylist_downsampled <- lapply(1:TT, function(tt){
+
       y = ylist[[tt]]
-      nt = nrow(y)
       counts = countslist[[tt]]
-      ## counts = countslist_flattened[[tt]]
-      stopifnot(length(counts) == nt)
-      rows = sample(1:nt, numclust,
-                    prob = counts / sum(counts))
-      sampled.data = y[rows, , drop=FALSE]
-      return(sampled.data)
+
+      ## Cap the density by the median
+      counts = pmax(counts, median(counts))
+
+      ## Sample so that, in total, we get mean(nt)*30 sized sample. In the case
+      ## of binned data, nt is the number of bins.
+      nsize = nrow(y) / TT * 30
+      y[sample(1:nrow(y), size = nsize, prob = counts/sum(counts)),, drop=FALSE]
     })
+
+    ## Combine all and sample just |numclust| rows
+    ## yy = do.call(rbind, ylist_downsampled)
+    ## new_means = yy[sample(1:nrow(yy), numclust),, drop=FALSE]
+    ## mulist = lapply(1:TT, function(tt){ new_means })
+
+    ## OLD: Initialize the means by randomly sampling data from each time point.
+    ## mulist = lapply(1:TT, function(tt){
+    ##   y = ylist[[tt]]
+    ##   nt = nrow(y)
+    ##   counts = countslist[[tt]]
+    ##   ## counts = countslist_flattened[[tt]]
+    ##   stopifnot(length(counts) == nt)
+    ##   rows = sample(1:nt, numclust,
+    ##                 prob = counts / sum(counts))
+    ##   sampled.data = y[rows, , drop=FALSE]
+    ##   return(sampled.data)
+    ## })
+
+    ## NEW2: do a Kmeans on this.
+    cl2 = kcca(yy, k=numclust, family=kccaFamily("kmeans"),
+               control=list(initcent="kmeanspp"))
+    new_means = cl2@centers
+    mulist = lapply(1:TT, function(tt){ new_means })
 
   } else {
 

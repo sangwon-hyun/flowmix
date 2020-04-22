@@ -1,5 +1,5 @@
-##' Conducts the M step for estimating the coefficients for the population
-##' weights.
+##' Conduct the M step for estimating the coefficients for the cluster
+##' probabilities.
 ##'
 ##' @param resp Is an (T x nt x K) array.
 ##' @param X Covariate matrix (T x dimdat).
@@ -20,14 +20,21 @@ Mstep_alpha <- function(resp, X, numclust, lambda,
 
   ## Fit the model
   alpha = NULL
-  tryCatch({
-    alpha = solve_multinom(resp.sum, X, lambda)
-  }, error=function(e){})
-  if(is.null(alpha)){
+
+  ## Try glmnet first:
+  ## tryCatch({
+    ## alpha= solve_multinom(resp.sum, X, lambda)
+  ## }, error=function(e){})
+
+  ## Then, try CVXR:
+  ## if(is.null(alpha)){
     alpha = cvxr_multinom(resp.sum, cbind(1,X), lambda,
                           exclude.from.penalty = 1,
                           N = sum(resp.sum))
-  }
+  ## }
+  ## print(range(alpha - alpha2))
+  ## print(head(alpha))
+  ## print(head(alpha2))
 
   alpha[which(abs(alpha) < zerothresh, arr.ind = TRUE)] = 0
   alpha = t(as.matrix(alpha))
@@ -38,20 +45,42 @@ Mstep_alpha <- function(resp, X, numclust, lambda,
   piehatmat = as.matrix(exp(Xa %*% t(alpha)))
   piehat = piehatmat / rowSums(piehatmat)
 
+  ## ## Start of temporary
+
+  ## alpha2[which(abs(alpha2) < zerothresh, arr.ind = TRUE)] = 0
+  ## alpha2 = t(as.matrix(alpha2))
+  ## stopifnot(all(dim(alpha2) == c(numclust, (p + 1))))
+
+  ## ## Calculate the fitted values (\pi) as well:
+  ## Xa = cbind(1, X)
+  ## piehatmat = as.matrix(exp(Xa %*% t(alpha2)))
+  ## piehat2 = piehatmat / rowSums(piehatmat)
+
+  ## print(range(piehat2 - piehat))
+  ## ## End of temporary
+
+
   ## Checking dimensions one last time.
   stopifnot(all(dim(piehat) == c(TT,numclust)))
+  if(any(is.na(piehat))) print(piehat) stop("piehat was erroneous")
+  if(!(all(piehat >=0))) print(piehat) stop("piehat was erroneous")
   stopifnot(all(piehat >= 0))
 
   return(list(pie = piehat, alpha = alpha))
 }
 
-##' Estimates sigma. TODO: Change the format of the sigma matrix so that the
+##' Estimate sigma. TODO: Change the format of the sigma matrix so that the
 ##' covariance at each time is only recorded once i.e. it is a numclust lengthed
 ##' list of (dimdat x dimdat) matrices.
-##' @param mn are the fitted means
-##' @return (TT x numclust x dimdat x dimdat) array.
-Mstep_sigma_covar <- function(resp, ylist, mn, numclust,
-                              bin=FALSE ){ ## Temporary
+##'
+##' @param mn Fitted means.
+##' @param resp Responsibilities.
+##' @param ylist List of cytograms.
+##' @param numclust Number of clusters.
+##'
+##' @return An array of size (numclust x dimdat x dimdat) containing the
+##'   covariance matrices.
+Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
 
   ## Find some sizes
   TT = length(ylist)
@@ -92,19 +121,24 @@ Mstep_sigma_covar <- function(resp, ylist, mn, numclust,
   return(sigma_array)
 }
 
-##' Given a matrix positive definite matrix a, computes a^{-1/2}.  Only works
-##' for positive semidefinite matrices that are diagonalizable (no normal Jordan
+##' Given a matrix positive definite matrix a, compute a^{-1/2}.  Only works for
+##' positive semidefinite matrices that are diagonalizable (no normal Jordan
 ##' forms, etc.)
+##'
 ##' @param a A PSD matrix.
+##'
+##' @return Matrix of the same size as \code{a}.
 mtsqrt_inv <- function(a){
   a.eig <- eigen(a)
   a.sqrt <- a.eig$vectors %*% diag(1 / sqrt(a.eig$values)) %*% t(a.eig$vectors)
 }
 
 ##' The M step of beta, using a particular lasso regression formulation.
+##'
 ##' @param maxdev The desired maximum radius of the fitted means from beta0k.
 ##' @param sel_coef Sparsity pattern. Only active when refit=TRUE.
 ##' @param sigma (numclust x dimdat x dimdat) matrix.
+##'
 ##' @return Result of M step; a |numclust| length list of (p+1)x(d) matrices,
 ##'   each containing the estimated coefficients for the mean estimation.
 Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma,
@@ -116,7 +150,6 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma,
                        ridge = FALSE,
                        ridge_lambda = NULL,
                        ridge_pie = NULL,
-                       bin = FALSE,
                        cvxr_ecos_thresh = 1E-8,
                        cvxr_scs_eps = 1E-5,
                        zerothresh = 1E-8
@@ -143,12 +176,10 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma,
                             first_iter = first_iter,
                             ridge_lambda = ridge_lambda,
                             ridge_pie = ridge_pie)
-                            ## bin = bin)
   } else {
     manip_obj = manip(ylist, Xa, resp, sigma, numclust,
                       sigma_eig_by_clust = sigma_eig_by_clust,
                       first_iter = first_iter)
-                      ## bin = bin)
   }
   Xtildes = manip_obj$Xtildes
   yvecs = manip_obj$yvecs
@@ -252,21 +283,18 @@ manip <- function(ylist, X, resp, sigma, numclust,
 ##' Helper to "manipulate" X and y, to get Xtilde and Ytilde and yvec for a more
 ##' efficient beta M step (each are |numclust|-length lists, calculated
 ##' separately for each cluster).
+##'
 ##' @return 3 (or dimdat) |numclust|-length lists.
 manip_ridge <- function(ylist, X, resp, sigma, numclust,
                         sigma_eig_by_clust = NULL,
                         first_iter = FALSE,
                         ridge_lambda = 0,
                         ridge_pie = NULL){
-                        ## bin = FALSE
-                        ## ){
 
   ## Make some quantities
   ntlist = sapply(ylist, nrow)
   dimdat = ncol(ylist[[1]])
   TT = nrow(X)
-  ## if(bin) resp.sum = t(sapply(resp, Matrix::colSums)) ## (T x numclust)
-  ## if(!bin)
   resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
   sigma.inv.halves = array(NA, dim=dim(sigma))
 
@@ -295,11 +323,6 @@ manip_ridge <- function(ylist, X, resp, sigma, numclust,
     Xtilde = sigma.inv.halves[iclust,,] %x% (sqrt(resp.sum[,iclust]) * X)
     ## Append rows for the ridge
     Xridge = sqrt(ridge_lambda)  * Xunderbar
-    ##* sqrt(ridge_pie[,iclust]))
-
-    ## if(!is.null(ridge_pie)){
-    ##   Xridge =  Xridge * sqrt(ridge_pie[,iclust]) ## I think this is right.
-    ## }
     return(rbind(Xtilde, Xridge))
   })
 
@@ -308,7 +331,7 @@ manip_ridge <- function(ylist, X, resp, sigma, numclust,
     yvec = (1/sqrt(resp.sum[,iclust]) * t(Ytildes[[iclust]])) %*% sigma.inv.halves[iclust,,]
     yvec = as.vector(yvec)
     ## New: augment response with zeros
-    return(c(yvec, rep(0, dimdat * TT))) ## Check the dimensions
+    return(c(yvec, rep(0, dimdat * TT)))
   })
 
   return(list(Xtildes = Xtildes,

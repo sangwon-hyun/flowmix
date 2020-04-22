@@ -210,11 +210,12 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
   filename = paste0(ialpha, "-", ibeta, "-", ifold, "-", irep, "-cvscore.Rdata")
   if(sim){ filename = paste0(isim, "-", filename) } ## temporary
   if(file.exists(file.path(destin, filename))){
-
-      if(sim){ ## temporary
-      cat('(isim, ialpha, ibeta, ifold, irep)=', c(sim, ialpha, ibeta, ifold, irep), fill=TRUE)
-      } else{
-    cat("(ialpha, ibeta, ifold, irep) = (", ialpha, ibeta, ifold, irep, ") are already done.", fill=TRUE)
+    if(sim){ ## temporary
+      cat('(isim, ialpha, ibeta, ifold, irep)=(',
+          sim,",", ialpha,",", ibeta,",", ifold,",", irep,") are already done.", fill=TRUE)
+    } else{
+      cat("(ialpha, ibeta, ifold, irep) = (",
+          ialpha,",", ibeta,",", ifold,",", irep, ") are already done.", fill=TRUE)
     }
     return(NULL)
   }
@@ -229,32 +230,18 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
   args$mean_lambda = mean_lambda
   args$pie_lambda = pie_lambda
   if("nrep" %in% names(args)){
-  args = args[-which(names(args) %in% "nrep")] ## remove |nrep| prior to feeding
-                                               ## to covarem_once().
+    args = args[-which(names(args) %in% "nrep")] ## remove |nrep| prior to feeding to covarem_once().
   }
 
-  ## New and better do.call() statement:
-  ## res.train = do.call(covarem_once, args) ## Old
-  argn <- lapply(names(args), as.name)
-  names(argn) <- names(args)
-  call <- as.call(c(list(as.name("covarem_once")), argn))
-  res.train = eval(call, args)
 
   tryCatch({
 
-    ## ## Run algorithm on training data,
-    ## res.train = covarem_once(ylist = train.dat,
-    ##                          countslist = train.count,
-    ##                          X = train.X,
-    ##                          ## refit = FALSE, ## Is this necessary? Think about it for a sec.
-    ##                          mean_lambda = mean_lambda,
-    ##                          pie_lambda = pie_lambda,
-    ##                          ## verbose=TRUE, ## TEMPORARY
-    ##                          ## plot = TRUE,
-    ##                          ## plotdir = paste0("~/Desktop/blockcv-test-figures/1-6"),
-    ##                          ## filepath = file.path("~/Desktop/blockcv-test-figures/1-6", Sys.time()),
-    ##                          ...)
-    ## assert_that(!refit)
+    ## New and better do.call() statement:
+    ## res.train = do.call(covarem_once, args) ## Old
+    argn <- lapply(names(args), as.name)
+    names(argn) <- names(args)
+    call <- as.call(c(list(as.name("covarem_once")), argn))
+    res.train = eval(call, args)
 
     ## Assign mn and pie
     pred = predict.covarem(res.train, newx = test.X)
@@ -323,21 +310,18 @@ one_job_refit <- function(ialpha, ibeta, destin,
   nrep = args$nrep
   for(irep in 1:nrep){
 
+    ## Writing file
     filename = paste0(ialpha, "-", ibeta, "-", irep, "-fit.Rdata")
-
-    if(sim){ ## temporary
-      filename = paste0(isim, "-", filename)
-    }
-
+    if(sim){filename = paste0(isim, "-", filename)} ## Temporary
     if(file.exists(file.path(destin, filename))){
-
       if(sim){
-        cat("Refitting for (isim, ialpha, ibeta, irep) = (", isim, ialpha, ibeta, irep, ") is already done.", fill=TRUE)
-        } else {
-      cat("Refitting for (ialpha, ibeta, irep) = (", ialpha, ibeta, irep, ") is already done.", fill=TRUE)
+        cat("Refitting for (isim, ialpha, ibeta, irep) = (",
+            isim, ",", ialpha, ",",  ibeta, ",", irep, ") is already done.", fill = TRUE)
+      } else {
+        cat("Refitting for (ialpha, ibeta, irep) = (",
+            ialpha,",", ibeta, ",", irep, ") is already done.", fill = TRUE)
       }
       return(NULL)
-
     } else {
 
       ## Get the fitted results on the entire data
@@ -349,18 +333,11 @@ one_job_refit <- function(ialpha, ibeta, destin,
       args$mean_lambda = mean_lambdas[ibeta]
       if("nrep" %in% names(args)) args = args[-which(names(args) %in% "nrep")] ## remove |nrep| prior to feeding
 
-
-      ## Better do.call statement:
-      ## res = do.call(covarem_once, args)
+      ## Call the function.
       argn <- lapply(names(args), as.name)
       names(argn) <- names(args)
       call <- as.call(c(list(as.name("covarem_once")), argn))
       res = eval(call, args)
-
-      ## res = covarem(ylist = ylist, countslist = countslist, X = X,
-      ##               mean_lambda = mean_lambdas[ibeta],
-      ##               pie_lambda = pie_lambdas[ialpha],
-      ##               ...)
 
       ## Save the results
       cat("Saving file here:", file.path(destin, filename), fill=TRUE)
@@ -677,7 +654,8 @@ blockcv_aggregate_res <- function(gridsize, nrep, destin,
 ##' "aggregate" functions in this file.
 blockcv_viz <- function(blocktype = 1, datatype = 75, numclust = 5,
                         cv_gridsize = 7,
-                        datadir = "~/Dropbox/research/usc/hpc-output", subfolder=""){
+                        datadir = "~/Dropbox/research/usc/hpc-output", subfolder="",
+                        nrep=5){
 
 
   ## Load data
@@ -691,19 +669,20 @@ blockcv_viz <- function(blocktype = 1, datatype = 75, numclust = 5,
 
 
   ## Get the CV results.
-  a = blockcv_aggregate(destin, cv_gridsize = cv_gridsize, nfold = 5, nrep = 5,
-                       save=FALSE, resfile = "all-cvres.Rdata")
+  a = blockcv_aggregate(destin, cv_gridsize = cv_gridsize, nfold = 5, nrep = nrep,
+                        save=FALSE, resfile = "all-cvres.Rdata")
   cvscore.mat = a$cvscore.mat
   min.inds = a$min.inds
+  ## min.inds = c(3,10)
 
   ## Also get the #nonzero coefficients
-  a = blockcv_aggregate_df(gridsize=cv_gridsize, nrep=5, destin=destin)
+  a = blockcv_aggregate_df(gridsize=cv_gridsize, nrep=nrep, destin=destin)
   dfmat = a$mat
 
   ## Get the refit covarem results
-  a = blockcv_aggregate_res(gridsize=cv_gridsize, nrep = 5, destin=destin)
+  a = blockcv_aggregate_res(gridsize=cv_gridsize, nrep = nrep, destin=destin)
   res = a[[paste0(min.inds[1] , "-", min.inds[2])]]
-  if(is.null(res)) stop(paste0("The model with lambda indices (", min.inds, ") is not available."))
+  if(is.null(res)) stop(paste0("The model with lambda indices (", min.inds[1], ",", min.inds[2], ") is not available."))
 
   ## Get the covariates
   X = res$X
@@ -757,10 +736,10 @@ blockcv_viz <- function(blocktype = 1, datatype = 75, numclust = 5,
     load(file.path(destin,"meta.Rdata"))
     TT = length(ylist)
     cols = RColorBrewer::brewer.pal(numclust, "Set2")
-    matplot(res$mn[,1,], type='l', lty=1, lwd=.1, ylim=range(unlist(ylist)),
-            ylab="", xlab="Time") ## Base plot
+    matplot(res$mn[,1,], type='l', lty=1, lwd=1, ylim=range(unlist(ylist)),
+            ylab="", xlab="Time", axes=FALSE) ## Base plot
+    axis(1);    axis(2)
     title(main="Fitted means and data", cex.main=2)
-
 
     ## ## Add demarcation for block boundaries
     ## TT = 308-12
@@ -795,17 +774,28 @@ blockcv_viz <- function(blocktype = 1, datatype = 75, numclust = 5,
               c(up,rev(dn)),col=grDevices::adjustcolor( cols[iclust], alpha.f = 0.2),
               border=NA)
     }
-    text(x=rep(-5, numclust), y=res$mn[1,1,], label=paste0("Clust ", 1:numclust), cex=2)
+    text(x=rep(-4, numclust), y=res$mn[1,1,], label=paste0("Clust ", 1:numclust), cex=1.5)
 
     ## Plot the pies as well.
     matplot(res$pie, type='l', lty=1, lwd=3,
-            col=cols, ylab="", xlab="Time", ylim=c(0,1))
-    title(main="Pies", cex.main=2)
+            col=cols, ylab="", xlab="Time", ylim=c(0,1), axes=FALSE)
+    axis(1);    axis(2)
+    abline(h=seq(from=0,to=1, by=0.2), col='grey90', lwd=2, lty=3)
+    matlines(res$pie, type='l', lty=1, lwd=3,
+            col=cols, axes=FALSE)
+    axis(1); axis(2)
+    title(main="Cluster probabilities", cex.main=2)
 
     ## Plot the data
-    cols=RColorBrewer::brewer.pal(ncol(X), "Set3")
-    matplot(X, type='l', lty=1, ylab="", xlab="Time", lwd=.5, col=cols)
+    cols = RColorBrewer::brewer.pal(ncol(X), "Set3")
+    matplot(X, type='l', lty=1, ylab="", xlab="Time", lwd=1, col=cols, axes=FALSE)
+    axis(1)
+    axis(2)
     title(main="Covariates", cex.main=2)
+    ## colnames(X)[1:3] = c("b1", "b2", "b2")## temporary
+    if(!is.null(colnames(X)))legend("bottomright", lwd=1, col=cols, legend=colnames(X), cex=1.3,
+                                    bg="white",  ncol=2)
+
   }
 
   return(list(bestres = res,
@@ -852,4 +842,19 @@ prettify <- function(res){
   alpha[which(abs(alpha)<1E-5)] = 0
   pretty.alphas = round(Matrix::Matrix(alpha,sparse=TRUE),3)
   print(pretty.alphas)
+}
+
+
+
+##' Aggregation wrapper, for simulations
+blockcv_sim <- function(cvnum = 0, blocktype = 1, datatype = 8, numclust = 2,
+                       cv_gridsize = 7,
+                       datadir = "~/Dropbox/research/usc/hpc-output", subfolder=""){
+
+  ## Aggregate from CV.
+
+  ## CV indices.
+
+  ## CV indices.
+
 }

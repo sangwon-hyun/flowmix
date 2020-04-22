@@ -99,7 +99,6 @@ covarem_once <- function(ylist, X,
   p = ncol(X)
   if(is.null(mn)) mn = init_mn(ylist, numclust, TT, dimdat, countslist)
   ntlist = sapply(ylist, nrow)
-  bin = !is.null(countslist)
   N = sum(ntlist)
 
   ## Initialize some objects
@@ -120,7 +119,7 @@ covarem_once <- function(ylist, X,
 
   ## The least elegant solution I can think of.. used only for blocked cv
   if(!is.null(countslist_overwrite)) countslist = countslist_overwrite
-  if(bin) check_trim(ylist, countslist)
+  if(!is.null(countslist)) check_trim(ylist, countslist)
 
   start.time = Sys.time()
   for(iter in 2:niter){
@@ -186,7 +185,7 @@ covarem_once <- function(ylist, X,
                              ridge_lambda = ridge_lambda,
                             ## End of temporary
                              sigma_eig_by_clust = sigma_eig_by_clust,
-                             first_iter = (iter == 2), bin = bin,
+                             first_iter = (iter == 2),
                              cvxr_ecos_thresh = mstep_cvxr_ecos_thresh,
                              cvxr_scs_eps = mstep_cvxr_scs_eps,
                              zerothresh = zerothresh)
@@ -231,13 +230,12 @@ covarem_once <- function(ylist, X,
     sigma = Mstep_sigma_covar(resp,
                               ylist,
                               mn,
-                              numclust,
-                              bin = bin)
+                              numclust)
 
     ## 3. (Continue) Decompose the sigmas.
     sigma_eig_by_clust <- eigendecomp_sigma_array(sigma)
     denslist_by_clust <- make_denslist_eigen(ylist, mn, TT, dimdat, numclust,
-                                             sigma_eig_by_clust, bin=bin,
+                                             sigma_eig_by_clust,
                                              countslist)
 
     ## Calculate the objectives
@@ -296,7 +294,7 @@ covarem_once <- function(ylist, X,
                         pie = pie,
                         sigma = sigma,
                         ## denslist_by_clust = denslist_by_clust,
-                        objectives = objectives[1:iter],
+                        objectives = objectives[2:iter],
                         final.iter = iter,
                         time_per_iter = time_per_iter,
                         total_time = lapsetime,
@@ -399,8 +397,7 @@ predict.covarem <- function(res, newx = NULL){
 make_denslist_eigen <- function(ylist, mu,
                                 TT, dimdat, numclust,
                                 sigma_eig_by_clust,
-                                countslist, ## Temporary
-                                bin){ ## Temporary
+                                countslist){ ## Temporary
 
   ## Basic checks
   assert_that(!is.null(sigma_eig_by_clust))

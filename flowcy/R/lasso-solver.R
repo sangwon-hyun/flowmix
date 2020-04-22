@@ -35,8 +35,7 @@ cvxr_lasso <- function(y, X,  lambda, Xorig=NULL,
                        refit = FALSE,
                        sel_coef = NULL,
                        ecos_thresh = 1E-8,
-                       scs_eps = 1E-5
-                       ){
+                       scs_eps = 1E-5){
 
   ## Define dimensions
   n = nrow(X)
