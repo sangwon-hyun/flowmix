@@ -337,11 +337,16 @@ one_job_refit <- function(ialpha, ibeta, destin,
       argn <- lapply(names(args), as.name)
       names(argn) <- names(args)
       call <- as.call(c(list(as.name("covarem_once")), argn))
+      set.seed(0)
       res = eval(call, args)
+      ## pdf("~/Desktop/somefile.pdf")
+      ## plot(res$objectives)
+      ## graphics.off()
+      ## Sys.sleep(100)
 
       ## Save the results
       cat("Saving file here:", file.path(destin, filename), fill=TRUE)
-      save(res, file=file.path(destin, filename))
+      save(res, args, objective, file=file.path(destin, filename))
     }
   }
 }
