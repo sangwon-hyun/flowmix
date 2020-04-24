@@ -22,15 +22,17 @@ Mstep_alpha <- function(resp, X, numclust, lambda,
   alpha = NULL
 
   ## Try glmnet first:
-  ## tryCatch({
-    ## alpha= solve_multinom(resp.sum, X, lambda)
-  ## }, error=function(e){})
+  tryCatch({
+    alpha= solve_multinom(resp.sum, X, lambda)
+  }, error=function(e){})
 
   ## Then, try CVXR:
-  ## if(is.null(alpha)){
+  if(is.null(alpha)){
     alpha = cvxr_multinom(resp.sum, cbind(1,X), lambda,
                           exclude.from.penalty = 1,
                           N = sum(resp.sum))
+  }
+  ## print(sum(alpha))
   ## }
   ## print(range(alpha - alpha2))
   ## print(head(alpha))
@@ -62,8 +64,8 @@ Mstep_alpha <- function(resp, X, numclust, lambda,
 
   ## Checking dimensions one last time.
   stopifnot(all(dim(piehat) == c(TT,numclust)))
-  if(any(is.na(piehat))) print(piehat); stop("piehat was erroneous")
-  if(!(all(piehat >=0))) print(piehat); stop("piehat was erroneous")
+  if(any(is.na(piehat))){ print(piehat); stop("piehat was erroneous") }
+  if(!(all(piehat >=0))){ print(piehat); stop("piehat was erroneous") }
   stopifnot(all(piehat >= 0))
 
   return(list(pie = piehat, alpha = alpha))
