@@ -78,9 +78,15 @@ init_mn <- function(ylist, numclust, TT, dimdat, countslist = NULL){
     ## })
 
     ## NEW2: do a Kmeans on this.
-    cl2 = kcca(yy, k=numclust, family=kccaFamily("kmeans"),
-               control=list(initcent="kmeanspp"))
-    new_means = cl2@centers
+    ## cl2 = flexclust::kcca(yy, k=numclust, family=kccaFamily("kmeans"),
+    ##                       control=list(initcent="kmeanspp"))
+    ## new_means = cl2@centers
+
+    ## NEW3:
+    yy = do.call(rbind, ylist_downsampled)
+    new_means = yy[sample(1:nrow(yy), numclust),, drop=FALSE]
+
+    ## Repeat TT times.
     mulist = lapply(1:TT, function(tt){ new_means })
 
   } else {
