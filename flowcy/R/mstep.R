@@ -22,16 +22,16 @@ Mstep_alpha <- function(resp, X, numclust, lambda,
   alpha = NULL
 
   ## Try glmnet first:
-  tryCatch({
-    alpha= solve_multinom(resp.sum, X, lambda)
-  }, error=function(e){})
+  ## tryCatch({
+  ##   alpha= solve_multinom(resp.sum, X, lambda)
+  ## }, error=function(e){})
 
   ## Then, try CVXR:
-  if(is.null(alpha)){
+  ## if(is.null(alpha)){
     alpha = cvxr_multinom(resp.sum, cbind(1,X), lambda,
                           exclude.from.penalty = 1,
                           N = sum(resp.sum))
-  }
+  ## }
 
   ## TODO Compare the likelihood between glmnet ahd cvxr solutions.
 
