@@ -32,11 +32,8 @@ Mstep_alpha <- function(resp, X, numclust, lambda,
                           exclude.from.penalty = 1,
                           N = sum(resp.sum))
   }
-  ## print(sum(alpha))
-  ## }
-  ## print(range(alpha - alpha2))
-  ## print(head(alpha))
-  ## print(head(alpha2))
+
+  ## TODO Compare the likelihood between glmnet ahd cvxr solutions.
 
   alpha[which(abs(alpha) < zerothresh, arr.ind = TRUE)] = 0
   alpha = t(as.matrix(alpha))
@@ -162,7 +159,10 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma,
   numclust = ncol(resp[[1]])
   dimdat = ncol(ylist[[1]])
   ntlist = sapply(ylist, nrow)
-  N = sum(ntlist)
+  ## N = sum(ntlist) ## BUG!!
+  resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
+  resp.sum = as.matrix(resp.sum)
+  N = sum(resp.sum) ## NEW (make more efficient, later)
   p = ncol(X)
   Xa = cbind(1, X)
   dimsigma = dim(sigma)

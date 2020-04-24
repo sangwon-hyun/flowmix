@@ -49,7 +49,11 @@ Mstep_beta_admm <- function(resp,
   numclust = ncol(resp[[1]])
   dimdat = ncol(ylist[[1]])
   ntlist = sapply(ylist, nrow)
-  N = sum(ntlist)
+  ## N = sum(ntlist) ## OLD BUG!!
+  resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
+  resp.sum = as.matrix(resp.sum)
+  N = sum(resp.sum) ## NEW (make more efficient, later)
+
   Xa = cbind(1, X)
   intercept_inds = ((1:dimdat) - 1)*(p+1) + 1
   X0 = lapply(1:TT, function(tt){ diag(rep(1,dimdat)) %x% t(c(0, X[tt,,drop=TRUE]))})
