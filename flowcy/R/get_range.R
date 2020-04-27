@@ -111,7 +111,24 @@ calc_max_lambda <- function(ylist, countslist = NULL, X, numclust,
         ## If there are *any* nonzero values, return the immediately preceding
         ## lambda values -- these were the smallest values we had found that gives full sparsity.
         } else {
-          return(list(beta = max_lambda_beta * facs[ii-1], alpha = max_lambda_alpha *facs[ii-1]))
+          ## Check one more time whether the model was actually zero after fully running it;
+          res = covarem_once(ylist = ylist,
+                             countslist = countslist,
+                             X = X,
+                             numclust = numclust,
+                             pie_lambda = max_lambda_alpha * facs[ii],
+                             mean_lambda = max_lambda_beta * facs[ii],
+                             verbose = TRUE,
+                             zero_stabilize = FALSE,
+                             ...)
+          toler = 0
+          sum_nonzero_alpha = sum(res$alpha[,-1] > toler)
+          sum_nonzero_beta = sum(unlist(lapply(res$beta, function(cf){ sum(cf[-1,] > toler) })))
+
+          ## If there are *any* nonzero values, do one of the following
+          if(sum_nonzero_alpha + sum_nonzero_beta != 0){
+            return(list(beta = max_lambda_beta * facs[ii-1], alpha = max_lambda_alpha *facs[ii-1]))
+          }
         }
       }
     }
