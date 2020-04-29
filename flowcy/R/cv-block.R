@@ -252,7 +252,7 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
                         pie = pred$newpie,
                         sigma = pred$sigma,
                         ylist = test.dat,
-                        countslist = NULL,
+                        countslist = test.count,##NULL, ############### Maybe this is wrong... ####
                         pie_lambda = 0,
                         mean_lambda = 0,
                         alpha = res.train$alpha,
