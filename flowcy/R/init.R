@@ -51,7 +51,7 @@ init_mn <- function(ylist, numclust, TT, dimdat, countslist = NULL){
       counts = countslist[[tt]]
 
       ## Cap the density by the median
-      counts = pmax(counts, median(counts))
+      ## counts = pmax(counts, median(counts))
 
       ## Sample so that, in total, we get mean(nt)*30 sized sample. In the case
       ## of binned data, nt is the number of bins.

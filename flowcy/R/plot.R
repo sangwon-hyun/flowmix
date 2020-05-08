@@ -14,6 +14,130 @@ plot2d_generic <- function (x, ...) {
 ## Function definitions ##
 ##########################
 
+plot_covariates <- function(obj, tt = NULL){
+  X = obj$X
+
+  par(mar = c(5,5,2,2),
+      cex.axis=2, cex.lab=2)
+  ylim.cov = range(X) * c(1, 0.7)
+
+  Xsmall = X %>% as_tibble %>% select(sss, sst, par)
+  cols = 1:5
+  TT = nrow(X)
+  matplot(X, col='grey', lwd=0.5, type='l', xlim=c(0,TT*1), ylim = ylim.cov, axes=FALSE,
+          ylab="", xlab="")
+  legend("topleft", legend="Environmental Covariates", cex=3,
+         bty = "n")
+  add_date_ticks(obj)
+  matlines(Xsmall, col=cols, lwd = 3)
+  if(!is.null(tt)) abline(v = tt, col='green', lwd=2)
+
+  Xsmall_names = c("Salinity", "Temperature", "Sunlight")
+  ## ttt = 290 ## temporarily, this is a fixed place to put the labels.
+  ttt = TT * 0.98
+  text(x=ttt, y=Xsmall[ttt,], label=Xsmall_names,## colnames(Xsmall)
+       cex=2)
+}
+
+##' "Prettifies" covarem object. Not really a plotting function.
+prettify <- function(res){
+
+  ## Reorder clusters in decreasing order of diam
+  res <- reorder_clust(res)
+
+  ## Prettify betas
+  betamat = do.call(cbind, res$beta)
+  all.zero.rows = which(apply(betamat, 1, function(myrow)all(abs(myrow)<1E-8)))
+  if(length(all.zero.rows) > 0){
+    betamat = betamat[-all.zero.rows,, drop=FALSE]
+  }
+  betamat = betamat %>% Matrix::Matrix(sparse=TRUE) %>% signif(2)
+  colnames(betamat) = unlist(Map(function(a,b) paste0(a, ", ", b),
+                                 paste0("clust-", rep(1:res$numclust, each=res$dimdat)),
+                                 colnames(betamat)))
+
+  ## Prettify alphas
+  alphamat = res$alpha %>% t %>% Matrix::Matrix(sparse=TRUE) %>% signif(2)
+  all.zero.rows = which(apply(alphamat, 1, function(myrow)all(abs(myrow)<1E-8)))
+  if(length(all.zero.rows) > 0){
+    alphamat = alphamat[-all.zero.rows,, drop=FALSE]
+  }
+
+  ## Return
+  return(list(alphamat = alphamat,
+              betamat = betamat))
+}
+
+
+##' Plot pies.
+##' @param res covarem object.
+##'
+##' @return NULL
+plot_pie <- function(res){
+
+
+  ## Reorder clusters in decreasing order of diam
+  res <- reorder_clust(res)
+
+  cols = RColorBrewer::brewer.pal(res$numclust, "Set2")
+  matplot(NA, xlim = c(0, res$TT),## res$pie
+          ylab="", xlab="", ylim = c(0,1), axes = FALSE)
+  abline(h = seq(from = 0, to = 1, by = 0.2), col='grey90', lwd=2, lty=3)
+  matlines(res$pie, type='l', lty=1, lwd=3, col=cols)
+  ## axis(1); axis(2)
+  title(main="Cluster probabilities", cex.main=2)
+
+  ## Add ticks
+  add_date_ticks(res)
+  return(NULL)
+}
+
+
+##' For a matrix of CV scores (which are included in output from the function
+##' \code{aggregateres()} or \code{blockcv_summary()}, make a 2d heatmap
+##' @param cvscore.mat Matrix containing CV scores.
+plot_cvscore <- function(cvscore.mat){
+  mat = cvscore.mat
+  colnames(mat) = signif(as.numeric(colnames(mat)),2)
+  rownames(mat) = signif(as.numeric(rownames(mat)),2)
+  drawmat_precise(mat, contour = FALSE,
+                  ylab = expression(lambda[alpha]),
+                  xlab = expression(lambda[beta]))
+}
+
+
+##' Another helper function to /precisely/ draw the entries of a matrix.
+##' @param mat Matrix of interest.
+##' @param contour If \code{TRUE}, draw a contour using
+##'   \code{lattice::levelplot()}.
+##' @param ... Other arguments to \code{lattice::levelplot()}.
+##'
+##' @return lattice object.
+drawmat_precise <- function(mat, contour = FALSE, ...){
+
+## Dummy data
+## data <- matrix(runif(100, 0, 5) , 10 , 10)
+
+  if(is.null(colnames(mat))){
+    colnames(mat) <- paste(rep("col\n",ncol(mat)),
+                            c(1:ncol(mat)) , sep=" ")
+    rownames(mat) <- paste(rep("row",nrow(mat)),
+                           c(1:nrow(mat)) , sep=" ")
+  }
+
+  ## Color function
+  colfun = colorRampPalette(c("blue", "red"))
+
+  # plot it flipping the axis
+  lattice::levelplot(t(mat[c(nrow(mat):1) , ]),
+                     col.regions = colfun(100),
+                     contour = contour,
+                     ## xaxt = 'n',
+                     las = 2,
+                     ...)
+}
+
+
 ##' [MORE GENERIC VERSION] Only in the 2d case, make series of plots.
 ##'
 ##' @param show.fewer NULL by default. Otherwise the indices of the time points
@@ -70,7 +194,7 @@ plot2d_generic.covarem <- function(obj, ylist, ask=TRUE, show.fewer=NULL,
 
     ## Create empty plot
     main0 = paste0("time ", tt, " out of ", TT)
-    plot(NA, ylim=ylim, xlim=xlim, cex=3, ylab="", xlab="", main=main0)
+    plot(NA, ylim=ylim, xlim=xlim, cex=3, ylab="", xlab="", main=main0,  font.main = 1)
 
     ## Add datapoints
     points(ylist[[tt]][,dims], col='grey90', pch=16, cex=.5)

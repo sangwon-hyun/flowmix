@@ -345,6 +345,7 @@ one_job_refit <- function(ialpha, ibeta, destin,
       ## Sys.sleep(100)
 
       ## Save the results
+      print(res)
       cat("Saving file here:", file.path(destin, filename), fill=TRUE)
       save(res, args, objective, file=file.path(destin, filename))
     }
@@ -409,14 +410,15 @@ blockcv_aggregate <- function(destin, cv_gridsize, nfold, nrep,
   ## load(file = file.path(destin, 'meta.Rdata'))
 
   ## Aggregate the results
-  cvscore.array = array(NA, dim=c(cv_gridsize, cv_gridsize, nfold, nrep))
+  cvscore.array = array(NA, dim = c(cv_gridsize, cv_gridsize, nfold, nrep))
   cvscore.mat = matrix(NA, nrow = cv_gridsize, ncol = cv_gridsize)
   for(ialpha in 1:cv_gridsize){
     for(ibeta in 1:cv_gridsize){
       ## cvscores <- sapply(1:nfold, function(igrid){
-      obj = matrix(0, nrow=nfold, ncol=nrep)
+      obj = matrix(NA, nrow=nfold, ncol=nrep)
       for(ifold in 1:nfold){
         for(irep in 1:nrep){
+          ## print(c(ialpha, ibeta, ifold, irep))
           filename = paste0(ialpha, "-", ibeta, "-", ifold,
                             "-", irep, "-cvscore.Rdata")
           tryCatch({
@@ -428,12 +430,17 @@ blockcv_aggregate <- function(destin, cv_gridsize, nfold, nrep,
         }
       }
 
-      ## Pick out the CV scores with the biggest objective value
+      ## Pick out the CV scores with the *best* (lowest) objective value
       cvscores = cvscore.array[ialpha, ibeta,,]
-      best.cvscores = unlist(sapply(1:nfold, function(ifold){
-        cvscores[which.max(obj[,ifold]), ifold]
-      }))
-      cvscore.mat[ialpha, ibeta] = mean(best.cvscores, na.rm=TRUE)
+      best.models = apply(obj, 1, function(myrow) which(myrow == min(myrow, na.rm=TRUE)))
+      final.cvscores = sapply(1:nfold, function(ifold){
+        cvscores[ifold, best.models[ifold]]
+      })
+      ## Old & buggy:
+      ## best.cvscores = unlist(sapply(1:nfold, function(ifold){
+      ##   cvscores[which.min(obj[ifold,]), ifold]
+      ## }))
+      cvscore.mat[ialpha, ibeta] = mean(final.cvscores)
     }
   }
 
@@ -538,6 +545,7 @@ blockcv_aggregate_df <- function(gridsize, nrep, destin,
       obj = rep(NA, nrep)
       df = df.alpha = df.beta = rep(NA, nrep)
       for(irep in 1:nrep){
+        ## print(c(ialpha, "-", ibeta, "-", irep))
 
         tryCatch({
           ## Load fitted result
@@ -614,7 +622,7 @@ blockcv_aggregate_res <- function(gridsize, nrep, destin,
   for(ialpha in 1:gridsize){
     for(ibeta in 1:gridsize){
 
-      ## Objective value
+      ## Objective values, over nrep
       obj = rep(NA, nrep)
       ## df = rep(NA, nrep) #
       res.list.inner = list()
@@ -637,7 +645,8 @@ blockcv_aggregate_res <- function(gridsize, nrep, destin,
       ## Calculate the df of the best model
       if(!all(is.na(obj))){
         ## df.mat[ialpha, ibeta] = df[which.max(obj)    ]
-        res.list[[paste0(ialpha, "-", ibeta)]] = res.list.inner[[which.max(obj)]] ## which.min?
+        ## res.list[[paste0(ialpha, "-", ibeta)]] = res.list.inner[[which.max(obj)]] ## which.min?
+        res.list[[paste0(ialpha, "-", ibeta)]] = res.list.inner[[which.min(obj)]] ## which.min?
       }
     }
   }
@@ -653,76 +662,72 @@ blockcv_aggregate_res <- function(gridsize, nrep, destin,
 
 
 
-
-
 ##' An experimental function to visualize the CV results. It calls several other
 ##' "aggregate" functions in this file.
-blockcv_viz <- function(blocktype = 1, datatype = 75, numclust = 5,
-                        cv_gridsize = 7,
-                        datadir = "~/Dropbox/research/usc/hpc-output", subfolder="",
-                        nrep=5){
+blockcv_summary <- function(blocktype = 1, datatype = 75, numclust = 5,
+                            cv_gridsize = 7,
+                            nrep = 5,
+                            datadir = "~/Dropbox/research/usc/hpc-output",
+                            subfolder = ""){
 
-
-  ## Load data
-  ## destin = file.path(datadir,
-  ##                    paste0("blockcv-", blocktype, "-", datatype, "-", numclust))
-
+  ####################
+  ## Load data #######
+  ####################
   if(is.null(subfolder)) subfolder = ""
   destin = file.path(datadir,
                      paste0("blockcv-", blocktype, "-", datatype, "-", numclust),
                      subfolder)
 
-
-  ## Get the CV results.
+  ##########################
+  ## Get the CV results. ###
+  ##########################
   a = blockcv_aggregate(destin, cv_gridsize = cv_gridsize, nfold = 5, nrep = nrep,
                         save=FALSE, resfile = "all-cvres.Rdata")
   cvscore.mat = a$cvscore.mat
   min.inds = a$min.inds
-  ## min.inds = c(3,10)
 
   ## Also get the #nonzero coefficients
-  a = blockcv_aggregate_df(gridsize=cv_gridsize, nrep=nrep, destin=destin)
-  dfmat = a$mat
+  b = blockcv_aggregate_df(gridsize=cv_gridsize, nrep=nrep, destin=destin)
+  dfmat = b$mat
 
   ## Get the refit covarem results
-  a = blockcv_aggregate_res(gridsize=cv_gridsize, nrep = nrep, destin=destin)
-  res = a[[paste0(min.inds[1] , "-", min.inds[2])]]
-  if(is.null(res)) stop(paste0("The model with lambda indices (", min.inds[1], ",", min.inds[2], ") is not available."))
+  d = blockcv_aggregate_res(gridsize=cv_gridsize, nrep = nrep, destin=destin)
+  res = d[[paste0(min.inds[1] , "-", min.inds[2])]]
+  reslist = d
+  if(is.null(res)){
+    stop(paste0("The model with lambda indices (",
+                min.inds[1], ",", min.inds[2], ") is not available."))
+  }
 
-  ## Get the covariates
-  X = res$X
-
-  ## Print coefficients
+  ########################
+  ## Get coefficients ####
+  ########################
   betalist =  lapply(1:numclust, function(iclust){
-    rownames(res$beta[[iclust]])[-1] = colnames(X)
-    cf = (res$beta[[iclust]][-1,, drop=FALSE])
-    ## cf = round(cf[order(abs(res$beta[[iclust]][-1,]), decreasing=TRUE),,drop=FALSE],3)
+    ## Get all betas
+    rownames(res$beta[[iclust]])[-1] = colnames(res$X)
+    cf = res$beta[[iclust]][-1,, drop=FALSE]
+    ## TODO: TRY dplyr here:
 
     ## Remove the rows that are all zero
-    all.zero.rows = which(apply(cf, 1, function(myrow)all(is.na(myrow))))
-    if(length(all.zero.rows)>0){
+    all.zero.rows = which(apply(cf, 1, function(myrow)all(myrow==0)))
+    if(length(all.zero.rows) > 0){
       cf = cf[-all.zero.rows,, drop=FALSE]
     }
     round(Matrix::Matrix(cf, sparse=TRUE),3)
   })
   names(betalist) = paste0("Beta matrix, cluster ", 1:numclust)
-  print("Betas are:")
   pretty.betas = betalist
-  print(pretty.betas)
-  print("Alphas are:")
-  colnames(res$alpha)[-1]= colnames(X)
+  colnames(res$alpha)[-1 ] = colnames(res$X)
   alpha = t(res$alpha)
-  alpha[which(abs(alpha)<1E-5)] = 0
-  pretty.alphas = round(Matrix::Matrix(alpha,sparse=TRUE),3)
-  print(pretty.alphas)
+  alpha[which(abs(alpha) < 1E-5)] = 0
+  pretty.alphas = round(Matrix::Matrix(alpha, sparse=TRUE),3)
 
-
-  ## Get the sigmas
-  one_dim = (res$dimdat == 1)
-  if(one_dim){
-    sigmas = sqrt(res$sigma[,1,])
-    names(sigmas) = paste0("Cluster ", 1:numclust)
-    pretty.sigmas = sqrt(sigmas)
+  ######################
+  ## Get the sigmas ####
+  ######################
+  if(res$dimdat == 1){
+    pretty.sigmas = sqrt(res$sigma[,1,])
+    names(pretty.sigmas) = paste0("Cluster ", 1:numclust)
   } else {
     sigmas = lapply(1:numclust, function(iclust){
       diag(res$sigma[iclust,,])
@@ -730,124 +735,39 @@ blockcv_viz <- function(blocktype = 1, datatype = 75, numclust = 5,
     names(sigmas) = paste0("Cluster ", 1:numclust)
     pretty.sigmas = lapply(sigmas, sqrt)
   }
-  print("Sigmas are:")
-  print(pretty.sigmas)
-
-  ## If data only has one dimension, plot it.
-  if(one_dim){
-
-    par(mfrow=c(3,1))
-    ## Plotting the fitted means and pies:
-    load(file.path(destin,"meta.Rdata"))
-    TT = length(ylist)
-    cols = RColorBrewer::brewer.pal(numclust, "Set2")
-    matplot(res$mn[,1,], type='l', lty=1, lwd=1, ylim=range(unlist(ylist)),
-            ylab="", xlab="Time", axes=FALSE) ## Base plot
-    axis(1);    axis(2)
-    title(main="Fitted means and data", cex.main=2)
-
-    ## ## Add demarcation for block boundaries
-    ## TT = 308-12
-    ## nfold = 5
-    ## folds = blockcv_make_folds(1:TT, nfold, verbose = TRUE)
-    ## for(iclust in 1:numclust){
-    ##   if(iclust%%2==0) abline(v=range(folds[[iclust]]), lwd=3, col="blue")
-    ## }
-
-    ## Plotting the fitted means and pies:
-    mx = max(unlist(countslist))
-    for(tt in 1:TT){
-      y = ylist[[tt]]
-      ct = countslist[[tt]]/mx
-      points(x=rep(tt, length(y)), y=y, col=rgb(0,0,0,ct), pch=15, cex=1)
-    }
-
-    ## Replot the means
-    for(iclust in 1:numclust){
-      lines(res$mn[,1,iclust], type='o', lty=1, lwd=.1, cex=res$pie[,iclust]*5, pch=15, col=cols[iclust])
-      lines(res$mn[,1,iclust], type='l', lty=1, lwd=0.1, col=1)
-    }
-    sigmas = sqrt(res$sigma[,1,])
-    sigma_mat = matrix(sqrt(res$sigma[,1,]), ncol=numclust, nrow=TT, byrow=TRUE)
-    matlines(res$mn[,1,] + 2*sigma_mat, lty=1, lwd=2, col=cols)
-    matlines(res$mn[,1,] - 2*sigma_mat, lty=1, lwd=2, col=cols)
-
-    for(iclust in 1:numclust){
-      up = res$mn[,1,iclust] + 2*sigma_mat[,iclust]
-      dn = res$mn[,1,iclust] - 2*sigma_mat[,iclust]
-      polygon(c(1:length(up),rev(1:length(up))),
-              c(up,rev(dn)),col=grDevices::adjustcolor( cols[iclust], alpha.f = 0.2),
-              border=NA)
-    }
-    text(x=rep(-4, numclust), y=res$mn[1,1,], label=paste0("Clust ", 1:numclust), cex=1.5)
-
-    ## Plot the pies as well.
-    matplot(res$pie, type='l', lty=1, lwd=3,
-            col=cols, ylab="", xlab="Time", ylim=c(0,1), axes=FALSE)
-    axis(1);    axis(2)
-    abline(h=seq(from=0,to=1, by=0.2), col='grey90', lwd=2, lty=3)
-    matlines(res$pie, type='l', lty=1, lwd=3,
-            col=cols, axes=FALSE)
-    axis(1); axis(2)
-    title(main="Cluster probabilities", cex.main=2)
-
-    ## Plot the data
-    cols = RColorBrewer::brewer.pal(ncol(X), "Set3")
-    matplot(X, type='l', lty=1, ylab="", xlab="Time", lwd=1, col=cols, axes=FALSE)
-    axis(1)
-    axis(2)
-    title(main="Covariates", cex.main=2)
-    ## colnames(X)[1:3] = c("b1", "b2", "b2")## temporary
-    if(!is.null(colnames(X)))legend("bottomright", lwd=1, col=cols, legend=colnames(X), cex=1.3,
-                                    bg="white",  ncol=2)
-
-  }
 
   return(list(bestres = res,
-              cvscore.mat=cvscore.mat,
-              min.inds=min.inds,
-              dfmatg = dfmat,
+              cvscore.mat = cvscore.mat,
+              min.inds = min.inds,
+              dfmat = dfmat,
               pretty.alphas = pretty.alphas,
               pretty.betas = pretty.betas,
-              pretty.sigmas = pretty.sigmas))
-              ## mean_lambdas = mean_lambdas,
-              ## pie_lambdas = pie_lambdas))
+              pretty.sigmas = pretty.sigmas,
+              reslist = reslist,
+              destin = destin))
 }
 
 
 
+## ## Prettifying beta (INCOMPLETE)
+## prettify_beta <- function(res){
+##   ## Combine the list
+##   myrename = function(mybeta){
+##     colnames(mybeta) = paste0("dim-", 1:res$dimdat)
+##     mybeta
+##   }
+##   beta = lapply(1:numclust, function(iclust){
+##     mybeta = res$beta[[iclust]]
+##     colnames(mybeta) = paste0("iclust-1"
+##   })
+##   do.call
+##   res = cvres1$bestres
+##   map(res$beta, "dim-1")
 
-##' Temporary function to prettify covarem object res.
-prettify <- function(res){
-
-  ## Get the covariates
-  X = res$X
-  numclust=res$numclust
-
-  ## Print coefficients
-  betalist =  lapply(1:numclust, function(iclust){
-    rownames(res$beta[[iclust]])[-1] = colnames(X)
-    cf = (res$beta[[iclust]][-1,, drop=FALSE])
-    ## cf = round(cf[order(abs(res$beta[[iclust]][-1,]), decreasing=TRUE),,drop=FALSE],3)
-
-    ## Remove the rows that are all zero
-    all.zero.rows = which(apply(cf, 1, function(myrow)all(myrow==0)))
-    if(length(all.zero.rows)>0){
-      cf = cf[-all.zero.rows,, drop=FALSE]
-    }
-    round(Matrix::Matrix(cf, sparse=TRUE),3)
-  })
-  names(betalist) = paste0("Beta matrix, cluster ", 1:numclust)
-  print("Betas are:")
-  pretty.betas = betalist
-  print(pretty.betas)
-  print("Alphas are:")
-  colnames(res$alpha)[-1]= colnames(X)
-  alpha = t(res$alpha)
-  alpha[which(abs(alpha)<1E-5)] = 0
-  pretty.alphas = round(Matrix::Matrix(alpha,sparse=TRUE),3)
-  print(pretty.alphas)
-}
+##   lapply(res$beta, function(mybeta){
+##     mybeta
+##   })
+## }
 
 
 

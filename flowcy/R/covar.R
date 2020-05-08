@@ -282,6 +282,14 @@ covarem_once <- function(ylist, X,
                              denslist_by_clust = denslist_by_clust,
                              countslist = countslist,
                              each = TRUE)
+  loglikelihoods_particle = objective(mn, pie, sigma, ylist,
+                             pie_lambda = pie_lambda,
+                             mean_lambda = mean_lambda,
+                             alpha = alpha, beta = beta,
+                             denslist_by_clust = denslist_by_clust,
+                             countslist = countslist,
+                             each = FALSE,
+                             sep=TRUE)
 
   ## Also reformat the coefficients
   obj <- reformat_coef(alpha, beta, p, numclust, dimdat, X)
@@ -299,6 +307,7 @@ covarem_once <- function(ylist, X,
                         time_per_iter = time_per_iter,
                         total_time = lapsetime,
                         loglikelihoods = loglikelihoods,
+                        loglikelihoods_particle = loglikelihoods_particle,
                         ## Above is output, below are data/algorithm settings.
                         dimdat = dimdat,
                         TT = TT,

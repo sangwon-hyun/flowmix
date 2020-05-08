@@ -87,7 +87,7 @@ calc_max_lambda <- function(ylist, countslist = NULL, X, numclust,
                          pie_lambda = max_lambda_alpha * facs[ii],
                          mean_lambda = max_lambda_beta * facs[ii],
                          verbose = TRUE,
-                         zero_stabilize =TRUE,
+                         zero_stabilize = TRUE,
                          ...)
 
       ## Check zero-ness
