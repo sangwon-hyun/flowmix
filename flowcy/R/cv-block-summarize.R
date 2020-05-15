@@ -350,6 +350,7 @@ blockcv_summary <- function(blocktype = 1, datatype = 75, numclust = 5,
 ##' Aggregation wrapper, for simulations
 blockcv_summary_sim <- function(nsim = 100,
                                 blocktype = 2, datatype = 80, numclust = 2, cv_gridsize = 7,
+                                nrep = 5,
                                 datadir = "~/Dropbox/research/usc/hpc-output"){
   ## datadir = "~/Dropbox/research/usc/hpc-output"
   ## blocktype = 2
@@ -374,8 +375,10 @@ blockcv_summary_sim <- function(nsim = 100,
     reslist = blockcv_aggregate_res(cv_gridsize = cv_gridsize, nrep = nrep,
                                     sim = TRUE, isim = isim,
                                     destin = destin)
-    bestres = reslist[[paste0(min.inds[1], "-", min.inds[2])]]
-    return(bestres)
+    ## min.inds = reslist
+    ## bestres = reslist[[paste0(min.inds[1], "-", min.inds[2])]]
+    ## return(bestres)
+    return(reslist)
   })
 
   ## Making a plot of /all/ models
