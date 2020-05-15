@@ -384,6 +384,7 @@ blockcv_summary_sim <- function(nsim = 100,
   save(reslists, file=file.path(destin, "reslists.Rdata"))
 
   ## Making a plot of /all/ models
+  print("Making all model plots.")
   reslists = mclapply(1:nsim, function(isim){
     plotname = paste0("sim-", isim, "-", blocktype, "-", datatype, "-", numclust, "-allmodels.png")
     png(file.path(destin, plotname), width = 3000, height = 2000)
@@ -408,7 +409,7 @@ blockcv_summary_sim <- function(nsim = 100,
     cvscore = obj$cvscore.mat[ialpha, ibeta]
     c(isim = isim, ialpha = ialpha, ibeta = ibeta, cvscore = cvscore)
   }, mc.cores=mc.cores)
-  save(cv_info_lists, file=file.path(destin, "cv_info_lists.Rdata"))
+  save(cv_info_list, file=file.path(destin, "cv_info_list.Rdata"))
   cv_info_mat = do.call(rbind, cv_info_list)
   save(cv_info_mat, file=file.path(destin, "cv_info_mat.Rdata"))
 
