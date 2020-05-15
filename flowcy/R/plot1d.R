@@ -8,7 +8,8 @@
 ##'
 ##' @return NULL.
 ##' @export
-plot_1d <- function(ylist, countslist, res = NULL, scale = TRUE, main = ""){
+plot_1d <- function(ylist, countslist, res = NULL, scale = TRUE, main = "",
+                    date_axis = TRUE, mn.scale = 5){
 
   ## Plot ylist only
   stopifnot(ncol(ylist[[1]]) == 1)
@@ -18,13 +19,13 @@ plot_1d <- function(ylist, countslist, res = NULL, scale = TRUE, main = ""){
   ## Plot model if applicable.
   if(!is.null(res)){
     stopifnot(res$dimdat==1)
-    cols = RColorBrewer::brewer.pal(res$numclust, "Set2")
+    cols = RColorBrewer::brewer.pal(max(3,res$numclust), "Set2")
 
     ## Reorder clusters, according to total pie.
     res <- reorder_clust(res)
 
     ## Plot the means
-    add_mn(res, cols)
+    add_mn(res, cols, mn.scale)
 
     ## Add confidence band
     add_band(res, cols)
@@ -34,7 +35,7 @@ plot_1d <- function(ylist, countslist, res = NULL, scale = TRUE, main = ""){
     fill_both_sides(res$TT)
 
     ## Make the X ticks dates.
-    add_date_ticks(res)
+    if(date_axis){ add_date_ticks(res) } else { axis(1) }
 
     ## Add Cluster labeling
     add_cluster_label(res)
@@ -47,7 +48,7 @@ plot_X <- function(res){
 
   ## 3. Plot the covariates
   matplot(X, type='l', lty=1, ylab="", xlab="Time", lwd=1, col="grey50", axes=FALSE)
-  cols = RColorBrewer::brewer.pal(ncol(X), "Set3")
+  cols = RColorBrewer::brewer.pal(max(3,ncol(X)), "Set3")
   axis(1); axis(2);
 
   title(main="Covariates", cex.main=2)
@@ -69,8 +70,11 @@ plot_ylist <- function(ylist, countslist, res = NULL, scale = TRUE, main = ""){
   ## Add title
   title(main = main)
 
+  ## Handle when countslist is NULL
+  if(is.null(countslist)) countslist = sapply(ylist, function(y)rep(1,nrow(y)))
+
   ## Visualize the data
-  if(!scale) mx = 1 else mx = max(unlist(countslist))
+  if(!scale) mx = 10 else mx = max(unlist(countslist))
   for(tt in 1:TT){
     y = ylist[[tt]]
     ct = countslist[[tt]] / mx
@@ -89,10 +93,10 @@ add_cluster_label <- function(res){
 }
 
 ##' Add mean (only for 1d data)
-add_mn <- function(res, cols){
+add_mn <- function(res, cols, mn.scale = 5){
   for(iclust in 1:res$numclust){
     lines(res$mn[,1,iclust], type = 'o', lty = 1, lwd = .1,
-             cex = res$pie[,iclust]*5, pch = 15, col = cols[iclust])
+             cex = res$pie[,iclust] * mn.scale, pch = 15, col = cols[iclust])
   }
 }
 

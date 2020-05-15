@@ -382,13 +382,14 @@ blockcv_summary_sim <- function(nsim = 100,
     return(reslist)
   }, mc.cores = mc.cores)
   save(reslists, file=file.path(destin, "reslists.Rdata"))
-  cat(fil=TRUE)
+  cat(fill=TRUE)
 
   ## Making a plot of /all/ models
   print("Making all model plots.")
   reslists = mclapply(1:nsim, function(isim){
     plotname = paste0("sim-", isim, "-", blocktype, "-", datatype, "-", numclust, "-allmodels.png")
     png(file.path(destin, plotname), width = 3000, height = 2000)
+    reslist = reslists[[isim]]
     par(mfrow = c(cv_gridsize, cv_gridsize))
     for(ialpha in 1:cv_gridsize){
       for(ibeta in 1:cv_gridsize){
