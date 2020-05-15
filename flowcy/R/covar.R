@@ -38,8 +38,8 @@ covarem <- function(..., nrep = 5){
 ##'   structure as beta and alpha, whose TRUE entries are the active
 ##'   coefficients to be refitted in a nonregularized way.
 ##' @param tol_em Relative tolerance for EM convergence. Defaults to 1E-4.
-##' @param zero_stabilize Defaults to TRUE, in which case the EM is only run
-##'   until the zero pattern in the coefficients stabilize.
+##' @param zero_stabilize Defaults to FALSE. If TRUE, the EM is only run until
+##'   the zero pattern in the coefficients stabilize.
 ##'
 ##' @return List containing fitted parameters and means and mixture weights,
 ##'   across algorithm iterations. beta is a (p+1 x 3 x dimdat) array. Alpha is
@@ -51,7 +51,7 @@ covarem_once <- function(ylist, X,
                          numclust, niter = 1000,
                          mn = NULL, pie_lambda,
                          mean_lambda, verbose = FALSE,
-                         sigma.fac = 1, tol_em = 1E-4,
+                         sigma_fac = 1, tol_em = 1E-4,
                          refit = FALSE, ## EXPERIMENTAL FEATURE.
                          sel_coef = NULL,
                          maxdev = NULL,
@@ -105,7 +105,7 @@ covarem_once <- function(ylist, X,
   pie = calc_pie(TT, numclust) ## Let's just say it is all 1/K for now.
   denslist_by_clust <- NULL
   objectives = c(+1E20, rep(NA, niter-1))
-  sigma = init_sigma(ylist, numclust, TT, fac=sigma.fac) ## (T x numclust x dimdat x dimdat)
+  sigma = init_sigma(ylist, numclust, TT, fac=sigma_fac) ## (T x numclust x dimdat x dimdat)
   sigma_eig_by_clust = NULL
   zero.betas = zero.alphas = list()
   admm_niters = list()

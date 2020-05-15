@@ -7,10 +7,11 @@
 ##' @export
 ## blockcv_aggregate <- function(destin, cv_gridsize, nfold){
 blockcv_aggregate <- function(destin, cv_gridsize, nfold, nrep,
+                              sim=FALSE, isim = NULL,
                               save=FALSE, resfile = "all-cvres.Rdata"){
 
-  ## ## Read the meta data (for |nfold|, |cv_gridsize|, |nrep|)
-  ## load(file = file.path(destin, 'meta.Rdata'))
+  ## Read the meta data (for |nfold|, |cv_gridsize|, |nrep|)
+  load(file = file.path(destin, 'meta.Rdata'))
 
   ## Aggregate the results
   cvscore.array = array(NA, dim = c(cv_gridsize, cv_gridsize, nfold, nrep))
@@ -21,9 +22,11 @@ blockcv_aggregate <- function(destin, cv_gridsize, nfold, nrep,
       obj = matrix(NA, nrow=nfold, ncol=nrep)
       for(ifold in 1:nfold){
         for(irep in 1:nrep){
-          ## print(c(ialpha, ibeta, ifold, irep))
-          filename = paste0(ialpha, "-", ibeta, "-", ifold,
-                            "-", irep, "-cvscore.Rdata")
+          ## if(ialpha == 2 & ibeta == 1 & ifold ==5 & irep == 5)
+          ## ialpha = 2 ; ibeta = 1 ; ifold =5 ; irep = 5
+          ## filename = paste0(ialpha, "-", ibeta, "-", ifold,
+          ##                   "-", irep, "-cvscore.Rdata")
+          filename = make_cvscore_filename(ialpha, ibeta, ifold, irep, sim, isim)
           tryCatch({
             load(file.path(destin, filename))
             ## print(filename)
@@ -39,10 +42,6 @@ blockcv_aggregate <- function(destin, cv_gridsize, nfold, nrep,
       final.cvscores = sapply(1:nfold, function(ifold){
         cvscores[ifold, best.models[ifold]]
       })
-      ## Old & buggy:
-      ## best.cvscores = unlist(sapply(1:nfold, function(ifold){
-      ##   cvscores[which.min(obj[ifold,]), ifold]
-      ## }))
       cvscore.mat[ialpha, ibeta] = mean(final.cvscores)
     }
   }
@@ -76,19 +75,24 @@ blockcv_aggregate <- function(destin, cv_gridsize, nfold, nrep,
 }
 
 
-
-
 ##' Apply the 1SE rule (results are similar to those of get_optimal_info())
 ##' @param outputdir Location of the output files. e.g. outputdir="~/output/vanilla"
 ##' @return NULL.
 blockcv_onese <- function(destin,
-                          gridsize = 12){
-## outputdir="~/repos/flowcy/output/vanilla"
+                          gridsize,
+                          nrep,
+                          sim=FALSE, isim=NULL){
+  ## outputdir="~/repos/flowcy/output/vanilla"
 
   ## Gather the degrees of freedom
   ## dfmat = aggregateres_df(gridsize, destin)
   ## cvscoremat = aggregateres(gridsize, destin)
-  cvscoremat = blockcv_aggregate(destin, cv_gridsize, nfold, nrep)$cvscoremat
+  cvscore.mat = blockcv_aggregate(destin = destin,
+                                 cv_gridsize = cv_gridsize,
+                                 nfold = nfold,
+                                 sim = TRUE,
+                                 isim = 1,
+                                 nrep = nrep)$cvscore.mat
 
   ## Add the line
   ind = ind.min = which(cvscoremat == min(cvscoremat, na.rm=TRUE), arr.ind=TRUE)
@@ -126,7 +130,6 @@ blockcv_onese <- function(destin,
               cvscoremat = cvscoremat,
               dfmat = dfmat))
 }
-
 
 
 ##' Helper to aggregate parallelized CV results and obtain degrees of freedom
@@ -217,28 +220,26 @@ blockcv_aggregate_df <- function(gridsize, nrep, destin,
 ##' @return List containing, for every (ialpha, ibeta), the "best" result
 ##'   objects (best in the sense that it had the best likelihood value out of
 ##'   the |nrep| replicates.)
-blockcv_aggregate_res <- function(gridsize, nrep, destin,
+blockcv_aggregate_res <- function(cv_gridsize, nrep, destin,
+                                  sim = FALSE, isim = NULL,
                                   save=FALSE, resfile = "best-res.Rdata"){
 
-  ## df.mat = matrix(NA, ncol=gridsize, nrow=gridsize)
+  ## df.mat = matrix(NA, ncol=cv_gridsize, nrow=cv_gridsize)
   res.list = list()
-  for(ialpha in 1:gridsize){
-    for(ibeta in 1:gridsize){
+  for(ialpha in 1:cv_gridsize){
+    for(ibeta in 1:cv_gridsize){
 
       ## Objective values, over nrep
       obj = rep(NA, nrep)
       ## df = rep(NA, nrep) #
       res.list.inner = list()
       for(irep in 1:nrep){
-        filename = paste0(ialpha, "-", ibeta, "-",
-                          irep, "-fit.Rdata")
+        ## filename = paste0(ialpha, "-", ibeta, "-", irep, "-fit.Rdata")
+        filename = make_refit_filename(ialpha, ibeta, irep, sim, isim)
         tryCatch({
           ## Load fitted result
           load(file.path(destin, filename))
-
           ## Calculate DF
-          ## df[irep] = do.call(sum, lapply(res$beta, function(mybeta){
-          ##   sum(mybeta[-1,]!=0)})) + sum(res$alpha[,-1]!=0)
           res.list.inner[[irep]] = res
           ## Also calculate objective function
           obj[irep] = res$objectives[length(res$objectives)]
@@ -247,8 +248,6 @@ blockcv_aggregate_res <- function(gridsize, nrep, destin,
 
       ## Calculate the df of the best model
       if(!all(is.na(obj))){
-        ## df.mat[ialpha, ibeta] = df[which.max(obj)    ]
-        ## res.list[[paste0(ialpha, "-", ibeta)]] = res.list.inner[[which.max(obj)]] ## which.min?
         res.list[[paste0(ialpha, "-", ibeta)]] = res.list.inner[[which.min(obj)]] ## which.min?
       }
     }
@@ -259,11 +258,8 @@ blockcv_aggregate_res <- function(gridsize, nrep, destin,
     cat("Saving aggregated results to ", file.path(destin, resfile))
     save(res.list, file=file.path(destin, resfile))
   }
-
   return(res.list)
 }
-
-
 
 ##' An experimental function to visualize the CV results. It calls several other
 ##' "aggregate" functions in this file.
@@ -294,7 +290,7 @@ blockcv_summary <- function(blocktype = 1, datatype = 75, numclust = 5,
   dfmat = b$mat
 
   ## Get the refit covarem results
-  d = blockcv_aggregate_res(gridsize=cv_gridsize, nrep = nrep, destin=destin)
+  d = blockcv_aggregate_res(cv_gridsize=cv_gridsize, nrep = nrep, destin=destin)
   res = d[[paste0(min.inds[1] , "-", min.inds[2])]]
   reslist = d
   if(is.null(res)){
@@ -351,38 +347,69 @@ blockcv_summary <- function(blocktype = 1, datatype = 75, numclust = 5,
 }
 
 
-
-## ## Prettifying beta (INCOMPLETE)
-## prettify_beta <- function(res){
-##   ## Combine the list
-##   myrename = function(mybeta){
-##     colnames(mybeta) = paste0("dim-", 1:res$dimdat)
-##     mybeta
-##   }
-##   beta = lapply(1:numclust, function(iclust){
-##     mybeta = res$beta[[iclust]]
-##     colnames(mybeta) = paste0("iclust-1"
-##   })
-##   do.call
-##   res = cvres1$bestres
-##   map(res$beta, "dim-1")
-
-##   lapply(res$beta, function(mybeta){
-##     mybeta
-##   })
-## }
-
-
-
 ##' Aggregation wrapper, for simulations
-blockcv_sim <- function(cvnum = 0, blocktype = 1, datatype = 8, numclust = 2,
-                       cv_gridsize = 7,
-                       datadir = "~/Dropbox/research/usc/hpc-output", subfolder=""){
+blockcv_summary_sim <- function(nsim = 100,
+                                blocktype = 2, datatype = 80, numclust = 2, cv_gridsize = 7,
+                                datadir = "~/Dropbox/research/usc/hpc-output"){
+  ## datadir = "~/Dropbox/research/usc/hpc-output"
+  ## blocktype = 2
+  ## datatype = 80
+  ## numclust = 2
+  ## la('flowcy')
+  ## isim = 1
+  ## cv_gridsize = 7
+  ## nrep = 5
+  ## ylist = obj$ylist
+  ## obj = generate_data_1d_pseudoreal()
+  ## plot_1d(ylist=ylist, res=bestres, countslist=NULL, scale=FALSE)
 
-  ## Aggregate from CV.
+  ## Form the destin folder
+  destin = file.path(datadir,
+                     paste0("blockcv-", blocktype, "-", datatype, "-", numclust))
 
-  ## CV indices.
+  ## Get |nsim| lists, each containing gridsize^2 best replicates.
+  print("Getting all gridsize^2 best replicates, from nsim simulations.")
+  reslists = lapply(1:nsim, function(isim){
+    printprogress(isim, nsim)
+    reslist = blockcv_aggregate_res(cv_gridsize = cv_gridsize, nrep = nrep,
+                                    sim = TRUE, isim = isim,
+                                    destin = destin)
+    bestres = reslist[[paste0(min.inds[1], "-", min.inds[2])]]
+    return(bestres)
+  })
 
-  ## CV indices.
+  ## Making a plot of /all/ models
+  png(file.path(destin, paste0(blocktype, "-", datatype, "-", numclust, "-allmodels.png")),
+      width = 3000, height = 2000)
+  par(mfrow=c(cv_gridsize, cv_gridsize))
+  for(ialpha in 1:cv_gridsize){
+    for(ibeta in 1:cv_gridsize){
+      bestres = reslist[[paste0(ialpha, "-", ibeta)]]
+      plot_1d(ylist = ylist, res = bestres,
+              countslist = NULL, scale = FALSE, date_axis = FALSE)
+    }
+  }
+  graphics.off()
 
+  ## Get the |min.inds|.
+  print("Getting all best CV results, from nsim simulations.")
+  cv_info_list = lapply(1:nsim, function(isim){
+    printprogress(isim, nsim)
+    obj = blockcv_aggregate(destin, cv_gridsize, nfold, nrep, sim = TRUE, isim = isim)
+    ialpha = obj$min.inds[1]
+    ibeta = obj$min.inds[2]
+    cvscore = obj$cvscore.mat[ialpha, ibeta]
+    c(isim = isim, ialpha = ialpha, ibeta = ibeta, cvscore = cvscore)
+  })
+  cv_info_mat = do.call(rbind, cv_info_list)
+
+  ## Get each of the best guys.
+  bestreslist = list()
+  for(isim in 1:nsim){
+    min.inds = min.inds.mat[isim, c("ialpha", "ibeta")]
+    reslist = reslists[[isim]]
+    bestreslist[[isim]] = reslist[paste0(min.inds[1], "-", min.inds[2])]
+  }
+  return(bestreslist)
+  ## return(list(bestreslist = bestreslist))
 }

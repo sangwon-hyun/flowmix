@@ -370,3 +370,16 @@ make_iimat_small <- function(cv_gridsize){
   iimat = cbind(as.numeric(rownames(iimat)), iimat)
   return(iimat)
 }
+
+
+make_cvscore_filename <- function(ialpha, ibeta, ifold, irep, sim, isim){
+  filename = paste0(ialpha, "-", ibeta, "-", ifold, "-", irep, "-cvscore.Rdata")
+  if(sim){filename = paste0(isim, "-", filename)} ## Temporary
+  return(filename)
+}
+
+make_refit_filename <- function(ialpha, ibeta, irep, sim, isim){
+  filename = paste0(ialpha, "-", ibeta, "-", irep, "-fit.Rdata")
+  if(sim){filename = paste0(isim, "-", filename)} ## Temporary
+  return(filename)
+}

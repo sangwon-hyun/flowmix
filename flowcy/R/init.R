@@ -91,13 +91,51 @@ init_mn <- function(ylist, numclust, TT, dimdat, countslist = NULL){
 
   } else {
 
-    mulist = lapply(1:TT, function(tt){
+    TT = length(ylist)
+    ylist_downsampled <- lapply(1:TT, function(tt){
       y = ylist[[tt]]
-      nt = nrow(y)
-      rows = sample(1:nt, numclust)
-      sampled.data = y[rows, , drop=FALSE]
-      return(sampled.data)
+      counts = countslist[[tt]]
+      nsize = nrow(y) / TT * 30
+      y[sample(1:nrow(y), size = nsize),, drop=FALSE]
     })
+    yy = do.call(rbind, ylist_downsampled)
+    new_means = yy[sample(1:nrow(yy), numclust),, drop=FALSE]
+    mulist = lapply(1:TT, function(tt){ new_means })
+
+    ## Combine all and sample just |numclust| rows
+    ## yy = do.call(rbind, ylist_downsampled)
+    ## new_means = yy[sample(1:nrow(yy), numclust),, drop=FALSE]
+    ## mulist = lapply(1:TT, function(tt){ new_means })
+
+    ## OLD: Initialize the means by randomly sampling data from each time point.
+    ## mulist = lapply(1:TT, function(tt){
+    ##   y = ylist[[tt]]
+    ##   nt = nrow(y)
+    ##   counts = countslist[[tt]]
+    ##   ## counts = countslist_flattened[[tt]]
+    ##   stopifnot(length(counts) == nt)
+    ##   rows = sample(1:nt, numclust,
+    ##                 prob = counts / sum(counts))
+    ##   sampled.data = y[rows, , drop=FALSE]
+    ##   return(sampled.data)
+    ## })
+
+    ## NEW2: do a Kmeans on this.
+    ## cl2 = flexclust::kcca(yy, k=numclust, family=kccaFamily("kmeans"),
+    ##                       control=list(initcent="kmeanspp"))
+    ## new_means = cl2@centers
+
+    ## NEW3:
+    ## yy = do.call(rbind, ylist_downsampled)
+
+
+    ## mulist = lapply(1:TT, function(tt){
+    ##   y = ylist[[tt]]
+    ##   nt = nrow(y)
+    ##   rows = sample(1:nt, numclust)
+    ##   sampled.data = y[rows, , drop=FALSE]
+    ##   return(sampled.data)
+    ## })
   }
 
   ## New (T x dimdat x numclust) array is created.
@@ -119,9 +157,9 @@ init_sigma <- function(data, numclust, TT, fac=1){
 
   ndat = nrow(data[[1]])
   pdat = ncol(data[[1]])
-
   sigmas = lapply(1:numclust, function(iclust){
     onesigma = diag(fac * rep(1, pdat))
+    if(pdat==1) onesigma = as.matrix(fac)
     colnames(onesigma) = paste0("datcol", 1:pdat)
     rownames(onesigma) = paste0("datcol", 1:pdat)
     return(onesigma)
