@@ -352,7 +352,7 @@ blockcv_summary_sim <- function(nsim = 100,
                                 blocktype = 2, datatype = 80, numclust = 2, cv_gridsize = 7,
                                 nrep = 5,
                                 datadir = "~/Dropbox/research/usc/hpc-output",
-                                mc.cores=1){
+                                mc.cores = 1){
   ## datadir = "~/Dropbox/research/usc/hpc-output"
   ## blocktype = 2
   ## datatype = 80
@@ -380,20 +380,23 @@ blockcv_summary_sim <- function(nsim = 100,
     ## bestres = reslist[[paste0(min.inds[1], "-", min.inds[2])]]
     ## return(bestres)
     return(reslist)
-  }, mc.cores=mc.cores)
+  }, mc.cores = mc.cores)
+  save(reslists, file=file.path(destin, "reslists.Rdata"))
 
   ## Making a plot of /all/ models
-  png(file.path(destin, paste0(blocktype, "-", datatype, "-", numclust, "-allmodels.png")),
-      width = 3000, height = 2000)
-  par(mfrow=c(cv_gridsize, cv_gridsize))
-  for(ialpha in 1:cv_gridsize){
-    for(ibeta in 1:cv_gridsize){
-      bestres = reslist[[paste0(ialpha, "-", ibeta)]]
-      plot_1d(ylist = ylist, res = bestres,
-              countslist = NULL, scale = FALSE, date_axis = FALSE)
+  reslists = mclapply(1:nsim, function(isim){
+    plotname = paste0("sim-", isim, "-", blocktype, "-", datatype, "-", numclust, "-allmodels.png")
+    png(file.path(destin, plotname), width = 3000, height = 2000)
+    par(mfrow = c(cv_gridsize, cv_gridsize))
+    for(ialpha in 1:cv_gridsize){
+      for(ibeta in 1:cv_gridsize){
+        bestres = reslist[[paste0(ialpha, "-", ibeta)]]
+        plot_1d(ylist = ylist, res = bestres,
+                countslist = NULL, scale = FALSE, date_axis = FALSE)
+      }
     }
-  }
-  graphics.off()
+    graphics.off()
+  }, mc.cores = mc.cores)
 
   ## Get the |min.inds|.
   print("Getting all best CV results, from nsim simulations.")
@@ -405,7 +408,9 @@ blockcv_summary_sim <- function(nsim = 100,
     cvscore = obj$cvscore.mat[ialpha, ibeta]
     c(isim = isim, ialpha = ialpha, ibeta = ibeta, cvscore = cvscore)
   }, mc.cores=mc.cores)
+  save(cv_info_lists, file=file.path(destin, "cv_info_lists.Rdata"))
   cv_info_mat = do.call(rbind, cv_info_list)
+  save(cv_info_mat, file=file.path(destin, "cv_info_mat.Rdata"))
 
   ## Get each of the best guys.
   bestreslist = list()
@@ -414,6 +419,7 @@ blockcv_summary_sim <- function(nsim = 100,
     reslist = reslists[[isim]]
     bestreslist[[isim]] = reslist[paste0(min.inds[1], "-", min.inds[2])]
   }
+  save(bestreslist, file=file.path(destin, "bestreslist.Rdata"))
   return(bestreslist)
   ## return(list(bestreslist = bestreslist))
 }
