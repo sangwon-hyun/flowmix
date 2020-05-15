@@ -384,25 +384,6 @@ blockcv_summary_sim <- function(nsim = 100,
   save(reslists, file=file.path(destin, "reslists.Rdata"))
   cat(fill=TRUE)
 
-  ## Making a plot of /all/ models
-  print("Making all model plots.")
-  reslists = mclapply(1:nsim, function(isim){
-    plotname = paste0("sim-", isim, "-", blocktype, "-", datatype, "-", numclust, "-allmodels.png")
-    png(file.path(destin, plotname), width = 3000, height = 2000)
-    reslist = reslists[[isim]]
-    par(mfrow = c(cv_gridsize, cv_gridsize))
-    for(ialpha in 1:cv_gridsize){
-      for(ibeta in 1:cv_gridsize){
-        bestres = reslist[[paste0(ialpha, "-", ibeta)]]
-        plot_1d(ylist = ylist, res = bestres,
-                countslist = NULL, scale = FALSE, date_axis = FALSE)
-      }
-    }
-    graphics.off()
-    print(paste0("Plot made in ", file.path(destin, plotname)))
-  }, mc.cores = mc.cores)
-  cat(fill=TRUE)
-
   ## Get the |min.inds|.
   print("Getting all best CV results, from nsim simulations.")
   cv_info_list = mclapply(1:nsim, function(isim){
@@ -426,6 +407,30 @@ blockcv_summary_sim <- function(nsim = 100,
     bestreslist[[isim]] = reslist[paste0(min.inds[1], "-", min.inds[2])]
   }
   save(bestreslist, file=file.path(destin, "bestreslist.Rdata"))
-  return(bestreslist)
+  ## return(bestreslist)
   ## return(list(bestreslist = bestreslist))
+
+
+  ## Making a plot of /all/ models
+  obj = generate_data_1d_pseudoreal(datadir = "~/stagedir/data")
+  ylist = obj$ylist
+  print("Making all model plots.")
+  reslists = mclapply(1:nsim, function(isim){
+    reslist = reslists[[isim]]
+    min.inds = cv_info_mat[isim, c("ialpha", "ibeta")]
+    plotname = paste0("sim-", isim, "-", blocktype, "-", datatype, "-", numclust, "-allmodels.png")
+    png(file.path(destin, plotname), width = 3000, height = 2000)
+    par(mfrow = c(cv_gridsize, cv_gridsize))
+    for(ialpha in 1:cv_gridsize){
+      for(ibeta in 1:cv_gridsize){
+        bestres = reslist[[paste0(ialpha, "-", ibeta)]]
+        plot_1d(ylist = ylist, res = bestres,
+                countslist = NULL, scale = FALSE, date_axis = FALSE)
+        if(all(c(ialpha, ibeta) == min.inds))box(lwd=10,col='blue')
+      }
+    }
+    graphics.off()
+    print(paste0("Plot made in ", file.path(destin, plotname)))
+  }, mc.cores = mc.cores)
+  cat(fill=TRUE)
 }
