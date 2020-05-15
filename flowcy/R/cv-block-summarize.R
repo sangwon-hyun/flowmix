@@ -351,7 +351,8 @@ blockcv_summary <- function(blocktype = 1, datatype = 75, numclust = 5,
 blockcv_summary_sim <- function(nsim = 100,
                                 blocktype = 2, datatype = 80, numclust = 2, cv_gridsize = 7,
                                 nrep = 5,
-                                datadir = "~/Dropbox/research/usc/hpc-output"){
+                                datadir = "~/Dropbox/research/usc/hpc-output",
+                                mc.cores=1){
   ## datadir = "~/Dropbox/research/usc/hpc-output"
   ## blocktype = 2
   ## datatype = 80
@@ -370,7 +371,7 @@ blockcv_summary_sim <- function(nsim = 100,
 
   ## Get |nsim| lists, each containing gridsize^2 best replicates.
   print("Getting all gridsize^2 best replicates, from nsim simulations.")
-  reslists = lapply(1:nsim, function(isim){
+  reslists = mclapply(1:nsim, function(isim){
     printprogress(isim, nsim)
     reslist = blockcv_aggregate_res(cv_gridsize = cv_gridsize, nrep = nrep,
                                     sim = TRUE, isim = isim,
@@ -379,7 +380,7 @@ blockcv_summary_sim <- function(nsim = 100,
     ## bestres = reslist[[paste0(min.inds[1], "-", min.inds[2])]]
     ## return(bestres)
     return(reslist)
-  })
+  }, mc.cores=mc.cores)
 
   ## Making a plot of /all/ models
   png(file.path(destin, paste0(blocktype, "-", datatype, "-", numclust, "-allmodels.png")),
@@ -396,14 +397,14 @@ blockcv_summary_sim <- function(nsim = 100,
 
   ## Get the |min.inds|.
   print("Getting all best CV results, from nsim simulations.")
-  cv_info_list = lapply(1:nsim, function(isim){
+  cv_info_list = mclapply(1:nsim, function(isim){
     printprogress(isim, nsim)
     obj = blockcv_aggregate(destin, cv_gridsize, nfold, nrep, sim = TRUE, isim = isim)
     ialpha = obj$min.inds[1]
     ibeta = obj$min.inds[2]
     cvscore = obj$cvscore.mat[ialpha, ibeta]
     c(isim = isim, ialpha = ialpha, ibeta = ibeta, cvscore = cvscore)
-  })
+  }, mc.cores=mc.cores)
   cv_info_mat = do.call(rbind, cv_info_list)
 
   ## Get each of the best guys.
