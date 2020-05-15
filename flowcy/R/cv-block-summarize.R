@@ -382,6 +382,7 @@ blockcv_summary_sim <- function(nsim = 100,
     return(reslist)
   }, mc.cores = mc.cores)
   save(reslists, file=file.path(destin, "reslists.Rdata"))
+  cat(fil=TRUE)
 
   ## Making a plot of /all/ models
   print("Making all model plots.")
@@ -397,7 +398,9 @@ blockcv_summary_sim <- function(nsim = 100,
       }
     }
     graphics.off()
+    print(paste0("Plot made in ", file.path(destin, plotname)))
   }, mc.cores = mc.cores)
+  cat(fill=TRUE)
 
   ## Get the |min.inds|.
   print("Getting all best CV results, from nsim simulations.")
@@ -412,11 +415,12 @@ blockcv_summary_sim <- function(nsim = 100,
   save(cv_info_list, file=file.path(destin, "cv_info_list.Rdata"))
   cv_info_mat = do.call(rbind, cv_info_list)
   save(cv_info_mat, file=file.path(destin, "cv_info_mat.Rdata"))
+  cat(fill=TRUE)
 
   ## Get each of the best guys.
   bestreslist = list()
   for(isim in 1:nsim){
-    min.inds = min.inds.mat[isim, c("ialpha", "ibeta")]
+    min.inds = cv_info_mat[isim, c("ialpha", "ibeta")]
     reslist = reslists[[isim]]
     bestreslist[[isim]] = reslist[paste0(min.inds[1], "-", min.inds[2])]
   }
