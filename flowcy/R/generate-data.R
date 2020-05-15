@@ -267,8 +267,9 @@ generate_data_1d_pseudoreal_from_cv <- function(datadir, filename, seed = NULL){
 
   ## Load best 1d CV result
   cvres = blockcv_summary(2, 76, 5, 10, nrep = 5)##, subfolder="orig")
-  saveRDS(cvres, file=file.path("~/repos/cruisedat/export", "1d-cvres.rds")
+  ## saveRDS(cvres, file=file.path("~/repos/cruisedat/export", "1d-cvres.rds"))
   cvres = readRDS(file=file.path(datadir, filename)
+  ## cvres = readRDS(file=file.path("~/repos/cruisedat/export", "1d-cvres.rds"))
   ## Save this cvres and load it from datadir
   res = cvres$bestres
   X = res$X
