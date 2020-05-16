@@ -122,14 +122,17 @@ make_midpoints <- function(grid){
 
 
 make_ybin <- function(counts, midpoints, names=NULL, dimdat = 3){
-  if(!(dimdat %in% c(2,3))){
-    stop("Dimension of data needs to be 2d or 3d.")
-  }
+  ## if(!(dimdat %in% c(2,3))){
+  ##   stop("Dimension of data needs to be 2d or 3d.")
+  ## }
   if(dimdat==3){
     return(make_ybin_3d(counts, midpoints, names))
   }
   if(dimdat==2){
     return(make_ybin_2d(counts, midpoints, names))
+  }
+  if(dimdat==1){
+    return(make_ybin_1d(counts, midpoints, names))
   }
 }
 
@@ -171,7 +174,7 @@ make_ybin_3d <- function(counts, midpoints, names=NULL){
 }
 
 
-##' The same as \code{make_ybin()} but in 2d.
+##' The same as \code{make_ybin_3d()} but in 2d.
 make_ybin_2d <- function(counts, midpoints, names=NULL){
   gridsize = length(midpoints[[1]])
   d = gridsize
@@ -197,6 +200,32 @@ make_ybin_2d <- function(counts, midpoints, names=NULL){
   }
   return(mat)
 }
+
+##' The same as \code{make_ybin_3d()} but in 1d.
+make_ybin_1d <- function(counts, midpoints, names=NULL){
+  gridsize = length(midpoints[[1]])
+  d = gridsize
+  dimdat = 1
+  mat = matrix(0, nrow=d^dimdat, ncol=dimdat+1)
+  mm = 1
+  for(ii in 1:d){
+    ## Make the row c(three coordinates, count)
+    if(!is.null(counts)){
+      count = counts[ii]
+    } else {
+      count = -100
+    }
+    mat[mm,] = c(midpoints[[1]][ii],
+                 count)
+    mm = mm + 1
+  }
+  if(!is.null(names)){
+    colnames(mat) = c(names, "")
+  }
+  return(mat)
+}
+
+
 
 
 ##' Takes a cytogram y that is a (nt x dimdat) matrix, and makes it into a 3d
