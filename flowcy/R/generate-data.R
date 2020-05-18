@@ -263,13 +263,14 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
 ##'
 ##' @return A list containing the generating coefficients, true means, and data
 ##'   (ylist, X, countslist=NULL for now).
-generate_data_1d_pseudoreal_from_cv <- function(datadir, filename, seed = NULL){
+generate_data_1d_pseudoreal_from_cv <- function(datadir, seed = NULL){
 
   ## Load best 1d CV result
-  cvres = blockcv_summary(2, 76, 5, 10, nrep = 5)##, subfolder="orig")
+  ## cvres = blockcv_summary(2, 76, 5, 10, nrep = 5, datadir = datadir)##, subfolder="orig")
   ## saveRDS(cvres, file=file.path("~/repos/cruisedat/export", "1d-cvres.rds"))
-  cvres = readRDS(file=file.path(datadir, filename)) #
+  ## cvres = readRDS(file=file.path(datadir, filename)) #
   ## cvres = readRDS(file=file.path("~/repos/cruisedat/export", "1d-cvres.rds"))
+  cvres = readRDS(file=file.path("~/repos/cruisedat/export", "1d-cvres.rds"))
   ## Save this cvres and load it from datadir
   res = cvres$bestres
   X = res$X
