@@ -270,7 +270,7 @@ generate_data_1d_pseudoreal_from_cv <- function(datadir, seed = NULL){
   ## saveRDS(cvres, file=file.path("~/repos/cruisedat/export", "1d-cvres.rds"))
   ## cvres = readRDS(file=file.path(datadir, filename)) #
   ## cvres = readRDS(file=file.path("~/repos/cruisedat/export", "1d-cvres.rds"))
-  cvres = readRDS(file=file.path("~/repos/cruisedat/export", "1d-cvres.rds"))
+  cvres = readRDS(file=file.path(datadir, "1d-cvres.rds"))
   ## Save this cvres and load it from datadir
   res = cvres$bestres
   X = res$X
