@@ -182,10 +182,10 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
   ## Beta coefficients
   beta = matrix(0, ncol = numclust, nrow = p+1)
   beta[0+1,1] = 0
-  beta[1+1,1] = 3
+  beta[1+1,1] = 0.5
   beta[2+1,1] = 0
-  beta[0+1,2] = 10
-  beta[1+1,2] = -3
+  beta[0+1,2] = 3
+  beta[1+1,2] = -0.5
   beta[2+1,2] = 0
   mnmat = cbind(1, X) %*% beta
   ## matplot(mnmat, type='l')
@@ -263,7 +263,11 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
 ##'
 ##' @return A list containing the generating coefficients, true means, and data
 ##'   (ylist, X, countslist=NULL for now).
-generate_data_1d_pseudoreal_from_cv <- function(datadir, seed = NULL){
+generate_data_1d_pseudoreal_from_cv <- function(datadir, seed = NULL,
+                                                ## Optionally plotting the data and means/probs
+                                                plot = FALSE,
+                                                ## Optionally binning the data
+                                                bin=FALSE, dat.gridsize=30){
 
   ## Load best 1d CV result
   ## cvres = blockcv_summary(2, 76, 5, 10, nrep = 5, datadir = datadir)##, subfolder="orig")
@@ -295,13 +299,10 @@ generate_data_1d_pseudoreal_from_cv <- function(datadir, seed = NULL){
 
   ## Beta coefficients
   mnmat = cbind(1, X) %*% gen_beta
-  matplot(mnmat)
-  ## matplot(mnmat, type='l')
 
   ## Alpha coefficients
   pie = exp(cbind(1,X) %*% gen_alpha)
   pie = pie/rowSums(pie)
-  matplot(pie, type='l', lwd=3)
 
 
   ## Load ntlist
@@ -323,23 +324,30 @@ generate_data_1d_pseudoreal_from_cv <- function(datadir, seed = NULL){
                    cbind(datapoints)
                  })
 
-  ## Making basic plot.
-  plot_ylist(ylist, countslist=NULL, scale=FALSE)
-  cols = RColorBrewer::brewer.pal(numclust, "Set2")[order(colMeans(mnmat), decreasing=TRUE)]
-  matlines(mnmat, col=cols[1:4])
-  for(ii in 1:numclust){
-    points(mnmat[,ii], pch=16, cex=pie[,ii]*5,
-           col=cols[ii])
-  }
 
   ## Make into countslist
   ## browser()
-  ## dat.gridsize = 40
-  ## dat.grid = flowcy::make_grid(ylist, gridsize = dat.gridsize) ## Having this to be common among all things is important
-  ## obj = flowcy::bin_many_cytograms(ylist, dat.grid, mc.cores = 8, verbose = TRUE) ## This code needs to be made into 1d data
-  ## ybin_list = obj$ybin_list
-  ## counts_list = obj$counts_list
-  countslist = NULL
+  if(bin){
+    dat.grid = flowcy::make_grid(ylist, gridsize = dat.gridsize) ## Having this to be common among all things is important
+    obj = flowcy::bin_many_cytograms(ylist, dat.grid, mc.cores = 8, verbose = TRUE) ## This code needs to be made into 1d data
+    ylist = lapply(obj$ybin_list, cbind)
+    countslist = obj$counts_list
+  } else {
+    countslist = NULL
+  }
+
+
+  ## Making basic plot.
+  if(plot){
+    plot_ylist(ylist, countslist=countslist, scale=TRUE)
+    cols = RColorBrewer::brewer.pal(numclust, "Set2")[order(colMeans(mnmat), decreasing=TRUE)]
+    matlines(mnmat, col=cols[1:4])
+    for(ii in 1:numclust){
+      points(mnmat[,ii], pch=16, cex=pie[,ii]*5,
+             col=cols[ii])
+    }
+  }
+
 
   return(list(ylist = ylist, X = X,
               countslist = countslist,
