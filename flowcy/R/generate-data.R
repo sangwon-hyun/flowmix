@@ -158,11 +158,13 @@ get_mixture_at_timepoint <- function(tt, nt, mnlist, pilist, sigma=NULL, sigmali
 ##'
 ##' @return List containing data: {ylist, X, countslist}, and true underlying
 ##'   coefficients and mean/probs {mnmat, pie, alpha, beta}.
-generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos/cruisedat/export"){
+generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos/cruisedat/export",
+                                        nt1 = 1000){ ## Number of points in the first cluster
 
   ## Setup
+  stopifnot(nt1%%5 ==0)
   TT = 100
-  ntlist = c(rep(800, TT/2), rep(1000, TT/2))
+  ntlist = c(rep(0.8*nt1, TT/2), rep(nt1, TT/2))
   p = 3
   numclust = 2
 
@@ -266,6 +268,7 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
 generate_data_1d_pseudoreal_from_cv <- function(datadir, seed = NULL,
                                                 ## Optionally plotting the data and means/probs
                                                 plot = FALSE,
+                                                nt = 100,
                                                 ## Optionally binning the data
                                                 bin=FALSE, dat.gridsize=30){
 
@@ -304,9 +307,8 @@ generate_data_1d_pseudoreal_from_cv <- function(datadir, seed = NULL,
   pie = exp(cbind(1,X) %*% gen_alpha)
   pie = pie/rowSums(pie)
 
-
-  ## Load ntlist
-  ntlist = rep(100, TT)
+  ## Particles per cytogram
+  ntlist = rep(nt, TT)
 
   ## Samples |nt| memberships out of (1:numclust) according to the probs in pie.
   ## Data is a probabilistic mixture from these two means, over time.
