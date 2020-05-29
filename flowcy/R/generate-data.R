@@ -182,8 +182,7 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
   X = cbind(scale(par[1:TT]),
             c(rep(0, TT/2), rep(1, TT/2)),
             Xrest)## p-2 columns
-  colnames(X) = c("par", "noise", "cp")
-
+  colnames(X) = c("par", "cp", paste0("noise", 1:(p-2)))
 
   ## Beta coefficients
   beta = matrix(0, ncol = numclust, nrow = p+1)
