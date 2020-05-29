@@ -160,14 +160,16 @@ get_mixture_at_timepoint <- function(tt, nt, mnlist, pilist, sigma=NULL, sigmali
 ##'   coefficients and mean/probs {mnmat, pie, alpha, beta}.
 generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos/cruisedat/export",
                                         nt1 = 1000,
-                                        beta_par = 0.5){ ## Number of points in the first cluster
+                                        beta_par = 0.5,
+                                        p = 3){ ## Number of points in the first cluster
 
   ## Setup
   stopifnot(nt1%%5 ==0)
   TT = 100
   ntlist = c(rep(0.8*nt1, TT/2), rep(nt1, TT/2))
-  p = 3
+  ## p = 3
   numclust = 2
+  stopifnot(p >= 3)
 
   ## Generate covariate
   ## datadir = "~/repos/cruisedat/export"
@@ -176,9 +178,10 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
   par = par[!is.na(par)]
   par = ksmooth(x=1:length(par), y=par, bandwidth=5, x.points = 1:length(par))$y
   if(!is.null(seed)) set.seed(seed)
+  Xrest = do.call(cbind, lapply(1:(p-2), function(ii) rnorm(TT)) )
   X = cbind(scale(par[1:TT]),
-            rnorm(TT),
-            c(rep(0, TT/2), rep(1, TT/2)))
+            c(rep(0, TT/2), rep(1, TT/2)),
+            Xrest)## p-2 columns
   colnames(X) = c("par", "noise", "cp")
 
 
@@ -186,23 +189,15 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
   beta = matrix(0, ncol = numclust, nrow = p+1)
   beta[0+1,1] = 0
   beta[1+1,1] = beta_par
-  beta[2+1,1] = 0
   beta[0+1,2] = 3
   beta[1+1,2] = -beta_par
-  beta[2+1,2] = 0
   mnmat = cbind(1, X) %*% beta
   ## matplot(mnmat, type='l')
 
   ## Alpha coefficients
   alpha = matrix(0, ncol = numclust, nrow = p+1)
-  alpha[0+1, 1] = 0
-  alpha[1+1, 1] = 0
-  alpha[2+1, 1] = 0
-  alpha[3+1, 1] = 0
   alpha[0+1, 2] = -10
-  alpha[1+1, 2] = 0
-  alpha[2+1, 2] = 0
-  alpha[3+1, 2] = 10 + log(1/4)
+  alpha[2+1, 2] = 10 + log(1/4)
   colnames(alpha) = paste0("clust", 1:numclust)
   rownames(alpha) = c("intercept", "par", "noise", "cp")
   pie = exp(cbind(1,X) %*% alpha)
