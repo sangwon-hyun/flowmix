@@ -434,3 +434,122 @@ blockcv_summary_sim <- function(nsim = 100,
   }, mc.cores = mc.cores)
   cat(fill=TRUE)
 }
+
+
+
+
+
+##' Copy from server.
+##' Aggregation wrapper, for simulations
+blockcv_summary_sim2 <- function(nsim = 100,
+                                blocktype = 2, datatype = 80, numclust = 2, cv_gridsize = 7,
+                                nrep = 5,
+                                datadir = "~/Dropbox/research/usc/hpc-output",
+                                mc.cores = 1, plotonly=FALSE){
+
+  ## Form the destin folder
+  destin = file.path(datadir,
+                     paste0("blockcv-", blocktype, "-", datatype, "-", numclust))
+
+  ## If the folder called "summary" doesn't exist, create it.
+  if(!dir.exists(file.path(destin, "summary"))){
+    dir.create(file.path(destin, "summary"))
+  }
+
+
+  if(!plotonly){
+  ## Get |nsim| lists, each containing gridsize^2 best replicates.
+  print("Getting all gridsize^2 best replicates, from nsim simulations.")
+  start.time = Sys.time()
+  reslists = mclapply(1:nsim, function(isim){
+    printprogress(isim, nsim, start.time=start.time)
+    tryCatch({
+      reslist = blockcv_aggregate_res(cv_gridsize = cv_gridsize,
+                                      nrep = nrep,
+                                      sim = TRUE, isim = isim,
+                                      destin = destin)
+      return(reslist)
+    }, error = function(e){ return(NULL)  })
+  }, mc.cores = mc.cores)
+  save(reslists, file=file.path(destin, "summary",  "reslists.Rdata"))
+  cat(fill=TRUE)
+  print('Saved results to reslist.Rdata')
+
+
+
+  ## Get the |min.inds|.
+  print("Getting all best CV results, from nsim simulations.")
+  start.time = Sys.time()
+  cv_info_list = mclapply(1:nsim, function(isim){
+    tryCatch({
+      printprogress(isim, nsim, start.time=start.time)
+      obj = blockcv_aggregate(destin, "summary",  cv_gridsize, nfold, nrep, sim = TRUE, isim = isim)
+      ialpha = obj$min.inds[1]
+      ibeta = obj$min.inds[2]
+      cvscore = obj$cvscore.mat[ialpha, ibeta]
+      return(c(isim = isim, ialpha = ialpha, ibeta = ibeta, cvscore = cvscore))
+    }, error=function(e){ return(NULL)  })
+  }, mc.cores = mc.cores)
+  save(cv_info_list, file=file.path(destin, "summary",  "cv_info_list.Rdata"))
+  cv_info_mat = do.call(rbind, cv_info_list)
+  save(cv_info_mat, file=file.path(destin, "summary",  "cv_info_mat.Rdata"))
+  cat(fill = TRUE)
+  print('Saved results to cv_info_list.Rdata and cv_info_mat.Rdata')
+
+
+  ## Get bestres of each of the nsim simulations.
+  bestreslist = list()
+  for(isim in 1:nsim){
+    min.inds = cv_info_mat[isim, c("ialpha", "ibeta")]
+    if(is.null(reslists[[isim]])) next
+    reslist = reslists[[isim]]
+    bestreslist[[isim]] = reslist[[paste0(min.inds[1], "-", min.inds[2])]]
+  }
+  save(bestreslist, file=file.path(destin, "summary",  "bestreslist.Rdata"))
+  print('Saved results to bestreslist.Rdata')
+
+  } else {
+    ## Load already existing summaries.
+    ## load(file=file.path(destin, "summary",  "bestreslist.Rdata"))
+    load(file=file.path(destin, "summary",  "reslists.Rdata"))
+    load(file=file.path(destin, "summary",  "cv_info_mat.Rdata"))
+  }
+
+
+  ## Making a plot of /all/ models
+  if(datatype!=9){
+    obj = generate_data_1d_pseudoreal(datadir = "~/repos/cruisedat/export")
+    ylist = obj$ylist
+    countslist = NULL
+  } else {
+    obj = generate_data_1d_pseudoreal_from_cv(datadir = "~/repos/cruisedat/export",
+                                              nt1 = 200,
+                                              beta_par = 0.1,
+                                              p = 10)
+    ylist = obj$ylist
+    countslist = obj$countslist
+  }
+  print("Making all model plots.")
+    start.time = Sys.time()
+  mclapply(1:nsim, function(isim){
+    printprogress(isim, nsim, start.time=start.time)
+    reslist = reslists[[isim]]
+    min.inds = cv_info_mat[isim, c("ialpha", "ibeta")]
+    plotname = paste0("sim-", isim, "-", blocktype, "-", datatype, "-", numclust, "-allmodels.png")
+    browser()
+    png(file.path(destin, "summary",  plotname), width = 3000, height = 2000)
+    par(mfrow = c(cv_gridsize, cv_gridsize))
+    for(ialpha in 1:cv_gridsize){
+      for(ibeta in 1:cv_gridsize){
+        bestres = reslist[[paste0(ialpha, "-", ibeta)]]
+        scale = is.null(countslist)
+        plot_1d(ylist = ylist, res = bestres,
+                countslist = countslist, scale = scale, date_axis = FALSE)
+        if(all(c(ialpha, ibeta) == min.inds))box(lwd=10,col='blue')
+      }
+    }
+    graphics.off()
+    print(paste0("Plot made in ", file.path(destin, "summary",  plotname)))
+  }, mc.cores = mc.cores)
+  cat(fill=TRUE)
+}
