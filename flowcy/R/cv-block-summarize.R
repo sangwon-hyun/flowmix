@@ -500,10 +500,6 @@ blockcv_summary_sim2 <- function(nsim = 100,
     if(is.null(reslists[[isim]])) next
     reslist = reslists[[isim]]
     bestreslist[[isim]] = reslist[[paste0(min.inds[1], "-", min.inds[2])]]
-<<<<<<< Updated upstream
-=======
-    print(range(bestreslist[[1]]$mn[,1,]))
->>>>>>> Stashed changes
   }
   save(bestreslist, file=file.path(destin, "summary",  "bestreslist.Rdata"))
   print('Saved results to bestreslist.Rdata')
