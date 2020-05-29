@@ -192,13 +192,15 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
   beta[1+1,2] = -beta_par
   mnmat = cbind(1, X) %*% beta
   ## matplot(mnmat, type='l')
+  colnames(beta) = paste0("clust", 1:numclust)
+  rownames(beta) = c("intercept", "par", "cp", paste0("noise", 1:(p-2)))
 
   ## Alpha coefficients
   alpha = matrix(0, ncol = numclust, nrow = p+1)
   alpha[0+1, 2] = -10
   alpha[2+1, 2] = 10 + log(1/4)
   colnames(alpha) = paste0("clust", 1:numclust)
-  rownames(alpha) = c("intercept", "par", "noise", "cp")
+  rownames(alpha) = c("intercept", "par", "cp", paste0("noise", 1:(p-2)))
   pie = exp(cbind(1,X) %*% alpha)
   pie = pie/rowSums(pie)
   ## print(round(pie,3))
