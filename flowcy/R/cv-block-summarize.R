@@ -441,7 +441,7 @@ blockcv_summary_sim2 <- function(nsim = 100,
                                 blocktype = 2, datatype = 80, numclust = 2, cv_gridsize = 7,
                                 nrep = 5,
                                 outputdir = "~/Dropbox/research/usc/hpc-output",
-                                datadir
+                                datadir = "~/repos/cruisedat/export",
                                 mc.cores = 1, plotonly=FALSE){
 
   ## Form the destin folder
