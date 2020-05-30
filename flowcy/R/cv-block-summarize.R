@@ -436,10 +436,6 @@ blockcv_summary_sim <- function(nsim = 100,
 }
 
 
-
-
-
-##' Copy from server.
 ##' Aggregation wrapper, for simulations
 blockcv_summary_sim2 <- function(nsim = 100,
                                 blocktype = 2, datatype = 80, numclust = 2, cv_gridsize = 7,
@@ -536,7 +532,6 @@ blockcv_summary_sim2 <- function(nsim = 100,
     reslist = reslists[[isim]]
     min.inds = cv_info_mat[isim, c("ialpha", "ibeta")]
     plotname = paste0("sim-", isim, "-", blocktype, "-", datatype, "-", numclust, "-allmodels.png")
-    browser()
     png(file.path(destin, "summary",  plotname), width = 3000, height = 2000)
     par(mfrow = c(cv_gridsize, cv_gridsize))
     for(ialpha in 1:cv_gridsize){
