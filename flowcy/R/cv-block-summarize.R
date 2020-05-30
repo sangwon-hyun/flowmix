@@ -440,11 +440,12 @@ blockcv_summary_sim <- function(nsim = 100,
 blockcv_summary_sim2 <- function(nsim = 100,
                                 blocktype = 2, datatype = 80, numclust = 2, cv_gridsize = 7,
                                 nrep = 5,
-                                datadir = "~/Dropbox/research/usc/hpc-output",
+                                outputdir = "~/Dropbox/research/usc/hpc-output",
+                                datadir
                                 mc.cores = 1, plotonly=FALSE){
 
   ## Form the destin folder
-  destin = file.path(datadir,
+  destin = file.path(outputdir,
                      paste0("blockcv-", blocktype, "-", datatype, "-", numclust))
 
   ## If the folder called "summary" doesn't exist, create it.
