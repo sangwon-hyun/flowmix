@@ -518,7 +518,7 @@ blockcv_summary_sim2 <- function(nsim = 100,
     ylist = obj$ylist
     countslist = NULL
   } else {
-    obj = generate_data_1d_pseudoreal_from_cv(datadir = datadir)##"~/repos/cruisedat/export",
+    obj = generate_data_1d_pseudoreal_from_cv(datadir = datadir,##"~/repos/cruisedat/export",
                                               nt1 = 200,
                                               beta_par = 0.1,
                                               p = 10)
