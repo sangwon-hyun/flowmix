@@ -159,9 +159,10 @@ get_mixture_at_timepoint <- function(tt, nt, mnlist, pilist, sigma=NULL, sigmali
 ##' @return List containing data: {ylist, X, countslist}, and true underlying
 ##'   coefficients and mean/probs {mnmat, pie, alpha, beta}.
 generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos/cruisedat/export",
-                                        nt1 = 1000,
+                                        nt1 = 1000, ## Number of points in the first cluster
                                         beta_par = 0.5,
-                                        p = 3){ ## Number of points in the first cluster
+                                        p = 3 ## Number of total covariates
+                                        ){
 
   ## Setup
   stopifnot(nt1%%5 ==0)
