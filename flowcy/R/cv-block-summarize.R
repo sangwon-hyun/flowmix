@@ -38,7 +38,11 @@ blockcv_aggregate <- function(destin, cv_gridsize, nfold, nrep,
 
       ## Pick out the CV scores with the *best* (lowest) objective value
       cvscores = cvscore.array[ialpha, ibeta,,]
-      best.models = apply(obj, 1, function(myrow) which(myrow == min(myrow, na.rm=TRUE)))
+      best.models = apply(obj, 1, function(myrow){
+        ind = which(myrow == min(myrow, na.rm=TRUE))
+        if(length(ind)>1) ind = ind[1]  ## Just choose one, if there is a tie.
+        return(ind)
+      })
       final.cvscores = sapply(1:nfold, function(ifold){
         cvscores[ifold, best.models[ifold]]
       })
@@ -58,7 +62,7 @@ blockcv_aggregate <- function(destin, cv_gridsize, nfold, nrep,
 
   ## Recent addition
   if(save){
-    cat("Saving aggregated results to ", file.path(destin, resfile))
+    cat("Saving aggregated results to ", file.path(destin, resfile), fill=TRUE)
     save(cvscore.array,
          cvscore.mat,
          mean_lambdas,
@@ -193,7 +197,7 @@ blockcv_aggregate_df <- function(gridsize, nrep, destin,
 
   ## Recent addition
   if(save){
-    cat("Saving aggregated results to ", file.path(destin, resfile))
+    cat("Saving aggregated results to ", file.path(destin, resfile), fill=TRUE)
     save(mat,
          alpha.array,
          beta.array,
@@ -511,7 +515,6 @@ blockcv_summary_sim2 <- function(nsim = 100,
     load(file=file.path(destin, "summary",  "reslists.Rdata"))
     load(file=file.path(destin, "summary",  "cv_info_mat.Rdata"))
   }
-
 
   ## Making a plot of /all/ models
   if(datatype!=9){
