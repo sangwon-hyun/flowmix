@@ -651,21 +651,21 @@ blockcv_summary_sim2 <- function(nsim = 100,
 
   ## Making a plot of /all/ models
   if(datatype!=9){
-    obj = generate_data_1d_pseudoreal(datadir = datadir)##"~/repos/cruisedat/export")
+    obj = generate_data_1d_pseudoreal(datadir = datadir,
+                                      nt = 200,
+                                      beta_par = 0.3,
+                                      p = 10,
+                                      bin = TRUE,
+                                      dat.gridsize = 40)##"~/repos/cruisedat/export")
     ylist = obj$ylist
-    countslist = NULL
+    countslist = obj$countslist
   } else {
-    obj = generate_data_1d_pseudoreal_from_cv(datadir = datadir,##"~/repos/cruisedat/export",
-                                              nt1 = 200,
-                                              beta_par = 0.3,
-                                              p = 10,
-                                              bin = TRUE,
-                                              dat.gridsize=40)
+    obj = generate_data_1d_pseudoreal_from_cv(datadir = datadir)##"~/repos/cruisedat/export",
     ylist = obj$ylist
     countslist = obj$countslist
   }
   print("Making all model plots.")
-    start.time = Sys.time()
+  start.time = Sys.time()
   mclapply(1:nsim, function(isim){
     printprogress(isim, nsim, start.time=start.time)
     reslist = reslists[[isim]]
@@ -676,7 +676,7 @@ blockcv_summary_sim2 <- function(nsim = 100,
     for(ialpha in 1:cv_gridsize){
       for(ibeta in 1:cv_gridsize){
         bestres = reslist[[paste0(ialpha, "-", ibeta)]]
-        ## scale = is.null(countslist)
+        scale = !is.null(countslist)
         plot_1d(ylist = ylist, res = bestres,
                 countslist = countslist, scale = scale, date_axis = FALSE)
         if(all(c(ialpha, ibeta) == min.inds))box(lwd=10,col='blue')
