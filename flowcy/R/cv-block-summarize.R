@@ -1,3 +1,76 @@
+##' Get rid of the |nrep| replicates by retaining only the best one.
+##' 1. If there are only nrep guys we will
+blockcv_reduce_by_nrep <- function(destin, cv_gridsize, nfold, nrep,
+                              sim=FALSE, isim = NULL,
+                              save=FALSE, resfile = "all-cvres.Rdata"){
+
+  ## Read the meta data (for |nfold|, |cv_gridsize|, |nrep|)
+  load(file = file.path(destin, 'meta.Rdata'))
+
+  ## Identify the best replicate
+  cvscore.array = array(NA, dim = c(cv_gridsize, cv_gridsize, nfold, nrep))
+  cvscore.mat = matrix(NA, nrow = cv_gridsize, ncol = cv_gridsize)
+  for(ialpha in 1:cv_gridsize){
+    for(ibeta in 1:cv_gridsize){
+      ## cvscores <- sapply(1:nfold, function(igrid){
+      obj = matrix(NA, nrow=nfold, ncol=nrep)
+      for(ifold in 1:nfold){
+        for(irep in 1:nrep){
+          filename = make_cvscore_filename(ialpha, ibeta, ifold, irep, sim, isim)
+          tryCatch({
+            load(file.path(destin, filename))
+            cvscore.array[ialpha, ibeta, ifold, irep] = cvscore
+            obj[ifold, irep] = objectives[length(objectives)]
+          }, error = function(e){})
+
+          ## ## Also compare to the aggregated result so far.
+          ## aggregate_filename = make_cvscore_filename(ialpha, ibeta, ifold, irep = NULL, sim, isim)
+          ## ## if irep=NULL, look for "aggr-" prefix; bake this into the make_cvscore_filename() as well.
+          ## load(file.path(destin, filename))
+          ## obj_aggr = objectives[length(objectives)]
+        }
+      }
+
+      ## Pick out the CV scores with the *best* (lowest) objective value
+      cvscores = cvscore.array[ialpha, ibeta,,]
+      best.models = apply(obj, 1, function(myrow) which(myrow == min(myrow, na.rm=TRUE)))
+      final.cvscores = sapply(1:nfold, function(ifold){
+        cvscores[ifold, best.models[ifold]]
+      })
+      cvscore.mat[ialpha, ibeta] = mean(final.cvscores)
+    }
+  }
+
+  ## Clean a bit
+  cvscore.mat[which(is.nan(cvscore.mat), arr.ind=TRUE)] = NA
+  rownames(cvscore.mat) = signif(pie_lambdas,3)
+  colnames(cvscore.mat) = signif(mean_lambdas,3)
+
+
+  ## Find the minimum
+  mat = cvscore.mat
+  min.inds = which(mat == min(mat, na.rm=TRUE), arr.ind=TRUE)
+
+  ## Recent addition
+  if(save){
+    cat("Saving aggregated results to ", file.path(destin, resfile))
+    save(cvscore.array,
+         cvscore.mat,
+         mean_lambdas,
+         pie_lambdas,
+         min.inds,
+         file = file.path(destin, resfile))
+  }
+
+  return(list(cvscore.array = cvscore.array,
+              cvscore.mat = cvscore.mat,
+              mean_lambdas = mean_lambdas,
+              pie_lambdas = pie_lambdas,
+              min.inds = min.inds))
+}
+
+
+
 ##' Aggregate results from blocked CV.
 ##'
 ##' @param destin destination folder for output.
@@ -86,51 +159,100 @@ blockcv_onese <- function(destin,
                           gridsize,
                           nrep,
                           sim=FALSE, isim=NULL){
-  ## outputdir="~/repos/flowcy/output/vanilla"
 
-  ## Gather the degrees of freedom
-  ## dfmat = aggregateres_df(gridsize, destin)
-  ## cvscoremat = aggregateres(gridsize, destin)
-  cvscore.mat = blockcv_aggregate(destin = destin,
-                                 cv_gridsize = cv_gridsize,
-                                 nfold = nfold,
-                                 sim = TRUE,
-                                 isim = 1,
-                                 nrep = nrep)$cvscore.mat
 
-  ## Add the line
-  ind = ind.min = which(cvscoremat == min(cvscoremat, na.rm=TRUE), arr.ind=TRUE)
+  ## Pseudocode
+  ## 1. Get CV score matrix.
+  ## 2. Get the DFs.
+  ## 3. Get the SD of all the folds AT the bestres.
+  ## 4. Take all the models that are within 1 SE of the bestres.
+  ## 5. Calculate the DFs of these models.
+  ## 6. Find the most parsimonious model this way.
 
-  ## Add horizontal lines
-  load(file=file.path(destin, paste0(ind[1], "-", ind[2], ".Rdata")))
-  se = sd(cvres$all)/sqrt(length(cvres$all))
+  ## 1. Get CV score matrix.
+  destin = "~/Dropbox/research/usc/hpc-output/blockcv-2-75-5"
+  nfold = 5
+  nrep = 5
+  cv_gridsize=10
+  obj = blockcv_aggregate(destin=destin, cv_gridsize=cv_gridsize, nfold=nfold, nrep=nrep, sim = FALSE)
+  ialpha = obj$min.inds[1]
+  ibeta = obj$min.inds[2]
+  cvscore.mat = obj$cvscore.mat
 
-  ## Apply the 1SE rule
-  inds = which((cvscoremat <  cvscoremat[ind[1], ind[2]] + se &
-                cvscoremat >  cvscoremat[ind[1], ind[2]] - se &
-               dfmat < dfmat[ind[1], ind[2]]),
+  ## 2. Get the DFs
+  dfmat = blockcv_aggregate_df(gridsize=cv_gridsize, nrep=nrep, destin=destin)$mat
+
+  ##3. Get the SD of all the folds at the min.ind
+  dim(obj$cvscore.array)
+  se = sd(apply(obj$cvscore.array[min.inds[1], min.inds[2],,],1,min))
+
+   ## 4. Get all the models within 1SE of the bestres
+  inds = which((cvscore.mat <  cvscore.mat[min.inds[1], min.inds[2]] + se &
+                cvscore.mat >  cvscore.mat[min.inds[1], min.inds[2]] - se &
+                dfmat < dfmat[min.inds[1], min.inds[2]]),
                arr.ind = TRUE)
+
+  ## 5. Get all the DFs of these models
   if(nrow(inds) > 0){
 
     ## Pick the minimum CV error that is most parsimonious.
     all.df = apply(inds, 1, function(myind){dfmat[myind[1],myind[2]]})
     inds = inds[which(all.df==min(all.df)),,drop=FALSE]
-    all.cvscores = apply(inds, 1, function(myind){cvscoremat[myind[1],myind[2]]})
-    ind.min = inds[which.min(all.cvscores),,drop=FALSE]
-    assert_that(nrow(ind.min)==1)
+    all.cvscores = apply(inds, 1, function(myind){cvscore.mat[myind[1],myind[2]]})
+    onese.min.inds = inds[which.min(all.cvscores),,drop=FALSE] ## Out of the lowest DF ties, get the smallest CV score.
+    assert_that(nrow(onese.min.inds)==1)
 
   }
 
+  ## ## Gather the degrees of freedom
+  ## ## dfmat = aggregateres_df(gridsize, destin)
+  ## ## cvscoremat = aggregateres(gridsize, destin)
+  ## cvscore.mat = blockcv_aggregate(destin = destin,
+  ##                                 cv_gridsize = cv_gridsize,
+  ##                                 nfold = nfold,
+  ##                                 sim = TRUE,
+  ##                                 isim = 1,
+  ##                                 nrep = nrep)$cvscore.mat
+
+  ## ## Add the line
+  ## ind = ind.min = which(cvscoremat == min(cvscoremat, na.rm=TRUE), arr.ind=TRUE)
+
+  ## ## Add horizontal lines
+  ## load(file=file.path(destin, paste0(ind[1], "-", ind[2], ".Rdata")))
+  ## se = sd(cvres$all)/sqrt(length(cvres$all))
+
+  ## ## Apply the 1SE rule
+  ## inds = which((cvscoremat <  cvscoremat[ind[1], ind[2]] + se &
+  ##               cvscoremat >  cvscoremat[ind[1], ind[2]] - se &
+  ##               dfmat < dfmat[ind[1], ind[2]]),
+  ##              arr.ind = TRUE)
+  ## if(nrow(inds) > 0){
+
+  ##   ## Pick the minimum CV error that is most parsimonious.
+  ##   all.df = apply(inds, 1, function(myind){dfmat[myind[1],myind[2]]})
+  ##   inds = inds[which(all.df==min(all.df)),,drop=FALSE]
+  ##   all.cvscores = apply(inds, 1, function(myind){cvscoremat[myind[1],myind[2]]})
+  ##   ind.min = inds[which.min(all.cvscores),,drop=FALSE]
+  ##   assert_that(nrow(ind.min)==1)
+
+  ## }
+
   ## Obtain the best parameters and return
-  filename = paste0(ind.min[1], "-", ind.min[2], ".Rdata")
-  load(file=file.path(destin, filename))
-  lambda_alpha = alpha_lambdas[ind.min[1]]
-  lambda_beta = beta_lambdas[ind.min[2]]
+  ## filename = paste0(ind.min[1], "-", ind.min[2], ".Rdata")
+  ## load(file=file.path(destin, filename))
+  lambda_alpha = lambda_alphas[onese.min.inds[1]]
+  lambda_beta = lambda_alphas[onese.min.inds[2]]
+
+  ## Obtain the best model
+  load(file.path(destin, "bestreslist.Rdata"))## If necessary, load or calculate the bestreslist
+  bestres_onese = bestreslist[[paste0(onese.min.inds[1], "-", onese.min.inds[2])]]
 
   return(list(param = c(lambda_alpha, lambda_beta),
-              res = res,
+              bestres_onese = bestres_onese,
               se = se,
-              ind.min = ind.min,
+              min.inds = min.inds,
+              onese.min.inds = onese.min.inds,
+              inds = inds,
               cvscoremat = cvscoremat,
               dfmat = dfmat))
 }
@@ -373,53 +495,64 @@ blockcv_summary_sim <- function(nsim = 100,
   destin = file.path(datadir,
                      paste0("blockcv-", blocktype, "-", datatype, "-", numclust))
 
+
   ## Get |nsim| lists, each containing gridsize^2 best replicates.
   print("Getting all gridsize^2 best replicates, from nsim simulations.")
+  start.time = Sys.time()
   reslists = mclapply(1:nsim, function(isim){
-    printprogress(isim, nsim)
-    reslist = blockcv_aggregate_res(cv_gridsize = cv_gridsize, nrep = nrep,
-                                    sim = TRUE, isim = isim,
-                                    destin = destin)
-    ## min.inds = reslist
-    ## bestres = reslist[[paste0(min.inds[1], "-", min.inds[2])]]
-    ## return(bestres)
-    return(reslist)
+    printprogress(isim, nsim, start.time=start.time)
+    tryCatch({
+      reslist = blockcv_aggregate_res(cv_gridsize = cv_gridsize,
+                                      nrep = nrep,
+                                      sim = TRUE, isim = isim,
+                                      destin = destin)
+      return(reslist)
+    }, error = function(e){ return(NULL)  })
   }, mc.cores = mc.cores)
   save(reslists, file=file.path(destin, "reslists.Rdata"))
   cat(fill=TRUE)
+  print('Saved results to reslist.Rdata')
+
 
   ## Get the |min.inds|.
   print("Getting all best CV results, from nsim simulations.")
+  start.time = Sys.time()
   cv_info_list = mclapply(1:nsim, function(isim){
-    printprogress(isim, nsim)
-    obj = blockcv_aggregate(destin, cv_gridsize, nfold, nrep, sim = TRUE, isim = isim)
-    ialpha = obj$min.inds[1]
-    ibeta = obj$min.inds[2]
-    cvscore = obj$cvscore.mat[ialpha, ibeta]
-    c(isim = isim, ialpha = ialpha, ibeta = ibeta, cvscore = cvscore)
-  }, mc.cores=mc.cores)
+    tryCatch({
+      printprogress(isim, nsim, start.time=start.time)
+      obj = blockcv_aggregate(destin, cv_gridsize, nfold, nrep, sim = TRUE, isim = isim)
+      ialpha = obj$min.inds[1]
+      ibeta = obj$min.inds[2]
+      cvscore = obj$cvscore.mat[ialpha, ibeta]
+      return(c(isim = isim, ialpha = ialpha, ibeta = ibeta, cvscore = cvscore))
+    }, error=function(e){ return(NULL)  })
+  }, mc.cores = mc.cores)
   save(cv_info_list, file=file.path(destin, "cv_info_list.Rdata"))
   cv_info_mat = do.call(rbind, cv_info_list)
   save(cv_info_mat, file=file.path(destin, "cv_info_mat.Rdata"))
-  cat(fill=TRUE)
+  cat(fill = TRUE)
+  print('Saved results to cv_info_list.Rdata and cv_info_mat.Rdata')
 
-  ## Get each of the best guys.
+
+  ## Get bestres of each of the nsim simulations.
   bestreslist = list()
   for(isim in 1:nsim){
     min.inds = cv_info_mat[isim, c("ialpha", "ibeta")]
+    if(!is.null(reslists[[isim]])) next
     reslist = reslists[[isim]]
     bestreslist[[isim]] = reslist[paste0(min.inds[1], "-", min.inds[2])]
   }
   save(bestreslist, file=file.path(destin, "bestreslist.Rdata"))
-  ## return(bestreslist)
-  ## return(list(bestreslist = bestreslist))
+  print('Saved results to bestreslist.Rdata')
 
 
   ## Making a plot of /all/ models
   obj = generate_data_1d_pseudoreal(datadir = "~/stagedir/data")
   ylist = obj$ylist
   print("Making all model plots.")
+    start.time = Sys.time()
   reslists = mclapply(1:nsim, function(isim){
+    printprogress(isim, nsim, start.time=start.time)
     reslist = reslists[[isim]]
     min.inds = cv_info_mat[isim, c("ialpha", "ibeta")]
     plotname = paste0("sim-", isim, "-", blocktype, "-", datatype, "-", numclust, "-allmodels.png")
@@ -524,8 +657,10 @@ blockcv_summary_sim2 <- function(nsim = 100,
   } else {
     obj = generate_data_1d_pseudoreal_from_cv(datadir = datadir,##"~/repos/cruisedat/export",
                                               nt1 = 200,
-                                              beta_par = 0.1,
-                                              p = 10)
+                                              beta_par = 0.3,
+                                              p = 10,
+                                              bin = TRUE,
+                                              dat.gridsize=40)
     ylist = obj$ylist
     countslist = obj$countslist
   }
@@ -541,7 +676,7 @@ blockcv_summary_sim2 <- function(nsim = 100,
     for(ialpha in 1:cv_gridsize){
       for(ibeta in 1:cv_gridsize){
         bestres = reslist[[paste0(ialpha, "-", ibeta)]]
-        scale = is.null(countslist)
+        ## scale = is.null(countslist)
         plot_1d(ylist = ylist, res = bestres,
                 countslist = countslist, scale = scale, date_axis = FALSE)
         if(all(c(ialpha, ibeta) == min.inds))box(lwd=10,col='blue')
