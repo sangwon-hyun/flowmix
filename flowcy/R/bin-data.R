@@ -49,7 +49,14 @@ bin_one_cytogram <- function(y, manual.grid, qc=NULL){
   stopifnot(all(colnames(y) == colnames(ybin_all)[1:dimdat]))
 
   obj = trim_one_cytogram(ybin = ybin, counts = counts)
-  sparsecounts <- as(counts, "sparseVector")
+  sparsecounts <- Matrix::sparseVector(counts,
+                                       1:length(counts),
+                                       length(counts))
+  ## sparsecounts <- as(counts, "sparseVector")
+  ## Matrix::sparseVector(x = c(0,0,1),
+  ##                      i = 1:3,
+  ##                      length=3)
+
   return(list(ybin = obj$ybin,
               counts = obj$counts,
               sparsecounts = sparsecounts))
