@@ -34,13 +34,13 @@ plot_covariates <- function(obj, tt = NULL){
 
   Xsmall_names = c("Salinity", "Temperature", "Sunlight")
   ## ttt = 290 ## temporarily, this is a fixed place to put the labels.
-  ttt = TT * 0.98
+  ttt = TT * 0.98 %>% round
   text(x=ttt, y=Xsmall[ttt,], label=Xsmall_names,## colnames(Xsmall)
        cex=2)
 }
 
 ##' "Prettifies" covarem object. Not really a plotting function.
-prettify <- function(res){
+prettify <- function(res, signif_digit=2){
 
   ## Reorder clusters in decreasing order of diam
   res <- reorder_clust(res)
@@ -51,13 +51,13 @@ prettify <- function(res){
   if(length(all.zero.rows) > 0){
     betamat = betamat[-all.zero.rows,, drop=FALSE]
   }
-  betamat = betamat %>% Matrix::Matrix(sparse=TRUE) %>% signif(2)
+  betamat = betamat %>% Matrix::Matrix(sparse=TRUE) %>% signif(signif_digit)
   colnames(betamat) = unlist(Map(function(a,b) paste0(a, ", ", b),
                                  paste0("clust-", rep(1:res$numclust, each=res$dimdat)),
                                  colnames(betamat)))
 
   ## Prettify alphas
-  alphamat = res$alpha %>% t %>% Matrix::Matrix(sparse=TRUE) %>% signif(2)
+  alphamat = res$alpha %>% t %>% Matrix::Matrix(sparse=TRUE) %>% signif(signif_digit)
   all.zero.rows = which(apply(alphamat, 1, function(myrow)all(abs(myrow)<1E-8)))
   if(length(all.zero.rows) > 0){
     alphamat = alphamat[-all.zero.rows,, drop=FALSE]
@@ -71,21 +71,33 @@ prettify <- function(res){
 
 ##' Plot pies.
 ##' @param res covarem object.
+##' @param iclusts Optionally, provide the cluster numbers to plot just those.
 ##'
 ##' @return NULL
-plot_pie <- function(res){
+plot_pie <- function(res, iclusts=NULL, main=NULL,
+                     cols = NULL
+                     ){
 
+  ## Setup
+  if(is.null(iclusts)) iclusts = c(1:res$numclust)
 
   ## Reorder clusters in decreasing order of diam
   res <- reorder_clust(res)
 
-  cols = RColorBrewer::brewer.pal(res$numclust, "Set2")
+  if(is.null(cols)){
+    cols = RColorBrewer::brewer.pal(res$numclust, "Set3")
+  }
+
   matplot(NA, xlim = c(0, res$TT),## res$pie
           ylab="", xlab="", ylim = c(0,1), axes = FALSE)
-  abline(h = seq(from = 0, to = 1, by = 0.2), col='grey90', lwd=2, lty=3)
-  matlines(res$pie, type='l', lty=1, lwd=3, col=cols)
+  abline(h = seq(from = 0, to = 1, by = 0.1), col='grey90', lwd=2, lty=3)
+  matlines(res$pie[,iclusts], type='l', lty=1, lwd=3, col=cols[iclusts])
   ## axis(1); axis(2)
-  title(main="Cluster probabilities", cex.main=2)
+  if(is.null(main)){
+    title(main="Cluster probabilities", cex.main=2)
+  } else {
+    title(main=main, cex.main=1)
+  }
 
   ## Add ticks
   add_date_ticks(res)
