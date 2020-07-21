@@ -64,7 +64,8 @@ cvxr_multinom <- function(y, X, lambda,
   alphamat <- CVXR::Variable(p, numclust)
 
   ## First component
-  obj1 = CVXR::sum_entries(CVXR::multiply(y, (X %*% alphamat)))
+  obj1 = CVXR::sum_entries(CVXR::mul_elemwise(y, (X %*% alphamat))) ## Using version 99.7 or before
+  ## obj1 = CVXR::sum_entries(CVXR::multiply(y, (X %*% alphamat))) ## Using version 1.0 or above
 
   ## Second component
   obj2 <- sum((CVXR::log_sum_exp( X %*% alphamat, 1)) * rowSums(y))
