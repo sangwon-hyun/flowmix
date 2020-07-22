@@ -99,6 +99,7 @@ plot3d.covarem <- function(obj,
   ##########################
   ## Plot pies over time ###
   ##########################
+  ## Todo: replace the following code with with plot_pie()
   pies = lapply(1:numclust, function(iclust){ obj$pie[,iclust] })
   pies.right.now = sapply(1:numclust, function(iclust){pies[[iclust]][[tt]]})
   names(pies.right.now) = paste("Clust", 1:numclust)
@@ -538,10 +539,10 @@ one_dim_scatterplot <- function(ylist, obj, tt, countslist = NULL, dims = c(1,2)
   cnames = colnames(y)
   counts = countslist[[tt]]
   yy = cbind(y, counts)
-  yy = yy %>% as_tibble %>%
+  yy = yy %>% tibble::as_tibble() %>%
     ## group_by(diam_mid, chl_small) %>%
-    group_by_at(c(1,2)) %>%
-    summarise(counts = sum(counts)) %>% as.matrix
+    dplyr::group_by_at(c(1,2)) %>%
+    dplyr::summarise(counts = sum(counts)) %>% as.matrix
   counts = yy[,3]
   y = yy[,1:2]
   ## End of temporary
@@ -659,14 +660,14 @@ one_dim_scatterplot <- function(ylist, obj, tt, countslist = NULL, dims = c(1,2)
 one_3d_plot <- function(ylist, obj=NULL, tt, countslist=NULL, phi = 40,
                         cex.fac = 1){
 
-  maxcount = max(unlist(countslist))
   y = ylist[[tt]]
   xlab = colnames(y)[1]
   ylab = colnames(y)[2]
   zlab = colnames(y)[3]
   if(is.null(countslist)){
-    cex=1
+    cex = 1 * cex.fac
   } else {
+    maxcount = max(unlist(countslist))
     cex = countslist[[tt]]
     cex = cex / maxcount
     cex = cex * cex.fac
@@ -759,10 +760,10 @@ make_map <- function(res, tt, destin=NULL){
   ## cols = colfunc(length(lat))
   cols = "black"
   lines(y=lat, x=lon, pch=16, cex=0.1, col=cols, lwd=.5)
-  }
 
   ## Add the point for time tt
   points(lon[tt], lat[tt], pch="X", cex=4, col='red')
+  }
 }
 
 
