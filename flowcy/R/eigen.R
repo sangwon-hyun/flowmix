@@ -119,7 +119,9 @@ det_from_eig <- function(sigma_eig){
 ##' @param sigma_eig Eigendecomposition (from \code{get_sigma_eig()}) of sigma.
 ##' @return Inverse of sigma.
 sigma_inv_from_eig <- function(sigma_eig){
-  (sigma_eig$vectors %*% diag(1/sigma_eig$values) %*% t(sigma_eig$vectors))
+  vec = 1/sigma_eig$values
+  mat = ifelse(length(vec) == 1, vec, diag(vec))
+  (sigma_eig$vectors %*% mat %*% t(sigma_eig$vectors))
 }
 
 
@@ -129,7 +131,9 @@ sigma_inv_from_eig <- function(sigma_eig){
 ##'   \code{sigma_half}, we should have \code{sigma_half %*% sigma_half ==
 ##'   sigma}.
 sigma_half_from_eig <- function(sigma_eig){
-  (sigma_eig$vectors %*% diag(sqrt(sigma_eig$values)) %*% t(sigma_eig$vectors))
+  vec = sqrt(sigma_eig$values)
+  mat = ifelse(length(vec) == 1, vec, diag(vec))
+  (sigma_eig$vectors %*% mat %*% t(sigma_eig$vectors))
 }
 
 
@@ -139,7 +143,9 @@ sigma_half_from_eig <- function(sigma_eig){
 ##'   \code{sigma_half}, we should have \code{sigma_half %*% sigma_half ==
 ##'   sigma}.
 inverse_sigma_half_from_eig <- function(sigma_eig){
-  (sigma_eig$vectors %*% diag(1/sqrt(sigma_eig$values)) %*% t(sigma_eig$vectors))
+  vec = 1/sqrt(sigma_eig$values)
+  mat = ifelse(length(vec) == 1, vec, diag(vec))
+  (sigma_eig$vectors %*% mat %*% t(sigma_eig$vectors))
 } ## TODO Test this.
 
 ##' From a (numclust x dimdat x dimdat) array whose [ii,,]'th entry is
