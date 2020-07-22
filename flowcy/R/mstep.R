@@ -1,7 +1,7 @@
-##' Conduct the M step for estimating the coefficients for the cluster
+##' Solves the M step for estimating the coefficients for the cluster
 ##' probabilities.
 ##'
-##' @param resp Is an (T x nt x K) array.
+##' @param resp Responsibilities; an (T x nt x K) array.
 ##' @param X Covariate matrix (T x dimdat).
 ##'
 ##' @return The multinomial logit model coefficients. A matrix of dimension (K x
@@ -22,19 +22,26 @@ Mstep_alpha <- function(resp, X, numclust, lambda,
   alpha = NULL
 
   ## Try glmnet first:
-  ## tryCatch({
-  ##   alpha= solve_multinom(resp.sum, X, lambda)
-  ## }, error=function(e){})
+  tryCatch({
+    alpha = alpha.glmnet = solve_multinom(resp.sum, X, lambda)
+  }, error=function(e){})
 
-  ## Then, try CVXR:
-  ## if(is.null(alpha)){
-    alpha = cvxr_multinom(resp.sum, cbind(1,X), lambda,
-                          exclude.from.penalty = 1,
-                          N = sum(resp.sum))
-  ## }
+  ## In the rare case where the above fails, use CVXR:
+  if(is.null(alpha)){
+    alpha = alpha.cvxr = cvxr_multinom(resp.sum, cbind(1,X), lambda,
+                                       exclude.from.penalty = 1,
+                                       N = sum(resp.sum))
+  }
+  ## Two notes
+  ## 1. A unit test exists to compare the likelihood between \code{glmnet} andd
+  ## \code{CVXR} solutions. Here is a simple one, commented out for now:
+  ## objective.cvxr = multinom_objective(alpha.cvxr, cbind(1,X), resp.sum, lambda, N=sum(resp.sum))
+  ## objective.glmnet = multinom_objective(alpha.glmnet, cbind(1,X), resp.sum, lambda, N=sum(resp.sum))
+  ## stopifnot(abs(objective.cvxr - objective.glmnet) < 1E-3)
+  ## 2. The estimated alphas are not unique, only unique up to a constant shift.
+  ## See \url{https://www.jstatsoft.org/article/view/v033i01} section 4.1 for more details.
 
-  ## TODO Compare the likelihood between glmnet ahd cvxr solutions.
-
+  ## Threshold some of the alpha values.
   alpha[which(abs(alpha) < zerothresh, arr.ind = TRUE)] = 0
   alpha = t(as.matrix(alpha))
   stopifnot(all(dim(alpha) == c(numclust, (p + 1))))
@@ -129,10 +136,18 @@ Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
 ##' @return Matrix of the same size as \code{a}.
 mtsqrt_inv <- function(a){
   a.eig <- eigen(a)
-  a.sqrt <- a.eig$vectors %*% diag(1 / sqrt(a.eig$values)) %*% t(a.eig$vectors)
+
+  ## In case vec is a single element, in which case diag() isn't quite right.
+  vec = 1 / sqrt(a.eig$values)
+  mat = ifelse(length(vec) == 1, vec, diag(vec))
+
+  ## a.sqrt <- a.eig$vectors %*% diag(1 / sqrt(a.eig$values)) %*% t(a.eig$vectors)
+  a.sqrt <- a.eig$vectors %*% mat %*% t(a.eig$vectors)
 }
 
-##' The M step of beta, using a particular lasso regression formulation.
+##' Solves the M step of beta, using a particular lasso regression
+##' formulation. The preferred default over this function is
+##' \code{Mstep_admm()}, which is much faster.
 ##'
 ##' @param maxdev The desired maximum radius of the fitted means from beta0k.
 ##' @param sel_coef Sparsity pattern. Only active when refit=TRUE.
@@ -343,3 +358,38 @@ manip_ridge <- function(ylist, X, resp, sigma, numclust,
 }
 
 
+
+
+
+
+##' Helper function to calculate multinomial objective. This calculates:
+##'
+##'    \eqn{ \hat \alpha \leftarrow \argmax_{\alpha_{0k}, \alpha_k}
+##'      \frac{1}{N}\sum_{t=1}^T \left( \sum_{k=1}^K \gamma_{\cdot kt}
+##'      (\alpha_{0k} + {X^{(t)}}^T \alpha_k) - n_t \log \sum_{l=1}^K
+##'      \exp(\alpha_{0l} + {X^{(t)}}^T \alpha_l) \right) - \lambda_\alpha
+##'      \sum_{k=1}^K \|\alpha_k\|_1}
+##'
+##' @param alpha (p x dimdat) matrix of the alpha coefficients.
+##' @param x (T x p) covariate matrix.
+##' @param y (T x dimdat) matrix.
+##' @param lambda regularization parameter value.
+##' @param N scaling factor for the likelihood function.
+##' @param exclude.from.penality If not NULL, contains index in 1:p
+##'
+##' @return Penalized objective value.
+multinom_objective <- function(alpha, x, y, lambda, N,
+                               exclude.from.penalty=NULL) {
+  n <- nrow(x)
+  p <- ncol(x)
+  L <- ncol(y)
+  eta <- x %*% alpha
+  v = 1:p
+  if(!is.null(exclude.from.penalty)){
+    stopifnot(all(exclude.from.penalty %in% (1:p)))
+    v = (1:p)[-exclude.from.penalty]
+ }
+  ys = rowSums(y)
+  (1/N) * (sum(eta * y) - sum(ys * log(rowSums(exp(eta))))) -
+    lambda * sum(abs(alpha[v,]))
+}
