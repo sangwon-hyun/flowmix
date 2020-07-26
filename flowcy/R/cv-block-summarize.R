@@ -651,6 +651,7 @@ blockcv_summary_sim2 <- function(nsim = 100,
   }
 
   ## Making a plot of /all/ models
+  if(plot_all_models){
   if(datatype!=9){
     obj = generate_data_1d_pseudoreal(datadir = datadir,
                                       nt = 200,
@@ -687,4 +688,5 @@ blockcv_summary_sim2 <- function(nsim = 100,
     print(paste0("Plot made in ", file.path(destin, "summary",  plotname)))
   }, mc.cores = mc.cores)
   cat(fill=TRUE)
+  }
 }
