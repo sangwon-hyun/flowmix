@@ -579,7 +579,8 @@ blockcv_summary_sim2 <- function(nsim = 100,
                                 nrep = 5,
                                 outputdir = "~/Dropbox/research/usc/hpc-output",
                                 datadir = "~/repos/cruisedat/export",
-                                mc.cores = 1, plotonly=FALSE){
+                                mc.cores = 1, plotonly=FALSE,
+                                plot_all_models = FALSE){
 
   ## Form the destin folder
   destin = file.path(outputdir,
