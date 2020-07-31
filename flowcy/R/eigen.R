@@ -120,7 +120,11 @@ det_from_eig <- function(sigma_eig){
 ##' @return Inverse of sigma.
 sigma_inv_from_eig <- function(sigma_eig){
   vec = 1/sigma_eig$values
-  mat = ifelse(length(vec) == 1, vec, diag(vec))
+  if(length(vec)==1){
+    mat = vec
+  } else {
+    mat = diag(vec)
+  }
   (sigma_eig$vectors %*% mat %*% t(sigma_eig$vectors))
 }
 
@@ -132,7 +136,11 @@ sigma_inv_from_eig <- function(sigma_eig){
 ##'   sigma}.
 sigma_half_from_eig <- function(sigma_eig){
   vec = sqrt(sigma_eig$values)
-  mat = ifelse(length(vec) == 1, vec, diag(vec))
+  if(length(vec)==1){
+    mat = vec
+  } else {
+    mat = diag(vec)
+  }
   (sigma_eig$vectors %*% mat %*% t(sigma_eig$vectors))
 }
 
@@ -144,7 +152,11 @@ sigma_half_from_eig <- function(sigma_eig){
 ##'   sigma}.
 inverse_sigma_half_from_eig <- function(sigma_eig){
   vec = 1/sqrt(sigma_eig$values)
-  mat = ifelse(length(vec) == 1, vec, diag(vec))
+  if(length(vec)==1){
+    mat = vec
+  } else {
+    mat = diag(vec)
+  }
   (sigma_eig$vectors %*% mat %*% t(sigma_eig$vectors))
 } ## TODO Test this.
 

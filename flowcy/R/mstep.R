@@ -139,7 +139,11 @@ mtsqrt_inv <- function(a){
 
   ## In case vec is a single element, in which case diag() isn't quite right.
   vec = 1 / sqrt(a.eig$values)
-  mat = ifelse(length(vec) == 1, vec, diag(vec))
+  if(length(vec)==1){
+    mat = vec
+  } else {
+    mat = diag(vec)
+  }
 
   ## a.sqrt <- a.eig$vectors %*% diag(1 / sqrt(a.eig$values)) %*% t(a.eig$vectors)
   a.sqrt <- a.eig$vectors %*% mat %*% t(a.eig$vectors)
