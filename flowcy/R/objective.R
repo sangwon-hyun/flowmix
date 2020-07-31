@@ -1,4 +1,4 @@
-##' Objectives.
+##' Objectives (negative log likelihood).
 ##'
 ##' @param pie matrix of mixture proportions, T by M.
 ##' @param mu array of dimension (T x dimdat x numclust ) ; old: T by M by p.
@@ -17,7 +17,9 @@ objective <- function(mu, pie, sigma,
                       alpha = NULL, beta = NULL,
                       denslist_by_clust = NULL,
                       countslist = NULL,
-                      each = FALSE){
+                      each = FALSE, ## Per-cytogram likelihood.
+                      sep = FALSE ## Per-particle likelihood.
+                      ){
 
   ## Extract some things.
   TT = dim(mu)[1]
@@ -48,12 +50,23 @@ objective <- function(mu, pie, sigma,
   pen2 = (if(!is.null(beta)) mean_lambda * sum(sapply(beta, function(mybeta) l1norm(mybeta[-1,]))) else 0)
   obj = - 1/N * sum(unlist(loglik)) + pen1 + pen2
 
-  ## Addition
+  ## Temporary addition: calculate per-particle, in the same format as ylist.
+  if(sep){
+    logliksep = sapply(1:TT, function(tt){
+      return(loglikelihood_tt(ylist, tt, mu, sigma, pie, countslist, numclust,
+                              sep=TRUE))
+    })
+  }
+
+  ## Additional two options, temporarily used.
   if(each){
     return(unlist(loglik))
-  } else {
-    return(obj)
   }
+  if(sep){
+    return(logliksep)
+  }
+
+  return(obj)
 }
 
 ##' First helper function: Calculates one particle's log likelihood using
@@ -88,7 +101,8 @@ loglikelihood_tt_precalculate <- function(ylist, tt, denslist_by_clust, pie, cou
 ##'
 ##' @return Log likelihood.
 ##'
-loglikelihood_tt <- function(ylist, tt, mu, sigma, pie, countslist = NULL, numclust){
+loglikelihood_tt <- function(ylist, tt, mu, sigma, pie, countslist = NULL, numclust,
+                             sep=FALSE){
   ### STUPID MISTAKE!!!!!!!!!!!!!! Although it's hard to see why this would affect things at iter>1
 
   ## One particle's log likelihood (weighted density)
@@ -100,7 +114,8 @@ loglikelihood_tt <- function(ylist, tt, mu, sigma, pie, countslist = NULL, numcl
   })
   nt = nrow(ylist[[tt]])
   counts = (if(!is.null(countslist)) countslist[[tt]] else rep(1, nt))
-  return(sum(log(rowSums(weighted.densities)) * counts))
+  if(sep)return(unname(log(rowSums(weighted.densities)) * counts)) ## temporary
+  if(!sep) return(sum(log(rowSums(weighted.densities)) * counts))
 }
 
 
@@ -125,4 +140,39 @@ objective_subset <- function(times, ...){
 
   ## Call the problem
   return(do.call(objective, args))
+}
+
+
+
+##' A convenience function to calculate the CV score, or out-of-sample objective
+##' function (no penalization), given new data.
+##'
+##' @param res Covarem object.
+##' @param ylist New data.
+##' @param countslist New count data.
+##'
+##' @return An out-of-sample, unpenalized likelihood (i.e. CV score).
+objective_newdat <- function(res, ylist, countslist){
+
+  ## ## (NOT USED NOW) The pred object.
+  ## pred = predict.covarem(res, newx = X)
+
+  ## ## Calculate the cross-validation score.
+  ## cvscore = objective(mu = pred$newmn,
+  ##                     pie = pred$newpie,
+  ##                     sigma = pred$sigma,
+  ##                     ylist = ylist,
+  ##                     countslist = countslist,
+  ##                     pie_lambda = 0,
+  ##                     mean_lambda = 0)
+
+  ## Calculate the cross-validation score.
+  cvscore = objective(mu = res$mn,
+                      pie = res$pie,
+                      sigma = res$sigma,
+                      ylist = ylist,
+                      countslist = countslist,
+                      pie_lambda = 0,
+                      mean_lambda = 0)
+  return(cvscore)
 }

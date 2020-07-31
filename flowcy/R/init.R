@@ -95,7 +95,7 @@ init_mn <- function(ylist, numclust, TT, dimdat, countslist = NULL){
     ylist_downsampled <- lapply(1:TT, function(tt){
       y = ylist[[tt]]
       counts = countslist[[tt]]
-      nsize = nrow(y) / TT * 30
+      nsize = pmin(nrow(y) / TT * 30, nrow(y))
       y[sample(1:nrow(y), size = nsize),, drop=FALSE]
     })
     yy = do.call(rbind, ylist_downsampled)

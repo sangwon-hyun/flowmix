@@ -49,7 +49,6 @@
 ##' maxres = calc_max_lambda(ybin_list, counts_list, X, numclust, verbose=TRUE,
 ##'                             nrep = 4,
 ##'                             ## Function settings
-##'                             parallelize = TRUE,
 ##'                             cl = cl,
 ##'                             iimax = 6,
 ##'                             niter = 1000,
@@ -61,110 +60,71 @@ calc_max_lambda <- function(ylist, countslist = NULL, X, numclust,
                                max_lambda_alpha = 1000,
                                verbose=FALSE,
                                iimax = 16,
-                               parallelize = FALSE,
                                cl = NULL,
                                ...){
 
   ## Get range of regularization parameters.
   ## res0 = covarem_getrange(ylist=ylist, X=X, numclust=numclust, niter=2)
 
-  ## ################################
-  ## ## First option: mclapply() ####
-  ## ################################
-  mc.cores = 1
   facs = sapply(1:iimax, function(ii) 2^(-ii+1)) ## DECREASING order
   print("running the models once")
-  if(!parallelize){
-    for(ii in 1:iimax){
-      if(verbose) printprogress(ii, iimax, fill=TRUE)
-      cat("============================================================", fill=TRUE)
-      cat("lambda_alpha = ", max_lambda_alpha * facs[ii],
-          " and lambda_beta = ", max_lambda_beta * facs[ii], "being tested.", fill=TRUE)
-      res = covarem_once(ylist = ylist,
-                         countslist = countslist,
-                         X = X,
-                         numclust = numclust,
-                         pie_lambda = max_lambda_alpha * facs[ii],
-                         mean_lambda = max_lambda_beta * facs[ii],
-                         verbose = TRUE,
-                         zero_stabilize = TRUE,
-                         ...)
+  for(ii in 1:iimax){
+    if(verbose) printprogress(ii, iimax, fill=TRUE)
+    cat("============================================================", fill=TRUE)
+    cat("lambda_alpha = ", max_lambda_alpha * facs[ii],
+        " and lambda_beta = ", max_lambda_beta * facs[ii], "being tested.", fill=TRUE)
+    res = covarem_once(ylist = ylist,
+                       countslist = countslist,
+                       X = X,
+                       numclust = numclust,
+                       pie_lambda = max_lambda_alpha * facs[ii],
+                       mean_lambda = max_lambda_beta * facs[ii],
+                       verbose = TRUE,
+                       zero_stabilize = TRUE,
+                       ...)
 
-      ## Check zero-ness
-      toler = 0
-      sum_nonzero_alpha = sum(res$alpha[,-1] > toler)
-      sum_nonzero_beta = sum(unlist(lapply(res$beta, function(cf){ sum(cf[-1,] > toler) })))
-
-
-      ## If there are *any* nonzero values, do one of the following
-      if(sum_nonzero_alpha + sum_nonzero_beta != 0){
+    ## Check zero-ness
+    toler = 0
+    sum_nonzero_alpha = sum(res$alpha[,-1] > toler)
+    sum_nonzero_beta = sum(unlist(lapply(res$beta, function(cf){ sum(cf[-1,] > toler) })))
 
 
-        ## If there are *any* nonzero values at the first iter, prompt a restart
-        ## with higher initial lambda values.
-        if(ii==1){
-          stop(paste0("Max lambdas: ", max_lambda_beta, " and ",
-                      max_lambda_alpha,
-                      " were too small as maximum reg. values. Go up and try again!!"))
+    ## If there are *any* nonzero values, do one of the following
+    if(sum_nonzero_alpha + sum_nonzero_beta != 0){
 
 
-        ## If there are *any* nonzero values, return the immediately preceding
-        ## lambda values -- these were the smallest values we had found that gives full sparsity.
-        } else {
-          ## Check one more time whether the model was actually zero after fully running it;
-          res = covarem_once(ylist = ylist,
-                             countslist = countslist,
-                             X = X,
-                             numclust = numclust,
-                             pie_lambda = max_lambda_alpha * facs[ii],
-                             mean_lambda = max_lambda_beta * facs[ii],
-                             verbose = TRUE,
-                             zero_stabilize = FALSE,
-                             ...)
-          toler = 0
-          sum_nonzero_alpha = sum(res$alpha[,-1] > toler)
-          sum_nonzero_beta = sum(unlist(lapply(res$beta, function(cf){ sum(cf[-1,] > toler) })))
+      ## If there are *any* nonzero values at the first iter, prompt a restart
+      ## with higher initial lambda values.
+      if(ii==1){
+        stop(paste0("Max lambdas: ", max_lambda_beta, " and ",
+                    max_lambda_alpha,
+                    " were too small as maximum reg. values. Go up and try again!!"))
 
-          ## If there are *any* nonzero values, do one of the following
-          if(sum_nonzero_alpha + sum_nonzero_beta != 0){
-            return(list(beta = max_lambda_beta * facs[ii-1], alpha = max_lambda_alpha *facs[ii-1]))
-          }
+      ## If there are *any* nonzero values, return the immediately preceding
+      ## lambda values -- these were the smallest values we had found that gives
+      ## full sparsity.
+      } else {
+        ## Check one more time whether the model was actually zero, by fully running it;
+        res = covarem_once(ylist = ylist,
+                           countslist = countslist,
+                           X = X,
+                           numclust = numclust,
+                           pie_lambda = max_lambda_alpha * facs[ii],
+                           mean_lambda = max_lambda_beta * facs[ii],
+                           verbose = TRUE,
+                           zero_stabilize = FALSE,
+                           ...)
+        toler = 0
+        sum_nonzero_alpha = sum(res$alpha[,-1] > toler)
+        sum_nonzero_beta = sum(unlist(lapply(res$beta, function(cf){ sum(cf[-1,] > toler) })))
+
+        ## If there are *any* nonzero values, do one of the following
+        if(sum_nonzero_alpha + sum_nonzero_beta != 0){
+          return(list(beta = max_lambda_beta * facs[ii-1],
+                      alpha = max_lambda_alpha *facs[ii-1]))
         }
+        ## Otherwise, just proceed to the next iteration.
       }
-    }
-  } else {
-    assert_that(!is.null(cl))
-    reslist = parallel::parLapplyLB(cl, 1:iimax, function(ii){
-      if(verbose) printprogress(ii, iimax, fill=TRUE)
-      res = covarem(ylist = ylist,
-                    countslist = countslist,
-                    X = X,
-                    numclust = numclust,
-                    pie_lambda = max_lambda_alpha * facs[ii],
-                    mean_lambda = max_lambda_beta * facs[ii],
-                    verbose=TRUE,
-                    ...)
-      return(res[c("alpha", "beta", "mean_lambda", "pie_lambda")])
-    })
-
-    ## Then, filter the grid (large factor to small), to return the smallest
-    ## regularization value pair that gives full sparsity.
-    print("filtering the results")
-    allzero = rep(NA, iimax)
-    for(ii in 1:iimax){
-      sum_nonzero_alpha = sum(reslist[[ii]]$alpha[,-1] > toler)
-      sum_nonzero_beta = sum(unlist(lapply(reslist[[ii]]$beta, function(cf){ sum(cf[-1,] > toler) })))
-      allzero[ii] = print(sum_nonzero_alpha + sum_nonzero_beta == 0)
-    }
-    if(any(allzero)){
-      ## Get the SMALLEST coeff such that all zero coefficients were found, and return.
-      myfac = facs[max(which(allzero))]
-      ## return(c(max_lambda_beta * myfac, max_lambda_alpha * myfac))
-      return(list(beta = max_lambda_beta * myfac, alpha = max_lambda_alpha * myfac,
-                  reslist = reslist)) ## Addition
-    } else {
-      stop(paste0("Max lambdas: ", max_lambda_beta, " and ", max_lambda_alpha,
-                  " were too small as maximum reg. values. Go up and try again!!"))
     }
   }
 }

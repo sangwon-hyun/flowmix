@@ -161,8 +161,8 @@ get_mixture_at_timepoint <- function(tt, nt, mnlist, pilist, sigma=NULL, sigmali
 generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos/cruisedat/export",
                                         nt1 = 1000, ## Number of points in the first cluster
                                         beta_par = 0.5,
-                                        p = 3 ## Number of total covariates
-                                        ){
+                                        p = 3, ## Number of total covariates
+                                        dat.gridsize = 30){
 
   ## Setup
   stopifnot(nt1%%5 ==0)
@@ -178,9 +178,12 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
   par = X[, "par"]
   par = par[!is.na(par)]
   par = ksmooth(x=1:length(par), y=par, bandwidth=5, x.points = 1:length(par))$y
+  ## sst = X[,"sst"] ## In the future, maybe add another covariate
+
   if(!is.null(seed)) set.seed(seed)
   Xrest = do.call(cbind, lapply(1:(p-2), function(ii) rnorm(TT)) )
   X = cbind(scale(par[1:TT]),
+
             c(rep(0, TT/2), rep(1, TT/2)),
             Xrest)## p-2 columns
   colnames(X) = c("par", "cp", paste0("noise", 1:(p-2)))
@@ -196,6 +199,8 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
   colnames(beta) = paste0("clust", 1:numclust)
   rownames(beta) = c("intercept", "par", "cp", paste0("noise", 1:(p-2)))
 
+
+
   ## Alpha coefficients
   alpha = matrix(0, ncol = numclust, nrow = p+1)
   alpha[0+1, 2] = -10
@@ -206,6 +211,7 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
   pie = pie/rowSums(pie)
   ## print(round(pie,3))
   ## matplot(pie, type='l', lwd=3)
+
 
   ## Samples |nt| memberships out of (1:numclust) according to the probs in pie.
   ## Data is a probabilistic mixture from these two means, over time.
@@ -226,13 +232,13 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
   if(!bin){
     countslist = NULL
   } else {
-    stop("Binning doesn't work yet! make_grid and bin_many_cytograms aren't written for 1d data yet.")
+    ## stop("Binning doesn't work yet! make_grid and bin_many_cytograms aren't written for 1d data yet.")
 
     ## 1. Make grid
-    dat.gridsize = 30
     dat.grid = flowcy::make_grid(ylist, gridsize = dat.gridsize)
 
     ## 2. Bin with just counts
+    mc.cores = 4
     obj = flowcy::bin_many_cytograms(ylist, dat.grid, mc.cores = mc.cores, verbose = TRUE)
     ybin_list = obj$ybin_list
     counts_list = obj$counts_list
@@ -247,12 +253,24 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
     countslist = counts_list
   }
 
+
+  ## Other things about the true generating model
+  sigma = array(NA, dim=c(2,1,1))
+  sigma[1,1,1] = sigma[2,1,1] = 1
+  mn = array(NA,dim=c(100,1,2))
+  mn[,1,] = mnmat
+  numclust=2
+
   return(list(ylist = ylist, X = X,
               countslist = countslist,
+              ## The true generating model:
               mnmat = mnmat,
               pie = pie,
+              mn = mn,
+              numclust = numclust,
               alpha = alpha,
-              beta = beta))
+              beta = beta,
+              sigma = sigma))
 }
 
 
@@ -285,17 +303,17 @@ generate_data_1d_pseudoreal_from_cv <- function(datadir, seed = NULL,
 
   ## Threshold beta at 0.01
   gen_beta = do.call(cbind, res$beta)
-  gen_beta %>% Matrix::Matrix(sparse=TRUE)
+  ## gen_beta %>% Matrix::Matrix(sparse=TRUE)
   small = which(abs(gen_beta[2:nrow(gen_beta),])<1E-2)
   gen_beta[2:nrow(gen_beta),][small] = 0
-  gen_beta %>% Matrix::Matrix(sparse=TRUE) %>% print
+  ## gen_beta %>% Matrix::Matrix(sparse=TRUE) %>% print
 
   ## Threshold alpha at 0.1
   gen_alpha = t(res$alpha)
-  gen_alpha %>% Matrix::Matrix(sparse=TRUE)
+  ## gen_alpha %>% Matrix::Matrix(sparse=TRUE)
   small = which(abs(gen_alpha[2:nrow(gen_alpha),])<1E-1)
   gen_alpha[2:nrow(gen_alpha),][small] = 0
-  gen_alpha %>% Matrix::Matrix(sparse=TRUE)
+  ## gen_alpha %>% Matrix::Matrix(sparse=TRUE)
 
 
   ## Beta coefficients
@@ -349,12 +367,21 @@ generate_data_1d_pseudoreal_from_cv <- function(datadir, seed = NULL,
   }
 
 
+  ## ## Other things about the true generating model (INCOMPLETE)
+  ## sigma = array(NA, dim=c(2,1,1))
+  ## sigma[1,1,1] = sigma[2,1,1] = 1
+  ## mn = array(NA,dim=c(100,1,2))
+  ## mn[,1,] = mnmat
+  numclust=5
+
+
   return(list(ylist = ylist, X = X,
               countslist = countslist,
               mnmat = mnmat,
               pie = pie,
               alpha = gen_alpha,
-              beta = gen_beta))
+              beta = gen_beta,
+              numclust=numclust))
 }
 
 
