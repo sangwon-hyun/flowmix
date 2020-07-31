@@ -525,27 +525,41 @@ one_dim_heatmap <- function(ylist, obj, tt, countslist = NULL, dims = c(1,2)){
 
 ##' Making data plot for two dimensions of the original three (those in |ind|).
 one_dim_scatterplot <- function(ylist, obj, tt, countslist = NULL, dims = c(1,2),
-                                steady_total = FALSE,
-                                cex.fac = 1){
+                                cex_fac = 10,
+                                xlab = NULL,
+                                ylab = NULL,
+                                xlim = NULL,
+                                ylim = NULL,
+                                ## The remaining arguments are for \code{one_dim_scatterplot()}
+                                add_clust_labels = TRUE,
+                                only_model = FALSE,## If TRUE, only draw the model.
+                                subset_of_clust = NULL, ## if not null, contains the clusters to plot
+                                col = NULL,
+                                lty = 2,
+                                lwd = 1/2,
+                                not_so_small_cex = FALSE,
+                                mn_cex_fac = 5,
+                                pt_col = rgb(0 ,0, 1, 0.1)
+                                ){
 
   ## Extract data
   y = ylist[[tt]][,dims]
   labs = colnames(ylist[[1]])
-  maxcount = max(unlist(countslist))
+  if(!is.null(countslist)){
+    maxcount = max(unlist(countslist))
+    ## countslist = lapply(countslist, function(counts){
+    ##   counts / maxcount
+    ## })
+    counts = countslist[[tt]] /maxcount
+  } else {
+    ## countslist = lapply(ylist, function(y){ rep(1, nrow(y)) })
+    counts = rep(1, nrow(y))
+  }
 
-
-  ## Temporary
-  y = ylist[[tt]][,dims]
-  cnames = colnames(y)
-  counts = countslist[[tt]]
-  yy = cbind(y, counts)
-  yy = yy %>% tibble::as_tibble() %>%
-    ## group_by(diam_mid, chl_small) %>%
-    dplyr::group_by_at(c(1,2)) %>%
-    dplyr::summarise(counts = sum(counts)) %>% as.matrix
+  ## Aggregating counts into the two dimensions
+  yy = collapse_3d_to_2d(ylist[[tt]], counts, dims)
   counts = yy[,3]
   y = yy[,1:2]
-  ## End of temporary
 
   if(!is.null(obj)){
     mns = obj$mn
@@ -555,115 +569,147 @@ one_dim_scatterplot <- function(ylist, obj, tt, countslist = NULL, dims = c(1,2)
 
   ## Get plot ranges
   ranges = get_range_from_ylist(ylist)
-  ylim = ranges[,dims[2]]
-  xlim = ranges[,dims[1]]##range(all.y[,dims[1]])
-  ylab = labs[dims[2]]
-  xlab = labs[dims[1]]
+  if(is.null(ylim)) ylim = ranges[,dims[2]]
+  if(is.null(xlim)) xlim = ranges[,dims[1]]##range(all.y[,dims[1]])
+  if(is.null(ylab))ylab = labs[dims[2]]
+  if(is.null(xlab))xlab = labs[dims[1]]
 
+  ## Make the 2d plot
+  ## if(!is.null(countslist)){
+  ##   cex = sqrt(count) / max_sqrt_count * cex.fac
+  ## }
 
-  ## Making the background color different
-  ## allcounts = (sapply(countslist, sum))
-  ## prop = allcounts[[tt]] / max(allcounts)
-  ## bb = 1 - prop/5
-  yrange = ylim[2] - ylim[1]
+  ## browser()
+  ## ifelse(is.null(countslist), NULL, counts)
+  ## if(is.null(countslist)) counts = NULL
 
-  ## Create empty plot
-  main0 = ""
-  plot(NA, ylim = ylim, xlim = xlim, cex = 3,
-       ylab = ylab, xlab = xlab,
-       cex.lab = 2,
-       cex.axis = 2)
-  title(main = main0, cex.main = 3)
+  one_2d_plot(y = y,
+              counts = counts,
+              xlim = xlim, ylim = ylim,## cex=cex,
+              ylab = ylab, xlab = xlab,
+              pt_col = pt_col,
+              cex_fac = cex_fac)
 
-  ## Add datapoints
-  cex = 0.5
-  if(is.null(countslist)){
-    cex = 0.5
-  } else {
-    ## cex = countslist[[tt]]
-    cex = counts##countslist[[tt]]
-    if(steady_total){
-      cex = cex / sum(cex) * 30 ## don't know about this factor (yet)
-    } else {
-      cex = cex / maxcount
-    }
-  }
-  cex = cex * cex.fac
-  points(y, col=rgb(0 ,0, 1, 0.1), pch=16, cex=sqrt(cex) * 10)
-
-  ## Add ball constraint
-  show.xb.constraint = FALSE
-  if(show.xb.constraint){
-
-    ## Plot together all the centers.
-    for(kk in 1:numclust){
-      points(x=mns[1:TT,dims[1],kk],
-             y=mns[1:TT,dims[2],kk], col='grey60', pch=16, cex=0.5)
-    }
-
-    ## Also add circle around beta0k whose radius to maxdev.
-    for(kk in 1:numclust){
-      beta0list = lapply(obj$beta, function(betamat){
-        betamat[1,]
-      })
-      points(x=beta0list[[kk]][dims[1]],
-             y=beta0list[[kk]][dims[2]], col="blue", pch=16)
-      plotrix::draw.circle(x=beta0list[[kk]][dims[1]],
-                           y=beta0list[[kk]][dims[2]],
-                           radius=obj$maxdev,
-                           border="blue", lwd=2)
-    }
-  }
-
+  ## Add the means
   if(!is.null(obj)){
+    one_dim_scatterplot_addmodel(obj, tt, dims,
+                                 add_clust_labels = add_clust_labels,
+                                 subset_of_clust = subset_of_clust, col=col,
+                                 lwd = lwd,
+                                 lty = lty,
+                                 not_so_small_cex = not_so_small_cex,
+                                 mn_cex_fac = mn_cex_fac
+                                 )
+  }
+}
+
+##' Helper function for \code{one_dim_scatterplot()}, to add means and ellipses
+##' for confidence regions.
+##'
+##' @param obj A |covarem| class object.
+##' @param tt time point.
+##' @param dims e.g. \code{c(1,2)}, containing the two dimensions you want.
+##' @param col color of the added means and confidence regions.
+##'
+##' @return NULL.
+one_dim_scatterplot_addmodel <- function(obj, tt, dims,
+                                         col = "tomato",
+                                         add_clust_labels = TRUE,
+                                         clust_labels = NULL,
+                                         ellipse = TRUE,
+                                         subset_of_clust = NULL,
+                                         lwd = 1/2,
+                                         lty = 2,
+                                         not_so_small_cex = FALSE,
+                                         mn_cex_fac = 5
+                                         ){
+
+  ## Take a few objects
+  mns = obj$mn
+  TT = obj$TT
+  numclust = obj$numclust
+
+  ## Basic checks
+  if(is.null(col)) col = "tomato"
+  stopifnot(all(dims%in%c(1:obj$dimdat)))
+  stopifnot(length(dims)==2)
+  if(is.null(subset_of_clust)){
+    allclusts = 1:numclust
+  } else {
+    stopifnot(all(subset_of_clust %in% 1:numclust))
+    allclusts = subset_of_clust
+  }
+  if(add_clust_labels){
+    if(!is.null(clust_labels)){
+      stopifnot(length(clust_labels)==length(clusts))
+    }
+  }
+
   ## Add fitted means
   pies = lapply(1:numclust, function(iclust){ obj$pie[,iclust] })
   pies.right.now = sapply(1:numclust, function(iclust){pies[[iclust]][[tt]]})
-  mn.cex = pies.right.now/max(pies.right.now)*5
-  for(iclust in 1:numclust){
+  mn.cex = pies.right.now/max(pies.right.now) * mn_cex_fac
 
-    ## Collect pies
+  ## Make the minimum size not so small
+  if(not_so_small_cex){
+    mn.cex = pmax(mn.cex, 2 * mn_cex_fac/5)
+  }
 
-    ## cex.mns = pies[[iclust]][tt]
-    ## cex.mns = cex.mns / max(cex.mns) * 5
-    points(x=mns[tt,dims[1],iclust],
-           y=mns[tt,dims[2],iclust],
-           ## col='red',
-           col = "tomato",
+  for(ii in 1:length(allclusts)){
+  ## for(iclust in allclusts){
+    iclust = allclusts[ii]
+
+    ## Add means
+    points(x = mns[tt,dims[1],iclust],
+           y = mns[tt,dims[2],iclust],
+           col = col,
            pch=16, cex=mn.cex[iclust])
 
-    text(x=mns[tt,dims[1],iclust],
-         y=mns[tt,dims[2],iclust],
-         labels = iclust,
-         col='black', pch=16, cex=2.5,
-         font=2, pos=4
-         )##pies[[iclust]][tt]*5)
+    ## Add cluster labels on means
+    if(add_clust_labels){
+      if(!is.null(clusts)){
+        label = clust_labels[ii]
+      } else {
+        label = iclust
+      }
+      text(x = mns[tt,dims[1],iclust],
+           y = mns[tt,dims[2],iclust],
+           labels = label,
+           col = 'black', pch = 16, cex = 2.5 * sqrt(mn_cex_fac) / sqrt(5),
+           font = 2, pos = 4)
+    }
 
   }
 
   ## Add the ellipses for the covariances
-  if(!is.null(obj)){
-  for(iclust in 1:numclust){
+  if(ellipse){
+  for(iclust in allclusts){
     lines(ellipse::ellipse(x = obj$sigma[iclust,dims,dims],
                            centre = mns[tt,dims, iclust]),
-          lwd=1/2,
-          ## col='red',
-          col='tomato',
-          lty=2)
-  }
+          lwd = lwd,
+          col = col,
+          lty = lty)
   }
   }
 }
 
 
+
 ##' Making a 3d scatter plot with a certain angle..
+##' @param ... Additional arguments to plot3d::scatter3d().
 one_3d_plot <- function(ylist, obj=NULL, tt, countslist=NULL, phi = 40,
-                        cex.fac = 1){
+                        cex.fac = 1,
+                        cex.axis = 1,
+                        xlab = NULL,
+                        ylab = NULL,
+                        zlab = NULL,
+                        ticktype = "detailed",
+                        ...){
 
   y = ylist[[tt]]
-  xlab = colnames(y)[1]
-  ylab = colnames(y)[2]
-  zlab = colnames(y)[3]
+  if(is.null(xlab)) xlab = colnames(y)[1]
+  if(is.null(ylab)) ylab = colnames(y)[2]
+  if(is.null(zlab)) zlab = colnames(y)[3]
   if(is.null(countslist)){
     cex = 1 * cex.fac
   } else {
@@ -702,7 +748,9 @@ one_3d_plot <- function(ylist, obj=NULL, tt, countslist=NULL, phi = 40,
             xlab = xlab, ylab = ylab, zlab = zlab,
             cex = sqrt(cex) * 10,
             cex.lab = 2, ## Trying to get the labels to magnify
-            ticktype = "detailed") ## Using detailed ticks
+            ticktype = ticktype,## Using detailed ticks
+            cex.axis = cex.axis,
+            ...) 
 
   if(!is.null(obj)){
 
@@ -839,4 +887,88 @@ plot3d_compare.covarem <- function(obj1, obj2, obj3,
   ## Also make a covariate plot
   plot_covariates(obj1, tt)
 
+}
+
+
+
+##' Collapses the cytograms from a 3d cytogram to two dimensions. This is also
+##' in \code{one_dim_scatterplot()}.
+##'
+##' @param y 3d cytogram.
+##' @param counts The multiplicity for each of the particles in \code{y}.
+##' @param dims Two of \code{c(1:3)}.
+##'
+##' @return 3-column matrix; first two columns are the dimensions in
+##'   \code{dims}.
+##'
+##' @import dplyr
+collapse_3d_to_2d <- function(y, counts, dims=1:2){
+
+  ## Basic checks
+  stopifnot(all(dims %in% 1:3))
+  stopifnot(length(dims)==2)
+
+  ## Aggregate
+  ymat = cbind(y[,dims], counts) %>% as.data.frame()
+  names(ymat)[1:2] = c("dim1", "dim2")
+  ymat_summary <- ymat %>% group_by(dim1, dim2) %>% summarise(counts=sum(counts)) %>% as.matrix
+
+  ## Basic check
+  if(!is.null(colnames(y))){
+    colnames(ymat_summary)[1:2] = colnames(y)[dims]
+  }
+
+  return(ymat_summary)
+}
+
+
+##' Plot a single cytogram.
+##'
+##' @param y (nt x 2) matrix.
+##' @param counts multiplicity of each point in y.
+##' @param cex_fac Only active when \code{!is.null(counts)}; user-supplier
+##'   multiplier onto the point size \code{cex==sqrt(counts)}.
+##'
+##' @return NULL
+one_2d_plot <- function(y, counts=NULL, xlim=NULL, ylim=NULL, xlab=NULL, ylab=NULL, cex=0.5,
+                        pt_col = rgb(0, 0, 1, 0.1),
+                        cex_fac = 1,
+                        axes = TRUE,
+                        x_ticks = NULL,
+                        y_ticks = NULL){
+
+  ## Basic checks.
+  stopifnot(ncol(y) == 2)
+  if(!is.null(counts)) stopifnot(length(counts) == nrow(y))
+
+  if(is.null(xlim)) xlim = range(y[,1])
+  if(is.null(ylim)) ylim = range(y[,2])
+
+  ## Create empty plot
+  plot(NA,
+       ylim = ylim,
+       xlim = xlim,
+       ylab = ylab,
+       xlab = xlab,
+       cex.lab = 2,
+       cex.axis = 2,
+       xaxt = 'n',
+       yaxt = 'n')
+  if(!axes){
+    axis(1, at = x_ticks,
+         cex.axis = 2)
+    axis(2, at = y_ticks,
+         cex.axis = 2)
+  } else {
+    axis(1, cex.axis = 2)
+    axis(2, cex.axis = 2)
+  }
+
+  ## Add datapoints
+  if(is.null(counts)){
+    cex = 0.01
+  } else {
+    cex = counts %>% sqrt() * cex_fac
+  }
+  points(y, col = pt_col, pch = 16, cex = cex)
 }

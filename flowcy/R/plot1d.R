@@ -9,7 +9,11 @@
 ##' @return NULL.
 ##' @export
 plot_1d <- function(ylist, countslist, res = NULL, scale = TRUE, main = "",
-                    date_axis = TRUE, mn.scale = 5){
+                    date_axis = TRUE, no_axis = FALSE, mn.scale = 5,
+                    cex_clust_label = 1.5,
+                    omit_band = FALSE,
+                    omit_label = FALSE,
+                    reorder_clusters = TRUE){
 
   ## Plot ylist only
   stopifnot(ncol(ylist[[1]]) == 1)
@@ -20,27 +24,34 @@ plot_1d <- function(ylist, countslist, res = NULL, scale = TRUE, main = "",
   if(!is.null(res)){
     stopifnot(res$dimdat==1)
     cols = RColorBrewer::brewer.pal(max(3,res$numclust), "Set2")
+    if(res$numclust>8){
+      cols = RColorBrewer::brewer.pal(max(3,res$numclust), "Paired")
+    }
 
     ## Reorder clusters, according to total pie.
-    res <- reorder_clust(res)
+    if(reorder_clusters) res <- reorder_clust(res)
 
     ## Plot the means
     add_mn(res, cols, mn.scale)
 
     ## Add confidence band
-    add_band(res, cols)
+    if(!omit_band){  add_band(res, cols)   }
 
     ## Make the remaining region outside of TT white, to prevent spillover of
     ## the cluster means' cex=17 points
     fill_both_sides(res$TT)
 
     ## Make the X ticks dates.
-    if(date_axis){ add_date_ticks(res) } else { axis(1) }
+    if(!no_axis){
+      if(date_axis){ add_date_ticks(res) } else { axis(1) }
+    }
 
     ## Add Cluster labeling
-    add_cluster_label(res)
+    if(!omit_label){
+    add_cluster_label(res, cex_clust_label)
+    }
   }
-  return(NULL)
+  return(cols)
 }
 
 ##' (incomplete)
@@ -85,10 +96,14 @@ plot_ylist <- function(ylist, countslist, res = NULL, scale = TRUE, main = ""){
 }
 
 ##' Add cluster label near beginning of plot (only for 1d data).
-add_cluster_label <- function(res){
-  for(iclust in 1:res$numclust){
-    text(x = res$TT/50, y = res$mn[1, 1, iclust],
-         label = paste0("Cluster ", iclust), cex = 1.5)
+##' @param cex if NULL, don't make cluster label.
+add_cluster_label <- function(res, cex=1.5){
+  if(!is.null(cex)){
+    for(iclust in 1:res$numclust){
+      y = res$mn[1, 1, iclust]
+      text(x = res$TT/50, y = y,
+           label = paste0("Cluster ", iclust), cex = cex)
+    }
   }
 }
 
@@ -131,20 +146,47 @@ fill_both_sides <- function(TT){
 
 ##' Make ticks from rownames of res$X. TODO: make it handle dates. (only for 1d
 ##' data).
-##' @param res Object of class |covarem|.
-add_date_ticks <- function(res){
-  dates = sapply(as.Date(rownames(res$X)) %>% format("%B %d"), toString) ## OR manually bring in,
+##'
+##' @param res Object of class |covarem|. The row names of res$X are used.
+##' @param ... Rest of arguments to both axes via \code{axis()}.
+##'
+##' @return No return.
+add_date_ticks <- function(res, ...){
+  add_date_ticks_from_dates(rownames(res$X), ...)
+  ## dates = sapply(as.Date(rownames(res$X)) %>% format("%B %d"), toString) ## OR manually bring in,
+  ##                                                      ## using an argument to
+  ##                                                      ## the function.
+  ## nums = as.numeric(as.factor(dates))
+  ## left_ticks = sapply(sort(unique(nums)),function(ii){min(which(nums==ii))})
+  ## left_ticks = c(left_ticks, res$TT)
+  ## mid_ticks = sapply(sort(unique(nums)),function(ii){mean(which(nums==ii))})
+  ## dates_mid_ticks = dates[round(mid_ticks)]
+  ## axis(1, at=left_ticks, labels=FALSE)
+  ## axis(1, at=mid_ticks, labels = dates_mid_ticks, tick=FALSE, las=2, ...)
+  ## axis(2, ...)
+}
+
+
+##' Add date ticks from string of dates.
+##'
+##' @param dates Vector of strings of the form "2017-05-29T00:00:00".
+##' @param ... Rest of arguments to both axes via \code{axis()}.
+##'
+##' @return No return.
+add_date_ticks_from_dates <- function(dates, ...){
+  dates = sapply(as.Date(dates) %>% format("%B %d"), toString) ## OR manually bring in,
                                                        ## using an argument to
                                                        ## the function.
   nums = as.numeric(as.factor(dates))
   left_ticks = sapply(sort(unique(nums)),function(ii){min(which(nums==ii))})
-  left_ticks = c(left_ticks, res$TT)
+  left_ticks = c(left_ticks, length(dates))##res$TT)
   mid_ticks = sapply(sort(unique(nums)),function(ii){mean(which(nums==ii))})
   dates_mid_ticks = dates[round(mid_ticks)]
   axis(1, at=left_ticks, labels=FALSE)
-  axis(1, at=mid_ticks, labels = dates_mid_ticks, tick=FALSE, las=2)
-  axis(2)
+  axis(1, at=mid_ticks, labels = dates_mid_ticks, tick=FALSE, las=2, ...)
+  axis(2, ...)
 }
+
 
 
 ##' Reorder the results so that cluster 1 through numclust is in decreasing
