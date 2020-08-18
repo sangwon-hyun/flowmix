@@ -35,14 +35,7 @@ init_mn <- function(ylist, numclust, TT, dimdat, countslist = NULL){
 
   if(!is.null(countslist)){
 
-    ## #### Temporary testing code ###
-    ## la("flowcy")
-    ## obj = make_data75()
-    ## names(obj)
-    ## list2env(obj, globalenv())
-    ## #### End of temporary ##########
-
-    ## NEW: initialize the means by (1) collapsing to one cytogram (2) random
+    ## Initialize the means by (1) collapsing to one cytogram (2) random
     ## sampling from this distribution, after truncation,
     TT = length(ylist)
     ylist_downsampled <- lapply(1:TT, function(tt){
@@ -98,8 +91,13 @@ init_mn <- function(ylist, numclust, TT, dimdat, countslist = NULL){
       nsize = pmin(nrow(y) / TT * 30, nrow(y))
       y[sample(1:nrow(y), size = nsize),, drop=FALSE]
     })
+
+    ## Combine all the particles
     yy = do.call(rbind, ylist_downsampled)
-    new_means = yy[sample(1:nrow(yy), numclust),, drop=FALSE]
+
+    ## Get K new means from these
+    inds = sample(1:nrow(yy), numclust)
+    new_means = yy[inds,, drop=FALSE]
     mulist = lapply(1:TT, function(tt){ new_means })
 
     ## Combine all and sample just |numclust| rows

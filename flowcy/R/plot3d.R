@@ -1,4 +1,4 @@
-##' Plots only the cytogram (\code{ylist} with masses \code{countlist}) and not
+#' Plots only the cytogram (\code{ylist} with masses \code{countlist}) and not
 ##' the model.
 ##'
 ##' @param ylist List of covariates.
@@ -28,8 +28,14 @@ plot3d.covarem <- function(obj,
                            ## The time point of interest, out of 1:TT
                            tt,
                            ## Other options.
+                           ## 2d scatterplot options
                            show.xb.constraint = FALSE,
-                           cex.fac = 1,
+                           cex.fac.2d = 1,
+                           par_cex_2d = 1,
+                           pt_col = rgb(0 ,0, 1, 0.1),
+                           ## 3d scatterplot options
+                           cex.fac.3d = 1,
+                           ## 3d scatterplot options
                            destin = NULL
                            ){
 
@@ -72,19 +78,23 @@ plot3d.covarem <- function(obj,
     one_dim_scatterplot(ylist, obj, tt,
                         countslist = countslist,
                         dims = dims,
-                        cex.fac = cex.fac)
+                        cex_fac = cex.fac.2d,
+                        pt_col = pt_col,
+                        lwd = 2)
   }
+  par(cex=0.8)
 
   par(mar=c(1,1,3,1))
   phis = c(10,50)
   for(phi in phis){
     one_3d_plot(ylist, obj, tt, countslist = countslist, phi = phi,
-                cex.fac = cex.fac)
+                cex.fac = cex.fac.3d)
   }
 
 
   ## Add map with cruise location.
   make_map(obj, tt, destin = destin)
+  ## make_map_ggplot(obj, tt, destin = destin)
 
   ######################
   ## Plot covariates ###
@@ -119,7 +129,7 @@ plot3d.covarem <- function(obj,
          y=pies[[iclust]][x],
          label = iclust, cex=1.5)
   }
-  abline(v = tt, col='green', lwd=2)
+  abline(v = tt, col='green', lwd=3)
   ## text(x=tt, y=1, label="Now", cex=3)
   abline(h=seq(from=0, to=1, by= 0.1), col='grey80')
 
@@ -134,6 +144,7 @@ plot3d.covarem <- function(obj,
   ## Plot pies now ###
   ####################
   ## cols = rep("lightblue", numclust)
+  names(pies.right.now) = 1:numclust
   barplot(pies.right.now, ylim=c(0,1),
           cex.axis = 2,
           cex.names = 2.5)
@@ -185,7 +196,11 @@ plot3d.covarem <- function(obj,
 
   ## Add outer title
   main0 = paste0("Time ", tt, " out of ", TT)
-  mtext(bquote(bold(.(main0))), line=0, side=3, outer=TRUE, cex=2,
+  mtext(bquote(bold(.(main0))), line=-1, side=3, outer=TRUE, cex=3,
+        font.main = 1)
+  time_now = rownames(obj$X)
+  time_now = gsub("T", " ", time_now)
+  mtext(bquote(bold(.(time_now))), line=-4, side=3, outer=TRUE, cex=3,
         font.main = 1)
   ## mtext(text=paste0("Outer line "),side=1,outer=TRUE)
 
@@ -530,7 +545,8 @@ one_dim_scatterplot <- function(ylist, obj, tt, countslist = NULL, dims = c(1,2)
                                 ylab = NULL,
                                 xlim = NULL,
                                 ylim = NULL,
-                                ## The remaining arguments are for \code{one_dim_scatterplot()}
+                                constant_total_count = FALSE,
+                                ## The remaining arguments are for \code{one_dim_scatterplot_addmodel()}
                                 add_clust_labels = TRUE,
                                 only_model = FALSE,## If TRUE, only draw the model.
                                 subset_of_clust = NULL, ## if not null, contains the clusters to plot
@@ -539,10 +555,12 @@ one_dim_scatterplot <- function(ylist, obj, tt, countslist = NULL, dims = c(1,2)
                                 lwd = 1/2,
                                 not_so_small_cex = FALSE,
                                 mn_cex_fac = 5,
-                                pt_col = rgb(0 ,0, 1, 0.1)
+                                pt_col = rgb(0 ,0, 1, 0.1),
+                                par_cex = 1
                                 ){
 
   ## Extract data
+  par(cex=par_cex)
   y = ylist[[tt]][,dims]
   labs = colnames(ylist[[1]])
   if(!is.null(countslist)){
@@ -551,6 +569,7 @@ one_dim_scatterplot <- function(ylist, obj, tt, countslist = NULL, dims = c(1,2)
     ##   counts / maxcount
     ## })
     counts = countslist[[tt]] /maxcount
+    if(constant_total_count) counts = counts/sum(counts)
   } else {
     ## countslist = lapply(ylist, function(y){ rep(1, nrow(y)) })
     counts = rep(1, nrow(y))
@@ -601,6 +620,8 @@ one_dim_scatterplot <- function(ylist, obj, tt, countslist = NULL, dims = c(1,2)
                                  mn_cex_fac = mn_cex_fac
                                  )
   }
+
+  par(cex=1)
 }
 
 ##' Helper function for \code{one_dim_scatterplot()}, to add means and ellipses
@@ -634,15 +655,27 @@ one_dim_scatterplot_addmodel <- function(obj, tt, dims,
   stopifnot(all(dims%in%c(1:obj$dimdat)))
   stopifnot(length(dims)==2)
   if(is.null(subset_of_clust)){
-    allclusts = 1:numclust
+    allclusts = clust_labels = 1:numclust
   } else {
     stopifnot(all(subset_of_clust %in% 1:numclust))
     allclusts = subset_of_clust
   }
   if(add_clust_labels){
     if(!is.null(clust_labels)){
-      stopifnot(length(clust_labels)==length(clusts))
+      stopifnot(length(clust_labels)==length(allclusts))
     }
+      ## clust_labels = 1:numclust
+  }
+
+  ## Add the ellipses for the covariances
+  if(ellipse){
+  for(iclust in allclusts){
+    lines(ellipse::ellipse(x = obj$sigma[iclust,dims,dims],
+                           centre = mns[tt,dims, iclust]),
+          lwd = lwd,
+          col = col,
+          lty = lty)
+  }
   }
 
   ## Add fitted means
@@ -659,15 +692,21 @@ one_dim_scatterplot_addmodel <- function(obj, tt, dims,
   ## for(iclust in allclusts){
     iclust = allclusts[ii]
 
+
     ## Add means
     points(x = mns[tt,dims[1],iclust],
            y = mns[tt,dims[2],iclust],
            col = col,
            pch=16, cex=mn.cex[iclust])
+  }
+
+  for(ii in 1:length(allclusts)){
+
+    iclust = allclusts[ii]
 
     ## Add cluster labels on means
     if(add_clust_labels){
-      if(!is.null(clusts)){
+      if(!is.null(allclusts)){
         label = clust_labels[ii]
       } else {
         label = iclust
@@ -678,19 +717,8 @@ one_dim_scatterplot_addmodel <- function(obj, tt, dims,
            col = 'black', pch = 16, cex = 2.5 * sqrt(mn_cex_fac) / sqrt(5),
            font = 2, pos = 4)
     }
-
   }
 
-  ## Add the ellipses for the covariances
-  if(ellipse){
-  for(iclust in allclusts){
-    lines(ellipse::ellipse(x = obj$sigma[iclust,dims,dims],
-                           centre = mns[tt,dims, iclust]),
-          lwd = lwd,
-          col = col,
-          lty = lty)
-  }
-  }
 }
 
 
@@ -704,6 +732,7 @@ one_3d_plot <- function(ylist, obj=NULL, tt, countslist=NULL, phi = 40,
                         ylab = NULL,
                         zlab = NULL,
                         ticktype = "detailed",
+                        col = rgb(0,0,1,0.1),
                         ...){
 
   y = ylist[[tt]]
@@ -741,7 +770,7 @@ one_3d_plot <- function(ylist, obj=NULL, tt, countslist=NULL, phi = 40,
 
   ## Plot the data points.
   plot3D::scatter3D(y[,1], y[,2], y[,3],
-            col = rgb(0,0,1,0.1),
+            col = col,
             pch = 16,
             bty='g', phi=phi,
             xlim = xlim, ylim = ylim, zlim = zlim,
@@ -775,200 +804,4 @@ one_3d_plot <- function(ylist, obj=NULL, tt, countslist=NULL, phi = 40,
                     type = 'h',
                     lwd = 3)##, type="h", pch=16)
   }
-
-}
-
-
-##' Make map for the MGL1704 cruise.
-make_map <- function(res, tt, destin=NULL){
-
-  ## Make empty map
-  lat1 = 10
-  lat2 = 60
-  lon1 = -180
-  lon2 = -120
-  margin = 15
-  xrange = c(lon1, lon2) + margin * c(-1,1)
-  yrange = c(lat1, lat2) + margin * c(-1,1)
-  maps::map(database = 'world',
-            ## xlim = c(-170, -110),
-            ## ylim = c(10, 50),
-            xlim = xrange,
-            ylim = yrange,
-            fill = T,
-            col = 'grey',
-            resolution = 0,
-            bg = 'white',
-            mar = c(1,1,2,1))
-
-  ## Make
-  if(!is.null(destin)){
-  load(file=file.path(destin, "latlontime.Rdata"))
-  colfunc <- colorRampPalette(c("red", "blue"))
-  ## cols = colfunc(length(lat))
-  cols = "black"
-  lines(y=lat, x=lon, pch=16, cex=0.1, col=cols, lwd=.5)
-
-  ## Add the point for time tt
-  points(lon[tt], lat[tt], pch="X", cex=4, col='red')
-  }
-}
-
-
-
-
-
-
-
-
-plot3d_compare.covarem <- function(obj1, obj2, obj3,
-                                   ## Understandably, data (ylist) might not be in the object.
-                                   ylist, countslist = NULL,
-                                   ## The time point of interest, out of 1:TT
-                                   tt,
-                                   ## Other options.
-                                   cex.fac = 1,
-                                   destin = NULL ## Output of obj1. Used to
-                                                   ## get the latlontime.Rdata
-                                                   ## file, for plotting the map.
-                                   ){
-
-  ## Define layout
-  m = matrix(c(1,2,3,4,5,
-               6,7,8,9,10,
-               11,12,13,14,15,
-               16,17,17,17,17),
-               nrow = 4, ncol = 5, byrow=TRUE)
-  layout(m)
-  par(oma=c(3,1,2,1)) ## setting outer margin
-
-  ## Setup
-  TT = length(ylist)
-  assert_that(tt %in% 1:TT)
-  all.y = do.call(rbind, ylist)
-  obj1 = reorder_clust(obj1)
-  obj2 = reorder_clust(obj2)
-  obj3 = reorder_clust(obj3)
-
-  ## Scale the biomass (|countslist|) by the total biomass in that cytogram.
-  counts_sum = sapply(countslist, sum)
-  fac = median(counts_sum)
-  countslist = lapply(countslist, function(counts)counts/sum(counts) * fac)
-
-  ###############################
-  ## Make the 3 + 2 data plots ##
-  ###############################
-  for(jj in 1:3){
-    obj = list(obj1, obj2, obj3)[[jj]]
-    par(mar = c(5.1, 5.1, 4.1, 2.1))
-    dimslist = list(1:2, 2:3, c(3,1))
-    for(ii in 1:length(dimslist)){
-      dims = dimslist[[ii]]
-      one_dim_scatterplot(ylist, obj, tt,
-                          countslist = countslist,
-                          dims = dims,
-                          cex.fac = cex.fac)
-      if(ii==1){
-        if(jj==1)legend("topleft", legend=paste0("Time ", tt, " out of ", TT), cex=2.5, bty = "n")
-        legend("topleft", legend=paste0("\n", obj$numclust, " Clusters"), cex=2.5, bty = "n")
-      }
-    }
-    par(mar=c(1,1,3,1))
-    phis = c(10,50)
-    for(phi in phis){
-      one_3d_plot(ylist, obj, tt, countslist = countslist, phi = phi,
-                  cex.fac = cex.fac)
-    }
-  }
-
-  ## Also add a map
-  make_map(obj1, tt, destin = destin)
-
-  ## Also make a covariate plot
-  plot_covariates(obj1, tt)
-
-}
-
-
-
-##' Collapses the cytograms from a 3d cytogram to two dimensions. This is also
-##' in \code{one_dim_scatterplot()}.
-##'
-##' @param y 3d cytogram.
-##' @param counts The multiplicity for each of the particles in \code{y}.
-##' @param dims Two of \code{c(1:3)}.
-##'
-##' @return 3-column matrix; first two columns are the dimensions in
-##'   \code{dims}.
-##'
-##' @import dplyr
-collapse_3d_to_2d <- function(y, counts, dims=1:2){
-
-  ## Basic checks
-  stopifnot(all(dims %in% 1:3))
-  stopifnot(length(dims)==2)
-
-  ## Aggregate
-  ymat = cbind(y[,dims], counts) %>% as.data.frame()
-  names(ymat)[1:2] = c("dim1", "dim2")
-  ymat_summary <- ymat %>% group_by(dim1, dim2) %>% summarise(counts=sum(counts)) %>% as.matrix
-
-  ## Basic check
-  if(!is.null(colnames(y))){
-    colnames(ymat_summary)[1:2] = colnames(y)[dims]
-  }
-
-  return(ymat_summary)
-}
-
-
-##' Plot a single cytogram.
-##'
-##' @param y (nt x 2) matrix.
-##' @param counts multiplicity of each point in y.
-##' @param cex_fac Only active when \code{!is.null(counts)}; user-supplier
-##'   multiplier onto the point size \code{cex==sqrt(counts)}.
-##'
-##' @return NULL
-one_2d_plot <- function(y, counts=NULL, xlim=NULL, ylim=NULL, xlab=NULL, ylab=NULL, cex=0.5,
-                        pt_col = rgb(0, 0, 1, 0.1),
-                        cex_fac = 1,
-                        axes = TRUE,
-                        x_ticks = NULL,
-                        y_ticks = NULL){
-
-  ## Basic checks.
-  stopifnot(ncol(y) == 2)
-  if(!is.null(counts)) stopifnot(length(counts) == nrow(y))
-
-  if(is.null(xlim)) xlim = range(y[,1])
-  if(is.null(ylim)) ylim = range(y[,2])
-
-  ## Create empty plot
-  plot(NA,
-       ylim = ylim,
-       xlim = xlim,
-       ylab = ylab,
-       xlab = xlab,
-       cex.lab = 2,
-       cex.axis = 2,
-       xaxt = 'n',
-       yaxt = 'n')
-  if(!axes){
-    axis(1, at = x_ticks,
-         cex.axis = 2)
-    axis(2, at = y_ticks,
-         cex.axis = 2)
-  } else {
-    axis(1, cex.axis = 2)
-    axis(2, cex.axis = 2)
-  }
-
-  ## Add datapoints
-  if(is.null(counts)){
-    cex = 0.01
-  } else {
-    cex = counts %>% sqrt() * cex_fac
-  }
-  points(y, col = pt_col, pch = 16, cex = cex)
 }

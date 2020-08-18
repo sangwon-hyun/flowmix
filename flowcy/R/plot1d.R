@@ -13,12 +13,13 @@ plot_1d <- function(ylist, countslist, res = NULL, scale = TRUE, main = "",
                     cex_clust_label = 1.5,
                     omit_band = FALSE,
                     omit_label = FALSE,
-                    reorder_clusters = TRUE){
+                    reorder_clusters = TRUE,
+                    cex_data=15){
 
   ## Plot ylist only
   stopifnot(ncol(ylist[[1]]) == 1)
   stopifnot(ncol(countslist[[1]]) == 1)
-  plot_ylist(ylist, countslist, scale = scale, main = main)
+  plot_ylist(ylist, countslist, scale = scale, main = main, cex=cex_data)
 
   ## Plot model if applicable.
   if(!is.null(res)){
@@ -69,7 +70,8 @@ plot_X <- function(res){
 }
 
 ##' Make 1d data plot.
-plot_ylist <- function(ylist, countslist, res = NULL, scale = TRUE, main = ""){
+plot_ylist <- function(ylist, countslist, res = NULL, scale = TRUE, main = "",
+                       cex = 1){
   stopifnot(ncol(ylist[[1]]) == 1)
   TT = length(ylist)
   matplot(NA, type='l', lty=1, lwd=.1,
@@ -91,7 +93,7 @@ plot_ylist <- function(ylist, countslist, res = NULL, scale = TRUE, main = ""){
     ct = countslist[[tt]] / mx
     points(x = rep(tt, length(y)),
            y = y, col = rgb(0, 0, 0, ct),
-           pch = 15, cex = 1)
+           pch = 15, cex = cex)
   }
 }
 

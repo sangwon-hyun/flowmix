@@ -30,12 +30,16 @@ plot_covariates <- function(obj, tt = NULL){
          bty = "n")
   add_date_ticks(obj)
   matlines(Xsmall, col=cols, lwd = 3)
-  if(!is.null(tt)) abline(v = tt, col='green', lwd=2)
+  if(!is.null(tt)) abline(v = tt, col = 'green', lwd = 3)
 
   Xsmall_names = c("Salinity", "Temperature", "Sunlight")
   ## ttt = 290 ## temporarily, this is a fixed place to put the labels.
-  ttt = TT * 0.98 %>% round
-  text(x=ttt, y=Xsmall[ttt,], label=Xsmall_names,## colnames(Xsmall)
+  ttt = TT * 0.98 %>% round()
+  x = ttt
+  x = x + c(-5, -15, -5)
+  y = Xsmall[ttt,]
+  y = y + c(0, 0.5, -1.5)
+  text(x=x, y=y, label=Xsmall_names,## colnames(Xsmall)
        cex=2)
 }
 
