@@ -1,10 +1,3 @@
-##' Temporary helper function for printing memory
-mymem <- function(msg){
-  if(!is.null(msg))print(msg)
-  print(gc()["Vcells","(Mb)"])
-}
-
-
 ##' Trim data so that both the list of binned responses and counts don't have
 ##' any zeros.
 ##' @param ybin_list List of binned data (assumed to be d^3 lengthed)
@@ -12,7 +5,7 @@ mymem <- function(msg){
 ##'
 ##' @return Trimmed data, each of different length.
 trim <- function(ybin_list, counts_list){
-  assert_that(identical(sapply(ybin_list, nrow),
+  assertthat::assert_that(identical(sapply(ybin_list, nrow),
                         sapply(counts_list, length)))
   TT = length(ybin_list)
   for(tt in 1:TT){
@@ -28,10 +21,10 @@ trim <- function(ybin_list, counts_list){
 ##' Helper to check whether ylist and countslist have been trimmed of zero
 ##' (e.g. using \code{trim()}).
 check_trim <- function(ylist, countslist){
-  assert_that(all.equal(sapply(ylist, nrow),
+  assertthat::assert_that(all.equal(sapply(ylist, nrow),
                         sapply(countslist, length))==TRUE)
   num_zeros_in_counts = sapply(countslist,function(a) sum(a==0))
-  assert_that(all(num_zeros_in_counts==0))
+  assertthat::assert_that(all(num_zeros_in_counts==0))
 }
 
 
@@ -50,7 +43,6 @@ reformat_coef <- function(alpha, beta,
   ## p = ncol(best.res$X)
   ## numclust = best.res$numclust
   ## dimdat = best.res$dimdat
-
 
   ## All X names
   if(is.null(colnames(X))){
@@ -78,4 +70,24 @@ reformat_coef <- function(alpha, beta,
 
   return(list(alpha = alpha,
               beta = beta))
+}
+
+
+##' Helper function.
+'%ni%' <- Negate('%in%')
+
+
+##' Helper function to lag a vector
+##' @param x Numeric vector.
+##' @param k Number of lags
+##'
+##' @return Lag-padded numeric vector.
+##'
+lagpad <- function(x, k) {
+  if (k>0) {
+    return (c(rep(NA, k), x)[1 : length(x)] );
+  }
+  else {
+    return (c(x[(-k+1) : length(x)], rep(NA, -k)));
+  }
 }

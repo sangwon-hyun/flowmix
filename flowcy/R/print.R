@@ -1,7 +1,7 @@
-##' Default printing functionality for covarem() results.
-##' @param obj An object of class "covarem"
+##' Default printing functionality for flowmix() results.
+##' @param obj An object of class "flowmix"
 ##' @return Nothing.
-print.covarem <- function(obj){
+print.flowmix <- function(obj){
   betas = do.call(cbind, lapply(obj$beta, function(beta)beta[-1,]))
   alpha =obj$alpha[ ,-1]
   print(paste0(sum(betas==0), " out of ", length(betas),

@@ -149,6 +149,9 @@ Mstep_beta_admm <- function(resp,
 
 
 ##' LA (locally adaptive) ADMM wrapper to \code{admm_oneclust()}.
+##'
+##' @param K Number of outer iterations.
+##'
 la_admm_oneclust <- function(K,
                              ...){
 
@@ -187,7 +190,7 @@ la_admm_oneclust <- function(K,
     if(length(objectives) < consec){
       return(FALSE)
     } else {
-      mytail = tail(objectives, consec)
+      mytail = utils::tail(objectives, consec)
       rel_diffs = mytail[1:(consec-1)]/mytail[2:consec]
       ## print(rel_diffs)
       return(all(abs(rel_diffs) - 1 < 1E-3))

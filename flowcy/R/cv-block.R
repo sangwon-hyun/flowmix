@@ -1,7 +1,7 @@
 ##' Synopsis: BLOCKED cross-validation function goes here.
 
 
-##' CV wrapper for covarem().
+##' CV wrapper for flowmix().
 ##' @param nsplit Number of CV splits. Defaults to 5.
 ##' @param folds CV folds.
 ##' @param cv_gridsize Grid size of CV.
@@ -11,7 +11,7 @@
 ##' @param iirange Which of the \code{cv_gridsize^2*nfold*nrep} jobs (e.g. of
 ##'   the form 5-3-2-5) to run. Defaults to \code{NULL}, in which case all jobs
 ##'   are run in order of these indices i.e. 1-1-1-1, then 1-1-1-2, and so on.
-##' @param ... default arguments to covarem().
+##' @param ... default arguments to flowmix().
 ##' @return List containing (1) the set of coefficients
 ##' @export
 blockcv <- function(cl, folds, cv_gridsize, iirange=NULL,
@@ -81,10 +81,10 @@ blockcv <- function(cl, folds, cv_gridsize, iirange=NULL,
 }
 
 
-##' CV wrapper for covarem().
+##' CV wrapper for flowmix().
 ##'
 ##' @param nsplit Number of CV splits. Defaults to 5.
-##' @param ... Other arguments to covarem().
+##' @param ... Other arguments to flowmix().
 ##'
 ##' @return List containing (1) the set of coefficients
 ##'
@@ -93,7 +93,7 @@ blockcv_fitmodel <- function(cl, destin,
                              cv_gridsize,
                              mean_lambdas,
                              pie_lambdas,
-                             ## Arguments to covarem()
+                             ## Arguments to flowmix()
                              ylist,
                              countslist,
                              X,
@@ -107,7 +107,7 @@ blockcv_fitmodel <- function(cl, destin,
     print('iii='); print(c(ialpha, ibeta))
     one_job_refit(ialpha, ibeta, destin,
                   mean_lambdas, pie_lambdas,
-                  ## Arguments to covarem()
+                  ## Arguments to flowmix()
                   ylist, countslist, X,
                   ...)
   })
@@ -185,14 +185,14 @@ blockcv_hourlong_make_folds <- function(ylist, nfold, verbose=FALSE, blocksize=2
 ##' @param ylist Data.
 ##' @param countslist Counts or biomass.
 ##' @param X Covariates.
-##' @param ... Rest of arguments for \code{covarem_once()}.
+##' @param ... Rest of arguments for \code{flowmix_once()}.
 ##'
 ##' @return Nothing is returned. Instead, a file named "1-1-1-1-cvscore.Rdata"
 ##'   is saved in \code{destin}. (The indices here are ialpha-ibeta-ifold-irep).
 ##'
 one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
                     mean_lambdas, pie_lambdas,
-                    ## The rest that is needed explicitly for covarem()
+                    ## The rest that is needed explicitly for flowmix()
                     ylist, countslist,
                     sim, isim,## Temporary
                     X, ...){
@@ -224,21 +224,21 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
   args$mean_lambda = mean_lambda
   args$pie_lambda = pie_lambda
   if("nrep" %in% names(args)){
-    args = args[-which(names(args) %in% "nrep")] ## remove |nrep| prior to feeding to covarem_once().
+    args = args[-which(names(args) %in% "nrep")] ## remove |nrep| prior to feeding to flowmix_once().
   }
 
 
   tryCatch({
 
     ## New and better do.call() statement:
-    ## res.train = do.call(covarem_once, args) ## Old
+    ## res.train = do.call(flowmix_once, args) ## Old
     argn <- lapply(names(args), as.name)
     names(argn) <- names(args)
-    call <- as.call(c(list(as.name("covarem_once")), argn))
+    call <- as.call(c(list(as.name("flowmix_once")), argn))
     res.train = eval(call, args)
 
     ## Assign mn and pie
-    pred = predict.covarem(res.train, newx = test.X)
+    pred = predict.flowmix(res.train, newx = test.X)
     stopifnot(all(pred$newpie >= 0))
 
     ## Evaluate on test data, by calculating objective (penalized likelihood)
@@ -292,7 +292,7 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
 ##' Refit one job
 one_job_refit <- function(ialpha, ibeta, destin,
                           mean_lambdas, pie_lambdas,
-                          ## The rest that is needed explicitly for covarem_once()
+                          ## The rest that is needed explicitly for flowmix_once()
                           ylist, countslist, X,
                           sim = FALSE, isim=1,
                           ...){
@@ -320,7 +320,7 @@ one_job_refit <- function(ialpha, ibeta, destin,
       ## Call the function.
       argn <- lapply(names(args), as.name)
       names(argn) <- names(args)
-      call <- as.call(c(list(as.name("covarem_once")), argn))
+      call <- as.call(c(list(as.name("flowmix_once")), argn))
       res = eval(call, args)
 
       ## Save the results

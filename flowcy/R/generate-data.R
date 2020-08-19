@@ -3,8 +3,6 @@
 ## https://github.com/robohyun66/flowcy/blob/9993d2fdc98d496a4e3295e045bd9e33cbc79ebe/main/covar-artif-2d-generic.R
 
 
-
-
 ##' Generic 2d or 3d data generation.
 ##'
 ##' @export
@@ -18,7 +16,7 @@ generate_data_generic <- function(p = 5, TT = 50, fac = 1, nt = 1000, dimdat = 2
   stopifnot(dimdat %in% c(2,3))
 
   ## Generate covariates.
-  X = matrix(rnorm(TT*p), ncol = p, nrow = TT)
+  X = matrix(stats::rnorm(TT*p), ncol = p, nrow = TT)
   X[,1] = sin((1:TT)/TT * 4 * pi)
   X[,2] = c(rep(0, TT/2), rep(1, TT/2))
     ## X = scale(X)
@@ -155,19 +153,20 @@ get_mixture_at_timepoint <- function(tt, nt, mnlist, pilist, sigma=NULL, sigmali
 ##' Generate pseudoreal, 2-mixture 1d data from the sunlight variable.
 ##'
 ##' @param bin If \code{TRUE}, transform into binned biomass.
+##' @param nt Number of points in the first cluster.
 ##'
 ##' @return List containing data: {ylist, X, countslist}, and true underlying
 ##'   coefficients and mean/probs {mnmat, pie, alpha, beta}.
 generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos/cruisedat/export",
-                                        nt1 = 1000, ## Number of points in the first cluster
+                                        nt = 1000,
                                         beta_par = 0.5,
                                         p = 3, ## Number of total covariates
                                         dat.gridsize = 30){
 
   ## Setup
-  stopifnot(nt1%%5 ==0)
+  stopifnot(nt%%5 ==0)
   TT = 100
-  ntlist = c(rep(0.8*nt1, TT/2), rep(nt1, TT/2))
+  ntlist = c(rep(0.8*nt, TT/2), rep(nt, TT/2))
   ## p = 3
   numclust = 2
   stopifnot(p >= 3)
@@ -177,11 +176,11 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
   load(file.path(datadir, "MGL1704-hourly-only-binned.Rdata"))
   par = X[, "par"]
   par = par[!is.na(par)]
-  par = ksmooth(x=1:length(par), y=par, bandwidth=5, x.points = 1:length(par))$y
+  par = stats::ksmooth(x = 1:length(par), y = par, bandwidth = 5, x.points = 1:length(par))$y
   ## sst = X[,"sst"] ## In the future, maybe add another covariate
 
   if(!is.null(seed)) set.seed(seed)
-  Xrest = do.call(cbind, lapply(1:(p-2), function(ii) rnorm(TT)) )
+  Xrest = do.call(cbind, lapply(1:(p-2), function(ii) stats::rnorm(TT)) )
   X = cbind(scale(par[1:TT]),
 
             c(rep(0, TT/2), rep(1, TT/2)),
@@ -195,7 +194,6 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
   beta[0+1,2] = 3
   beta[1+1,2] = -beta_par
   mnmat = cbind(1, X) %*% beta
-  ## matplot(mnmat, type='l')
   colnames(beta) = paste0("clust", 1:numclust)
   rownames(beta) = c("intercept", "par", "cp", paste0("noise", 1:(p-2)))
 
@@ -209,8 +207,6 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
   rownames(alpha) = c("intercept", "par", "cp", paste0("noise", 1:(p-2)))
   pie = exp(cbind(1,X) %*% alpha)
   pie = pie/rowSums(pie)
-  ## print(round(pie,3))
-  ## matplot(pie, type='l', lwd=3)
 
 
   ## Samples |nt| memberships out of (1:numclust) according to the probs in pie.
@@ -224,7 +220,7 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
                                   prob = c(pie[tt,1], pie[tt,2]))
                    mns = mnmat[tt,]
                    means = mns[draws]
-                   datapoints = means + rnorm(ntlist[tt], 0, 1)
+                   datapoints = means + stats::rnorm(ntlist[tt], 0, 1)
                    cbind(datapoints)
                  })
 
@@ -282,11 +278,9 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
 ##' @return A list containing the generating coefficients, true means, and data
 ##'   (ylist, X, countslist=NULL for now).
 generate_data_1d_pseudoreal_from_cv <- function(datadir, seed = NULL,
-                                                ## Optionally plotting the data and means/probs
-                                                plot = FALSE,
                                                 nt = 100,
                                                 ## Optionally binning the data
-                                                bin=FALSE, dat.gridsize=30){
+                                                bin = FALSE, dat.gridsize = 30){
 
   ## Load best 1d CV result
   ## cvres = blockcv_summary(2, 76, 5, 10, nrep = 5, datadir = datadir)##, subfolder="orig")
@@ -337,14 +331,13 @@ generate_data_1d_pseudoreal_from_cv <- function(datadir, seed = NULL,
                                   prob = c(pie[tt,]))
                    mns = mnmat[tt,]
                    means = mns[draws]
-                   noises = sapply(draws, function(iclust){ rnorm(1, 0, sigmas[iclust])})
+                   noises = sapply(draws, function(iclust){ stats::rnorm(1, 0, sigmas[iclust])})
                    datapoints = means + noises
                    cbind(datapoints)
                  })
 
 
   ## Make into countslist
-  ## browser()
   if(bin){
     dat.grid = flowcy::make_grid(ylist, gridsize = dat.gridsize) ## Having this to be common among all things is important
     obj = flowcy::bin_many_cytograms(ylist, dat.grid, mc.cores = 8, verbose = TRUE) ## This code needs to be made into 1d data
@@ -355,24 +348,12 @@ generate_data_1d_pseudoreal_from_cv <- function(datadir, seed = NULL,
   }
 
 
-  ## Making basic plot.
-  if(plot){
-    plot_ylist(ylist, countslist=countslist, scale=TRUE)
-    cols = RColorBrewer::brewer.pal(numclust, "Set2")[order(colMeans(mnmat), decreasing=TRUE)]
-    matlines(mnmat, col=cols[1:4])
-    for(ii in 1:numclust){
-      points(mnmat[,ii], pch=16, cex=pie[,ii]*5,
-             col=cols[ii])
-    }
-  }
-
-
   ## ## Other things about the true generating model (INCOMPLETE)
   ## sigma = array(NA, dim=c(2,1,1))
   ## sigma[1,1,1] = sigma[2,1,1] = 1
   ## mn = array(NA,dim=c(100,1,2))
   ## mn[,1,] = mnmat
-  numclust=5
+  ## numclust=5
 
 
   return(list(ylist = ylist, X = X,
@@ -381,19 +362,25 @@ generate_data_1d_pseudoreal_from_cv <- function(datadir, seed = NULL,
               pie = pie,
               alpha = gen_alpha,
               beta = gen_beta,
-              numclust=numclust))
+              numclust = numclust))
 }
 
 
 
 
 ##' (To add to package) add step function to the lags
+##'
+##' @param X Covariate matrix.
+##' @param lags Number of lags.
+##'
+##' @return Transformed X.
+##'
 add_lagpar <- function(X, lags){
   ## lags = c(0,3,6,9,12)
   par = scale(X[,"par"])
   par = par - min(par)
   par = par / max(par)
-  parlist = lapply(lags, function(lag)lagpad(par, lag))
+  parlist = lapply(lags, function(lag) lagpad(par, lag))
   ## Make the additional columns
   dat = do.call(cbind, parlist)
   X = cbind(dat, X)

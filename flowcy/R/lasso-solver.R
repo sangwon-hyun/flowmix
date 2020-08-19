@@ -19,7 +19,7 @@
 ##' @param y Response vector.
 ##' @param lambda Regularization parameter.
 ##' @param sel_coef Optional variable. Numeric matrix of 0's and 1's in the same
-##'   size of \code{\beta} i.e. (p+1) x dimdat. The ones in this matrix defines
+##'   size of \eqn{\beta} i.e. (p+1) x dimdat. The ones in this matrix defines
 ##'   the entries in the regression coefficients |beta| that are allowed to be
 ##'   nonzero.
 ##' @param maxdev Radius of ball constraint. Defaults to NULL.
@@ -29,7 +29,7 @@
 cvxr_lasso <- function(y, X,  lambda, Xorig=NULL,
                        exclude.from.penalty = NULL,
                        thresh = 1E-8,
-                       maxdev,
+                       maxdev = NULL,
                        dimdat,
                        N,
                        refit = FALSE,
@@ -51,7 +51,7 @@ cvxr_lasso <- function(y, X,  lambda, Xorig=NULL,
   if(is.null(exclude.from.penalty)){
     v = 1:p
   } else {
-    assert_that(all(exclude.from.penalty %in% (1:p)))
+    assertthat::assert_that(all(exclude.from.penalty %in% (1:p)))
     v = (1:p)[-exclude.from.penalty]
   }
 

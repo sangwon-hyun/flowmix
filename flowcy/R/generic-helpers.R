@@ -36,37 +36,13 @@ check_converge_rel <- function(old, new, tol=1E-6){ return(abs((old-new)/old) < 
 check_converge_rel_print <- function(old, new, tol=1E-6){print(abs((old-new)/old)); return(abs((old-new)/old) < tol )  }
 
 
-##' From applying k-means, get the best cluster according to the gap statistic.
-get_best_kmean_numclust <- function(data){
-  gap_stat <- cluster::clusGap(data, FUN = kmeans, nstart = 25,
-                      K.max = 10, B = 50, verbose=FALSE)##, method = "firstSEmax"
-  with(gap_stat, cluster::maxSE(Tab[,"gap"],Tab[,"SE.sim"]))
-}
-
-
-##' Obtain spectral range from |res|.
-spectral_range_from_res <- function(res, fac=2){
-  ## warmstart.muarray = init_mu_warmstart_v2(data, numclust, TT, 1E-6, verbose=FALSE)
-  alldata = do.call(rbind, res$data)
-  res = driftem(alldata,
-                mu=res$init_mu, ##warmstart.muarray,
-                numclust=res$numclust)
-  sigma = res$sigmalist[[res$final.iter]][1,,,]
-  sigmalist = lapply(1:dim(sigma)[1], function(idim){sigma[idim,,]})
-  mydecomp = function(sigma, fun){
-    decomp = eigen(sigma)
-    eigvals = decomp$values
-    return(fun(eigvals))
-  }
-  return(list(min = min(sapply(sigmalist, mydecomp, min)) * (1/fac),
-              max = max(sapply(sigmalist, mydecomp, max)) * fac))
-}
-
-
-##' In  an "opp"  table, remove  all the  top-coded data  points (rows)  in each
-##' variable.
+##' In an "opp" table (see the \code{popcycle} R package for more details),
+##' remove all the top-coded data points (rows) in each variable.
+##'
 ##' @param opp opp table.
+##'
 ##' @return Cleaned version of \code{opp} with topcoded rows removed.
+##'
 ##' @export
 remove_topcoded <- function(opp){
 
@@ -89,30 +65,6 @@ remove_topcoded <- function(opp){
                       )),]
   return(opp)
 }
-
-##' A temporary plotting function.
-##' @param mytable opp table to plot.
-##' @param chl_topcode The number of datapoints whose "CHL" is topcoded.
-##' @param pe_topcode The number of datapoints whose "PE" is topcoded.
-##' @param fsc_topcode The number of datapoints whose "FSC" is topcoded.
-##' @param col Color of points.
-##' @param ... Additional arguments to \code{plot()}.
-myplot <- function(mytable, chl_topcode=NULL,
-                   pe_topcode=NULL, fsc_topcode=NULL,
-                   col = "#00000055",...){
-
-  main = paste0(nrow(mytable),
-                " robust particles, log scale \n",
-                paste0("topcoded (at 1): chl=", chl_topcode, ", ",
-                       "pe=", pe_topcode, ", ",
-                       "fsc=", fsc_topcode))
-  graphics::plot(mytable, col=col,
-       main=main,
-       pch=16,
-       cex=1,
-       ...)
-}
-
 
 
 ##' Helper function to logarithmically space out R.  |length| values linear on

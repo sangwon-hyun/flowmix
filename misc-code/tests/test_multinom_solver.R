@@ -38,7 +38,8 @@ test_that("Sparse multinomial solver (using glmnet) is consistent with CVXR.", {
     N = sum(y)
 
     par(mfrow=c(4,4))
-    for(lambda in seq(from = 0, to = 0.05, length = 8)){
+    lambdas = seq(from = 0.0001, to = 0.05, length = 8)
+    for(lambda in lambdas){
 
         ## What we use.
         coef.glmnet <- solve_multinom(y, X, lambda)

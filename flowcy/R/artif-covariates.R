@@ -1,20 +1,20 @@
 ##' Add a growth variable to X.
+##'
+##' @param X Covariate matrix. Must contain \code{par} variable.
+##'
+##' @return New covariate matrix with one more column.
+##'
 add_growth <- function(X){
+
   ## Sunlight variable
   par = X[,"par"]
   par = par - min(par)
-  ## plot(par, type='l', ylim = c(-2000,5000))
 
   ## Starting to make growth variable.
   growth0 = par
   rng = range(par)
-  cap = rng[1] + 0.05*(rng[2]-rng[1])
+  cap = rng[1] + 0.05 * (rng[2] - rng[1])
   growth0[growth0 >= cap] = cap
-
-  ## ## Temporary attempt:
-  ## par = X[,"par"]
-  ## par = par + min(par)
-  ## growth0 = par
 
   ## Use a "cumsum" loop to make growth variable.
   nighttime = which(growth0!=cap)
@@ -25,22 +25,25 @@ add_growth <- function(X){
       growth[ii] = par[ii]
     } else {
       if(ii > 1){
-        ## print(ii)
         growth[ii] = growth[ii-1] + growth0[ii]
       }
     }
   }
-  ## points(growth, type='l', lwd=3, col='green')
   return(cbind(X, growth=growth))
 }
 
 
 ##' Add a division varable to X.
+##'
+##' @param X Covariate matrix. Must contain \code{par} variable.
+##'
+##' @return New covariate matrix with one more column.
+##'
 add_div <- function(X){
+
   ## Sunlight variable
   par = X[,"par"]
   par = par - min(par)
-  ## plot(par, type='l', ylim = c(-2000,5000))
 
   ## cap = 100
   rng = range(par)
@@ -50,7 +53,6 @@ add_div <- function(X){
   div0 = rep(0, length(par))
   nighttime = which(par < cap)
   div0[nighttime] = -cap
-  ## points(cumsum(div0), type = 'l', lwd=3, col='yellow')
 
   div = rep(NA, length(par))
   div[1] = div0[1]
@@ -63,7 +65,6 @@ add_div <- function(X){
       }
     }
   }
-  ## points(div, type='l', lwd=3, col='yellow')
   return(cbind(X, div=div))
 }
 
@@ -92,15 +93,13 @@ add_sine_to_X <- function(X, time){
   length(unlist(day_membership))
 
   ## Create full sine and cosine
-  sine = sin(seq(from=0, to=2*pi, length=25))[-25]
-  cosine = cos(seq(from=0, to=2*pi, length=25))[-25]
+  sine = sin(seq(from = 0, to = 2*pi, length = 25))[-25]
+  cosine = cos(seq(from = 0, to = 2*pi, length = 25))[-25]
 
   ## Subset only the hours that exist.
   complete_sine = do.call(c, sapply(1:length(day_membership), function(ii){
     memb = day_membership[[ii]]
     hours = hh[memb]
-    ## print(length(memb))
-    ## print(length(hours))
     missing_hours_today = which(0:23 %ni% hours)
     if(length(hours) < 24){
       partial.sine = sine[-missing_hours_today]
@@ -115,12 +114,12 @@ add_sine_to_X <- function(X, time){
     memb = day_membership[[ii]]
     hours = hh[memb]
     missing_hours_today = which(0:23 %ni% hours)
-    if(length(missing_hours_today)>0){
+    if(length(missing_hours_today) > 0){
       partial.cosine = cosine[-missing_hours_today]
       return(partial.cosine)
     } else {
       return(cosine)
     }
   }))
-  return(cbind(X, sine=complete_sine, cosine=complete_cosine))
+  return(cbind(X, sine = complete_sine, cosine = complete_cosine))
 }

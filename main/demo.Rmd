@@ -13,14 +13,8 @@ load_all("~/repos/flowcy/flowcy")
 
 Running and visualizing without regularization
 ```{r, eval=TRUE, echo=TRUE}
-source("~/repos/flowcy/main/covar-artif-2d-complex.R")
-numclust = 4
-res = covarem(ylist=ylist, X=X, numclust=numclust)
-maxres = get_max_lambda(ylist, X, numclust)
-
-## Now, run the CV loop
 numclust = 10
-res = covarem(ylist=ylist, X=X, numclust=numclust,
+res = flowmix(ylist=ylist, X=X, numclust=numclust,
               niter = 300)
 
 ## These three things are nice to have:
@@ -29,8 +23,8 @@ plot(res)
 plot2d(res, ylist)
 ```
 
-Internally, `covarem()` is doing multiple restarts of `covarem_once()` and
-choosing the model that had the smallest penalized likelihood value.
+Internally, `flowmix()` is doing multiple restarts of `flowmix_once()` and
+choosing the model that had the best penalized likelihood value.
 
 If you'd like to do cross validation over the regularization parameters (two of
 them; one for the regression model for the cluster means, and one for the
@@ -41,7 +35,7 @@ maxres = get_max_lambda(ylist, X, numclust)
   
 ## Now, run the CV loop
 la()
-cvres = cv.covarem(ylist=ylist, X=X, numclust=numclust,
+cvres = cv.flowmix(ylist=ylist, X=X, numclust=numclust,
                    max_mean_lambda=maxres$beta,
                    max_pie_lambda=maxres$alpha,
                    gridsize=10,

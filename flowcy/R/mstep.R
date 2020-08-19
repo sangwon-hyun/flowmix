@@ -159,12 +159,12 @@ mtsqrt_inv <- function(a){
 ##'
 ##' @return Result of M step; a |numclust| length list of (p+1)x(d) matrices,
 ##'   each containing the estimated coefficients for the mean estimation.
-Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma,
+Mstep_beta <- function(resp, ylist, X, mean_lambda = 0, sigma,
                        refit = FALSE,
                        sel_coef = NULL,
                        maxdev = NULL,
-                       sigma_eig_by_clust=NULL,
-                       first_iter=FALSE,
+                       sigma_eig_by_clust = NULL,
+                       first_iter = FALSE,
                        ridge = FALSE,
                        ridge_lambda = NULL,
                        ridge_pie = NULL,
@@ -187,7 +187,7 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma,
   dimsigma = dim(sigma)
 
   if(!is.null(sigma)){
-    assert_that(all.equal(dimsigma, c(numclust, dimdat, dimdat)) == TRUE)
+    assertthat::assert_that(all.equal(dimsigma, c(numclust, dimdat, dimdat)) == TRUE)
   }
 
   ## Setup
@@ -206,7 +206,7 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma,
   yvecs = manip_obj$yvecs
 
   ## Intercepts are to be excluded from penalization.
-  exclude.from.penalty = (0:(dimdat-1))*(ncol(Xa)) + 1
+  exclude.from.penalty = (0:(dimdat-1)) * (ncol(Xa)) + 1
 
   ## Obtain fitted beta, separately by cluster.
   results = lapply(1:numclust, function(iclust){
@@ -231,7 +231,7 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda=0, sigma,
     ## assert_that(max(xb) <= 0.5 + slack)
 
     yhat = Xa %*% betahat
-    assert_that(all(dim(betahat) == c(p+1,dimdat)))
+    assertthat::assert_that(all(dim(betahat) == c(p+1,dimdat)))
     return(list(betahat = betahat, yhat = yhat))
   })
 

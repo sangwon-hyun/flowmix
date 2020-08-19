@@ -2,6 +2,7 @@
 calc_mu <- function(beta, X, dimdat, numclust){
 
   X.aug = cbind(1, X)
+  TT = nrow(X)
 
   ## We want (T x dimdat x K) fitted values, each row is a fitted mean
   fitted = array(NA, dim = c(TT, dimdat, numclust))

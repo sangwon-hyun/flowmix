@@ -1,7 +1,7 @@
-context("Test covariate EM (main function)")
+context("Test EM (the main function)")
 
 ## Test for lasso and cvx lasso
-test_that("covarem() works under no noise.", {
+test_that("flowmix() works under no noise.", {
 
 
   ## ## Test that the version with the thing has the same results

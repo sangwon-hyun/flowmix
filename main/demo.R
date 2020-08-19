@@ -12,57 +12,60 @@ numclust = 4
 ## parameters. Change |nrep| for multiple restarts.
 ########################################################################
 set.seed(0)
-profvis::profvis({
-res = covarem_once(ylist, X, numclust = numclust, niter = 5,
+res = flowmix_once(ylist, X, numclust = numclust, niter = 5,
               mean_lambda = 0.01,
               pie_lambda = 10,
               verbose = TRUE,
               maxdev = 0.5)
-})
-plot_obj = fancyplot(res)
-plot_obj
+print(res)
 
 ########################################################################
 ## 2. Cross validate over a 2d grid of regularization parameters.
 ########################################################################
 gridsize = 12
-destin = "~"## Where to save the CV results to
+destin = "~" ## Where to save the CV results to
 
 ## Get range of lambdas
-maxres = get_max_lambda(ylist, X, numclust, verbose=TRUE)
-pie_lambdas = seq(from=0, to=maxres$alpha, length=gridsize)
-mean_lambdas = seq(from=0, to=maxres$beta, length=gridsize)
+maxres = get_max_lambda(destin = destin,
+                        ylist = ylist,
+                        countslist = NULL,
+                        X = X, numclust = numclust, verbose = TRUE,
+                        max_lambda_alpha = 2, max_lambda_beta = 2, maxdev = 0.5)
+pie_lambdas = seq(from  =  0, to = maxres$alpha, length = gridsize)
+mean_lambdas = seq(from = 0, to = maxres$beta, length = gridsize)
 
-## Run the parallel CV. Define cl, multicore.cv, etc.
-parallel_cv.covarem(ylist = ylist, X = X, numclust = numclust,
-                    pie_lambdas = pie_lambdas,
-                    mean_lambdas = mean_lambdas,
-                    maxdev = 0.5,
-                    ## Options for parallelizing
-                    gridsize = gridsize,
-                    nsplit = 5,
-                    numfork = 12,
-                    verbose = TRUE,
-                    nrep = 10,
-                    ## multicore.cv = FALSE,
-                    destin = "~",
-                    warm_start = FALSE,
-                    cl = NULL)
 
-aggregateres_df(gridsize, destin)
-get_optimal_info(isim, outputdir=destin,
-                 gridsize=12, excludecorner=FALSE)
+## The rest of the code is under construction; the cv function below needs to be
+## modified to run on a single computer.
 
-##################################################
-## Run the algorithm with binning *on the fly* ###
-##################################################
-ylist_collapsed = do.call(rbind, ylist)
-dimdat = ncol(ylist[[1]])
-ranges = lapply(1:dimdat, function(ii) range(ylist_collapsed[,ii])) ## Get overall range.
-dat.grid = make_grid(ranges, gridsize = dat.gridsize)
-covarem_once(ylist, X, numclust=4, verbose = TRUE,
-             pie_lambda = .1,
-             mean_lambda = .1,
-             manual.bin = TRUE,
-             manual.grid = dat.grid)
+## ## Run the parallel CV. Define cl, multicore.cv, etc.
+## cv.flowmix(ylist = ylist, X = X, numclust = numclust,
+##                     pie_lambdas = pie_lambdas,
+##                     mean_lambdas = mean_lambdas,
+##                     maxdev = 0.5,
+##                     ## Options for parallelizing
+##                     gridsize = gridsize,
+##                     nsplit = 5,
+##                     numfork = 12,
+##                     verbose = TRUE,
+##                     nrep = 10,
+##                     destin = "~",
+##                     warm_start = FALSE,
+##                     cl = NULL)
 
+## aggregateres_df(gridsize, destin)
+## get_optimal_info(isim, outputdir = destin,
+##                  gridsize = 12, excludecorner = FALSE)
+
+## ##################################################
+## ## Run the algorithm with binning *on the fly* ###
+## ##################################################
+## ylist_collapsed = do.call(rbind, ylist)
+## dimdat = ncol(ylist[[1]])
+## ranges = lapply(1:dimdat, function(ii) range(ylist_collapsed[,ii])) ## Get overall range.
+## dat.grid = make_grid(ranges, gridsize = dat.gridsize)
+## flowmix_once(ylist, X, numclust=4, verbose = TRUE,
+##              pie_lambda = .1,
+##              mean_lambda = .1,
+##              manual.bin = TRUE,
+##              manual.grid = dat.grid)

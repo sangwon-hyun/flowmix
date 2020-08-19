@@ -147,7 +147,7 @@ objective_subset <- function(times, ...){
 ##' A convenience function to calculate the CV score, or out-of-sample objective
 ##' function (no penalization), given new data.
 ##'
-##' @param res Covarem object.
+##' @param res flowmix object.
 ##' @param ylist New data.
 ##' @param countslist New count data.
 ##'
@@ -155,7 +155,7 @@ objective_subset <- function(times, ...){
 objective_newdat <- function(res, ylist, countslist){
 
   ## ## (NOT USED NOW) The pred object.
-  ## pred = predict.covarem(res, newx = X)
+  ## pred = predict.flowmix(res, newx = X)
 
   ## ## Calculate the cross-validation score.
   ## cvscore = objective(mu = pred$newmn,

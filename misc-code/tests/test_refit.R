@@ -1,7 +1,7 @@
 context("Test that the refitting works properly")
 
 ## Test for lasso and cvx lasso
-test_that("covarem() with refit=TRUE option gives the correct sparsity pattern.", {
+test_that("flowmix() with refit=TRUE option gives the correct sparsity pattern.", {
 
   ## Generate data
   numclust = 4

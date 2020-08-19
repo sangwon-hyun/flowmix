@@ -11,6 +11,10 @@ Depends:
 Imports: 
     CVXR,
     mvtnorm,
+    data.table,
+    dplyr
+Suggests:
+     testthat 
 Description: Tools for analyzing ocean flow cytometry data.
 License: MIT + file LICENSE 
 Encoding: UTF-8

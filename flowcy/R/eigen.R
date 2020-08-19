@@ -1,13 +1,15 @@
 ##' From eigendecomposition of the sigmas, calculate the same thing as
 ##' \code{mvtnorm::dmvnorm()}.
+##'
 ##' @param y Multivariate data.
 ##' @param mu Mean vector.
 ##' @param sigma_eig Result of eigendecomposition of sigma.
+##'
 ##' @return Density vector.
 dmvnorm_fast <- function(y, mu, sigma_eig){
 
   ## Basic checks
-  assert_that("matrix" %in% class(y))
+  assertthat::assert_that("matrix" %in% class(y))
 
   dimdat = ncol(y)
   const = (2 * pi)^(-dimdat/2)

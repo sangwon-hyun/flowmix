@@ -112,7 +112,7 @@ objective_per_cluster <- function(beta, ylist, Xa, resp, lambda, N, dimdat, iclu
   }
 
   ## Obtain the weighted residuals once.
-  wt_resids_list = mclapply(1:TT, function(tt){
+  wt_resids_list = parallel::mclapply(1:TT, function(tt){
     y = ylist[[tt]]
     mumat = matrix(mn[tt,],
                    ncol = ncol(y),
@@ -132,7 +132,7 @@ objective_per_cluster <- function(beta, ylist, Xa, resp, lambda, N, dimdat, iclu
 }
 
 
-##' Calculate a specific least squares problem \min_b \|c-Db\|^2.
+##' Calculate a specific least squares problem \deqn{\min_b \|c-Db\|^2}.
 b_update  <- function(wvec, uw, Z, Uz, rho, yvec, D, DtDinv, N){
 
   cvec = c(sqrt(1/(2*N)) * yvec,
