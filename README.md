@@ -1,4 +1,4 @@
-flowmix / flowx / flower
+flowmix
 =============
 
 Sparse mixture of regressions for flow cytometry data.
