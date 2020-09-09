@@ -131,7 +131,7 @@ blockcv_make_folds <- function(ylist, nfold, verbose=FALSE){
 
   if(verbose) print("Large consecutive time blocks used for CV (block type 1)")
   TT = length(ylist)
-  endpoints = round(seq(from = 1, to = TT, length = nfold+1))
+  endpoints = round(seq(from = 0, to = TT, length = nfold+1))
   inds = Map(function(a,b){(a+1):b},
              endpoints[-length(endpoints)],
              endpoints[-1])

@@ -1,4 +1,4 @@
-Package: flowcy
+Package: flowmix
 Title: Ocean Flow Cytometry Analysis 
 Version: 0.0.0.9000
 Authors@R: 
@@ -7,12 +7,15 @@ Authors@R:
            role = c("aut", "cre"),
            email = "robohyun66@gmail.com")
 Depends:
-	mclust
+	mclust,
 Imports: 
     CVXR,
     mvtnorm,
     data.table,
-    dplyr
+    dplyr,
+    Rcpp,
+    RcppArmadillo
+LinkingTo: Rcpp, RcppArmadillo
 Suggests:
      testthat 
 Description: Tools for analyzing ocean flow cytometry data.

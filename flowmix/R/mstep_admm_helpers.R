@@ -1,4 +1,10 @@
 ##' (Helper) Soft thresholding of |a| at radius of |b|.
+##'
+##' @param a Numeric vector.
+##' @param b Numeric vector of same length as \code{length(b)}.
+##'
+##' @return Soft-thresholded version of a and b.
+##'
 soft_thresh <- function(a, b){
   return(sign(a) * pmax(0, abs(a)-b))
 
@@ -13,6 +19,12 @@ soft_thresh <- function(a, b){
 
 ##' (Helper) Projection of each ROW of the matrix \code{mat} into an l2 ball
 ##' centered at zero, of radius C.
+##'
+##' @param mat Numeric matrix.
+##' @param C Radius for l2 ball projection.
+##'
+##' @return Projected matrix of same size as \code{mat}.
+##'
 projCmat <- function(mat, C){
   if(!is.null(C)){
     vlens = sqrt(rowSums(mat * mat))
@@ -24,7 +36,8 @@ projCmat <- function(mat, C){
   return(mat)
 }
 
-##' (Helper) Projection into an l2 ball centered at zero, of radius C.
+##' (Helper) Projection into an l2 ball centered at zero, of radius C. Not used
+##' now.
 projC <- function(v, C){
   vlen = sqrt(sum(v*v))
  if(vlen <  C){
@@ -112,7 +125,7 @@ objective_per_cluster <- function(beta, ylist, Xa, resp, lambda, N, dimdat, iclu
   }
 
   ## Obtain the weighted residuals once.
-  wt_resids_list = parallel::mclapply(1:TT, function(tt){
+  wt_resids_list = lapply(1:TT, function(tt){
     y = ylist[[tt]]
     mumat = matrix(mn[tt,],
                    ncol = ncol(y),
@@ -170,3 +183,45 @@ make_I_aug <- function(p, dimdat, intercept_inds){
   ##         return(betahat) ;
   ##         }
   ##         ')
+
+
+
+## Four functions to be used only within \code{admm_oneclust()}.
+
+
+##' ADMM update of w vector.
+##'
+##' @param uw Numeric vector of length \code{p * dimdat}.
+##' @param b1 Numeric vector of length \code{p * dimdat}.
+##' @param rho Positive scalar.
+##' @param lambda Positive scalar.
+##'
+##' @return Soft-thresholded version of w
+wvec_update  <- function(b1, uw, lambda, rho){
+  soft_thresh(b1 + uw/rho, lambda/rho)
+}
+
+
+##' ADMM update of Z vector.
+##'
+##' @param Xbeta1 Matrix of size \code{TT} by \code{dimdat}.
+##' @param Uz Matrix of size \code{TT} by \code{dimdat}.
+##' @param b1 Numeric vector of length \code{p * dimdat}.
+##' @param C Radius, positive scalar.
+##' @param rho Positive scalar.
+##' @param dimdat Dimension of response data (not used).
+##' @param TT Number of time points (not used).
+##'
+##' @return Soft-thresholded version of w
+Z_update  <- function(Xbeta1, Uz, C, rho, dimdat, TT){
+  mat = Xbeta1 + Uz/rho
+  Z = projCmat(mat, C)
+}
+
+uw_update <- function(uw, rho, b1, wvec){
+  uw + rho * (b1 - wvec)
+}
+
+Uz_update <- function(Uz, rho, Xbeta1, Z){
+  Uz + rho * (Xbeta1 - Z)
+}

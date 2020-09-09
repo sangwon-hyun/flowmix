@@ -80,7 +80,8 @@ flowmix_once <- function(ylist, X,
                          admm_local_adapt_niter = 10, ## This spans rho=0.1 to
                                                       ## 100, which is
                                                       ## reasonable.
-                         admm_niter = (if(admm_local_adapt)1E3 else 1E4)
+                         admm_niter = (if(admm_local_adapt)1E3 else 1E4),
+                         rcpp = FALSE
                          ## always_first_iter## temporary
                          ){## Basic checks
 
@@ -173,7 +174,8 @@ flowmix_once <- function(ylist, X,
                                  err_abs = admm_err_abs,
                                  niter = admm_niter,
                                  local_adapt = admm_local_adapt,
-                                 local_adapt_niter = admm_local_adapt_niter)
+                                 local_adapt_niter = admm_local_adapt_niter,
+                                 rcpp = rcpp)
       admm_niters[[iter]] = unlist(res.beta$admm_niters)
     } else {
       res.beta = Mstep_beta(resp, ylist, X,

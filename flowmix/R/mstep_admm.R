@@ -38,7 +38,8 @@ Mstep_beta_admm <- function(resp,
                             plot.admm = FALSE,
                             local_adapt = FALSE,
                             local_adapt_niter = 5,
-                            space = 50
+                            space = 50,
+                            rcpp = FALSE
                             ){
 
   ####################
@@ -66,7 +67,7 @@ Mstep_beta_admm <- function(resp,
   #########################################
   yhats = admm_niters = vector(length = numclust, mode = "list")
   if(first_iter) betas = vector(length = numclust, mode = "list")
-  if(first_iter)  Zs =  wvecs =  uws =  Uzs = vector(length=numclust, mode="list")
+  if(first_iter)  Zs =  wvecs =  uws =  Uzs = vector(length = numclust, mode = "list")
   fits = matrix(NA, ncol = numclust, nrow = ceiling(niter / space))
 
   ## Form tilde objects for b update. Only do once!
@@ -80,9 +81,6 @@ Mstep_beta_admm <- function(resp,
   resid_mat_list = list()
   start.time = Sys.time()
   for(iclust in 1:numclust){
-    ## cat("cluster", iclust, fill=TRUE)
-    ## if(!first_iter & iclust == 2) browser()
-    ## print(head(betas))
 
     ## Perform LA-ADMM.
     res = la_admm_oneclust(K = (if(local_adapt) local_adapt_niter else 1),
@@ -101,6 +99,7 @@ Mstep_beta_admm <- function(resp,
                            sigma_eig_by_clust = sigma_eig_by_clust,
                            plot = plot.admm,
                            space = space,
+                           rcpp = rcpp,
 
                            ## Warm starts from previous *EM* iteration
                            first_iter = first_iter,
@@ -135,8 +134,9 @@ Mstep_beta_admm <- function(resp,
               mns = yhats_array,
               fits = fits,
               resid_mat_list = resid_mat_list,
-              admm_niters = admm_niters, ## Temporary: Seeing the number of outer
-                                        ## iterations it took to converge.
+              admm_niters = admm_niters, ## Temporary: Seeing the number of
+                                         ## outer iterations it took to
+                                         ## converge.
 
               ## For warmstarts
               Zs = Zs,
@@ -160,13 +160,8 @@ la_admm_oneclust <- function(K,
   p = args$p
   TT = args$TT
   dimdat = args$dimdat
-  ## em_iter = args$em_iter
-
-    ## print(paste0("iclust=", args$iclust))
-    ## print(head(args$beta[[1]]))
 
   ## This initialization can come from the previous *EM* iteration.
-  ## print(args$first_iter)
   if(args$first_iter){
     beta = matrix(0, nrow=p+1, ncol=dimdat)
     Z = matrix(0, nrow = TT, ncol = dimdat)
@@ -184,74 +179,33 @@ la_admm_oneclust <- function(K,
   cols = c()
   objectives = c()
 
-  outer_converge <- function(objectives){
-    ## print(objectives)
-    consec = 4
-    if(length(objectives) < consec){
-      return(FALSE)
-    } else {
-      mytail = utils::tail(objectives, consec)
-      rel_diffs = mytail[1:(consec-1)]/mytail[2:consec]
-      ## print(rel_diffs)
-      return(all(abs(rel_diffs) - 1 < 1E-3))
-    }
-  }
-
   ## Run ADMM repeatedly with (1) double rho, and (2) previous b
   for(kk in 1:K){
-    ## printprogress(kk, K, "outer admm", fill=TRUE)
-    if(kk>1){
-    args[['beta']] <- beta
-    args[['Z']] <- Z
-    args[['wvec']] <- wvec
-    args[['uw']] <- uw
-    args[['Uz']] <- Uz
+    if(kk > 1){
+      args[['beta']] <- beta
+      args[['Z']] <- Z
+      args[['wvec']] <- wvec
+      args[['uw']] <- uw
+      args[['Uz']] <- Uz
     }
 
     ## Run ADMM
     if(kk > 1) args[['rho']] <- rho
-    ## args[['beta']] <- beta
-    ## args[['Z']] <- Z
-    ## args[['wvec']] <- wvec
-    ## args[['uw']] <- uw
-    ## args[['Uz']] <- Uz
 
-
-    ## 1. Old call of function, which is slow and memory intensive.
-    ## res = do.call(admm_oneclust, args)
-
-    ## 2. New way no.1: Courtesy of Hadley Wickham
+    ## Call main function
     argn <- lapply(names(args), as.name)
     names(argn) <- names(args)
     call <- as.call(c(list(as.name("admm_oneclust")), argn))
     res = eval(call, args)
 
-    ## 3. New way no.2: Courtesy of rmisc.
-    ## res = rlang::invoke("admm_oneclust", args)
-
     ## See if outer iterations should terminate
     objectives = c(objectives, res$fit)
-      ## if(em_iter>2) plot(fits, type='o', col=cols)
-    if(outer_converge(objectives)){
-      ## cat("Outer ADMM converged with K=", kk, fill=TRUE)
-
-      ## ylimlist = list(c(3.192, 3.291), c(2.918, 3.027), c(5.27,5.92), c(0.835,0.87))
-      ## ylimlist = lapply(ylimlist, function(a) a*c(0.8, 1.2))
-      ## xlimlist = list(c(0,120), c(0,100), c(0,120), c(0, 120))
-      ## if(em_iter > 2) plot(fits, type='o', col=cols)
-                         ## xlim=xlimlist[[args$iclust]],
-                         ## ylim=ylimlist[[args$iclust]],
-                         ## main = "Yes EM warmstart")##, main = paste0("rho=", signif(args$rho,3)))
-      break
-    }
-    if(res$converge){
-      ## cat("converged with K=", kk, fill=TRUE)
+    if(outer_converge(objectives) | res$converge){
       break
     }
 
-    ## Update some parameters
-    rho = args[['rho']]
-    rho = rho * 2
+    ## Update some parameters; double the rho value
+    rho = args$rho * 2
     beta = res$beta
     Z = res$Z
     wvec = res$wvec
@@ -259,14 +213,30 @@ la_admm_oneclust <- function(K,
     Uz = res$Uz
 
   }
-  ## Sys.sleep(5) ## Temporary
-  ## if(!res$converge) print("Didn't converge at all") ## Change to warning
+  ## if(!res$converge) warning("Didn't converge at all")
 
   ## Record how long the admm took; in terms of # iterations.
   res$kk = kk
 
   return(res)
 }
+
+##' Check if 4 consecutive objective values are sufficiently close to 1.
+##'
+##' @param objectives Numeric vector.
+##'
+##' @return Boolean.
+outer_converge <- function(objectives){
+  consec = 4
+  if(length(objectives) < consec){
+    return(FALSE)
+  } else {
+    mytail = utils::tail(objectives, consec)
+    rel_diffs = mytail[1:(consec-1)]/mytail[2:consec]
+    return(all(abs(rel_diffs) - 1 < 1E-3))
+  }
+}
+
 
 
 ##' ADMM of one cluster.
@@ -293,7 +263,8 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
                           sigma_eig_by_clust,
                           sigma,
                           space = 20,
-                          plot = FALSE){
+                          plot = FALSE,
+                          rcpp = FALSE){
 
   resid_mat = matrix(NA, nrow = ceiling(niter/5), ncol = 4)
   colnames(resid_mat) = c("primresid", "primerr", "dualresid", "dualerr")
@@ -304,7 +275,6 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
                 sqrt(rho/2) * X0)
   D = rbind(Dfirst, Drest)
   DtD = crossprod(Dfirst, Dfirst) + crossprod(Drest, Drest)
-  ## DtD = crossprod(D, D)
   DtDinv = chol2inv(chol(DtD))
 
   ###############################
@@ -315,15 +285,11 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
   b0 = b[intercept_inds]
   beta1 = matrix(b1, nrow = p)
   Xbeta1 = X %*% beta1
-  ## Z = matrix(0, nrow = TT, ncol = dimdat)
-  ## wvec = uw = rep(0, p * dimdat)
-  ## Uz = matrix(0, nrow = TT, ncol = dimdat)
   C = maxdev
   fits = rep(NA, ceiling(niter/space))
   converge = FALSE
 
   for(iter in 1:niter){
-    ## printprogress(iter, niter, "inner admm")
 
     b <- b_update(wvec, uw, Z, Uz, rho, yvec, D, DtDinv, N)
     b1 = b[-intercept_inds]
@@ -332,34 +298,26 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
     beta1 = matrix(b1, nrow = p)
     Xbeta1 = X %*% beta1
 
-    wvec_update  <- function(b1, uw, lambda, rho){
-      soft_thresh(b1 + uw/rho, lambda/rho)
-    }
-    wvec <- wvec_update(b1, uw, lambda, rho)
+    ## Update 1
+    if(!rcpp)  wvec <- wvec_update(b1, uw, lambda, rho)
+    if(rcpp) wvec <- wvec_updateC(b1, uw, lambda, rho)
     w <- matrix(wvec, nrow = p, byrow=FALSE)
 
+    ## Update 2
+    if(!rcpp) Z <- Z_update(Xbeta1, Uz, C, rho, dimdat, TT)
+    if(rcpp)  Z <- Z_updateC(Xbeta1, Uz, C, rho, dimdat, TT)
 
-    Z_update  <- function(Xbeta1, Uz, C, rho, dimdat, TT){
-      mat = Xbeta1 + Uz/rho
-      Z = projCmat(mat, C)
-    }
-    Z <- Z_update(Xbeta1, Uz, C, rho, dimdat, TT)
-
-    uw_update <- function(uw, rho, b1, wvec){
-      uw + rho * (b1 - wvec)
-    }
+    ## Update 3
     uw <- uw_update(uw, rho, b1, wvec)
     Uw <- matrix(uw, nrow = p, byrow=FALSE)
 
-    Uz_update <- function(Uz, rho, Xbeta1, Z){
-      Uz + rho * (Xbeta1 - Z)
-    }
+    ## Update 4
     Uz <- Uz_update(Uz, rho, Xbeta1, Z)
 
     ## 3. Check convergence
     if( iter > 1  & iter %% 5 == 0){## & !local_adapt){
 
-      ## Calculate convergence criterion
+      ## Calculate ADMM convergence criterion
       obj = converge(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX = tX,
                      Xbeta1 = Xbeta1, err_rel = err_rel,
                      err_abs = err_abs)
@@ -370,7 +328,6 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
                          obj$dual_err)
 
       if(obj$converge){
-        ## print(paste('Converged! in', iter, 'out of ', niter, 'steps!')) ## ADMM debug code
         converge = TRUE
         break
       }
@@ -384,32 +341,8 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
     ## ## 4. Calculate things related to convergence (Slow).
     if(iter %% space == 0 ){
       ii = iter / space
-      ## if(em_iter>2){
-      ## fits[ii] = objective_per_cluster(beta, ylist, Xa, resp, lambda,
-      ##                                  N, dimdat, iclust, sigma, iter,
-      ##                                  zerothresh,
-      ##                                  TRUE) ## Just flagging first_iter=TRUE for now.
-      ## }
     }
   }
-
-  ## browser()
-        ## plot(fits, type = 'l', main = paste("cluster", iclust))
-
-  ## if(!obj$converge){
-  ##       plot((resid_mat[,"primresid"]), type = 'l', main = paste("Primal resid, cluster", iclust),
-  ##            ylim = range((resid_mat[,c("primresid", "primerr")]), na.rm=TRUE))
-  ##       lines((resid_mat[,"primerr"]), type = 'l', col='red', lwd=2)
-
-  ##       plot(log(resid_mat[,"dualresid"]), type = 'l', main = paste("Dual resid, cluster", iclust),
-  ##            ylim = range(log(resid_mat[,c("dualresid", "dualerr")]), na.rm=TRUE))
-  ##       lines(log(resid_mat[,"dualerr"]), type = 'l', col='red', lwd=2)
-  ## }
-
-  ## Temporary print message
-  ## if(!(obj$converge)){
-  ##   print(paste("Didn't converge in", niter, 'steps!'))
-  ## }
 
   ## Gather results.
   beta[-1,] = w
@@ -420,8 +353,12 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
                               iclust, sigma, iter, zerothresh,
                               is.null(sigma_eig_by_clust), sigma_eig_by_clust)
 
-  return(list(beta = beta, yhat = yhat, resid_mat = resid_mat, fits = fits, converge=converge,
-              fit=fit,
+  return(list(beta = beta,
+              yhat = yhat,
+              resid_mat = resid_mat,
+              fits = fits,
+              converge = converge,
+              fit = fit,
               ## Other variables to return.
               Z = Z,
               wvec = wvec,
