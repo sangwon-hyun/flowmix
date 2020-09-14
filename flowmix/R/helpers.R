@@ -91,3 +91,25 @@ lagpad <- function(x, k) {
     return (c(x[(-k+1) : length(x)], rep(NA, -k)));
   }
 }
+
+
+##' Check if zero pattern in coefficients, across EM iterations, has stabilized.
+##'
+##' @param zero.betas List of patterns in beta, over EM interations
+##' @param zero.alphas List of zero patterns in alpha, over EM iterations.
+##' @param iter Iteration number.
+##'
+##' @return TRUE if both beta and alpha coefficients' zero patterns have
+##'   stabilized.
+check_zero_stabilize <- function(zero.betas, zero.alphas, iter){
+
+  ## Check beta
+  beta.sym.diffs = Map(sym_diff, zero.betas[[iter]], zero.betas[[iter-1]])
+  num.beta.sym.diffs = sapply(beta.sym.diffs, length)
+  zero.beta.stable = all(num.beta.sym.diffs <= 1)
+
+  ## Check Alpha
+  zero.alpha.stable = (length(sym_diff(zero.alphas[[iter]], zero.alphas[[iter-1]])) <= 1)
+
+  return(zero.alpha.stable & zero.beta.stable)
+}

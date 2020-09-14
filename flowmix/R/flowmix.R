@@ -77,17 +77,15 @@ flowmix_once <- function(ylist, X,
                          admm_err_abs = 1E-4,
                          ## beta M step (Locally Adaptive ADMM) settings
                          admm_local_adapt = TRUE,
-                         admm_local_adapt_niter = 10, ## This spans rho=0.1 to
-                                                      ## 100, which is
-                                                      ## reasonable.
+                         admm_local_adapt_niter = 10,
                          admm_niter = (if(admm_local_adapt)1E3 else 1E4),
                          rcpp = FALSE
-                         ## always_first_iter## temporary
                          ){## Basic checks
 
   ## Basic checks
   if(!is.null(maxdev)){ assertthat::assert_that(maxdev!=0) }
   ## assert_that(!(is.data.frame(ylist[[1]])))
+  assert_that(!(is.data.frame(X)))
   assertthat::assert_that(sum(is.na(X)) == 0)
   assertthat::assert_that(length(ylist) == nrow(X))
   ## assertthat::assert_that(pie_lambda > 0)
@@ -135,63 +133,30 @@ flowmix_once <- function(ylist, X,
     ## 1. Alpha
     res.alpha = Mstep_alpha(resp, X, numclust, lambda = pie_lambda,
                             zerothresh = zerothresh)
-                            ## iter=iter)
     pie = res.alpha$pie
     alpha = res.alpha$alpha
     rm(res.alpha)
 
-    ## print(iter)
-    ## if(iter==2){
-    ##   save(resp, ylist, X, sigma, numclust, maxdev, sigma_eig_by_clust,
-    ##        ## file = file.path("~/Desktop/test-admm-large-T-numclust-10.Rdata"))
-    ##        file = file.path("~/Desktop/test-admm-highdim.Rdata"))
-    ##   return()
-    ## }
-    ## load(file.path("~/Desktop/test-admm.Rdata"))
-
     ## 2. Beta
-    if(admm){
-      first_iter = (iter == 2)
+    res.beta = Mstep_beta_admm(resp, ylist, X,
+                               mean_lambda = mean_lambda,
+                               first_iter = (iter == 2),
+                               sigma_eig_by_clust = sigma_eig_by_clust,
+                               sigma = sigma, maxdev = maxdev, rho = admm_rho,
 
-      ## if(!always_first_iter) first_iter = (iter == 2)
-      ## if(always_first_iter) first_iter=TRUE
-      res.beta = Mstep_beta_admm(resp, ylist, X,
-                                 mean_lambda = mean_lambda,
-                                 ## first_iter = (iter == 2),
-                                 ## first_iter=TRUE,
-                                 first_iter = first_iter,
-                                 ## em_iter = iter,
-                                 sigma_eig_by_clust = sigma_eig_by_clust,
-                                 sigma = sigma, maxdev = maxdev, rho = admm_rho,
+                               betas = betas,
+                               Zs = Zs,
+                               wvecs=wvecs,
+                               uws=uws,
+                               Uzs=Uzs,
 
-                                 betas = betas,
-                                 Zs = Zs,
-                                 wvecs=wvecs,
-                                 uws=uws,
-                                 Uzs=Uzs,
-
-                                 err_rel = admm_err_rel,
-                                 err_abs = admm_err_abs,
-                                 niter = admm_niter,
-                                 local_adapt = admm_local_adapt,
-                                 local_adapt_niter = admm_local_adapt_niter,
-                                 rcpp = rcpp)
-      admm_niters[[iter]] = unlist(res.beta$admm_niters)
-    } else {
-      res.beta = Mstep_beta(resp, ylist, X,
-                             mean_lambda = mean_lambda,
-                             sigma = sigma,
-                             maxdev = maxdev,
-                             ## Temporary
-                             ridge = ridge,
-                             ridge_lambda = ridge_lambda,
-                            ## End of temporary
-                             sigma_eig_by_clust = sigma_eig_by_clust,
-                             first_iter = (iter == 2),
-                             cvxr_ecos_thresh = mstep_cvxr_ecos_thresh,
-                             cvxr_scs_eps = mstep_cvxr_scs_eps,
-                             zerothresh = zerothresh)
-    }
+                               err_rel = admm_err_rel,
+                               err_abs = admm_err_abs,
+                               niter = admm_niter,
+                               local_adapt = admm_local_adapt,
+                               local_adapt_niter = admm_local_adapt_niter,
+                               rcpp = rcpp)
+    admm_niters[[iter]] = unlist(res.beta$admm_niters)
 
     ## Harvest means
     mn = res.beta$mns
@@ -206,26 +171,10 @@ flowmix_once <- function(ylist, X,
 
     ## Check if the number of zeros in the alphas and betas have stabilized.
     zero.betas[[iter]] = lapply(beta, function(mybeta) which(mybeta==0))
-    zero.alphas[[iter]] = which(alpha==0)
+    zero.alphas[[iter]] = which(alpha == 0)
     sym_diff <- function(a,b) unique(c(setdiff(a,b), setdiff(b,a)))
     if(zero_stabilize & iter >= 30){ ## If 5 is to low, try 10 instead of 5.
-
-      ## Temporary print message, to see sparsity.
-      cat(fill = TRUE)
-      print('#Zeros in beta is')
-      for( b in beta){
-        cat(sum(b[-1,]!=0), "out of", length(b[-1,]), fill=TRUE)
-      }
-      print('And #zero in alpha is')
-      cat(sum(alpha[,-1]!=0), "out of", length(alpha[,-1]), fill=TRUE)
-      ## End of temporary
-
-      beta.sym.diffs = Map(sym_diff, zero.betas[[iter]], zero.betas[[iter-1]])
-      ## sym_diff(zero.betas[[iter]][[3]], zero.betas[[iter-1]][[3]])
-      num.beta.sym.diffs = sapply(beta.sym.diffs, length)
-      zero.beta.stable = all(num.beta.sym.diffs <= 1)
-      zero.alpha.stable = (length(sym_diff(zero.alphas[[iter]], zero.alphas[[iter-1]])) <= 1)
-      if(zero.alpha.stable & zero.beta.stable) break
+      if(check_zero_stabilize(zero.betas, zero.alphas, iter)) break
     }
 
     ## 3. Sigma

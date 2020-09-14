@@ -109,12 +109,12 @@ converge <- function(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX, Xbeta1,
 ##' because it is super inefficient right now.
 ##' @param beta p x d matrix
 objective_per_cluster <- function(beta, ylist, Xa, resp, lambda, N, dimdat, iclust, sigma, iter, zerothresh,
-                                  first_iter, sigma_eig_by_clust=NULL, mc.cores = 1){
+                                  first_iter, sigma_eig_by_clust=NULL, rcpp = FALSE){
 
   ## Setup
   TT = length(ylist)
   p = ncol(Xa) - 1
-  mn = Xa %*% beta
+  mn = Xa %*% beta  ## VERY SLOW (600)
 
   ## Obtain square root of sigma.
   if(first_iter){
@@ -124,19 +124,50 @@ objective_per_cluster <- function(beta, ylist, Xa, resp, lambda, N, dimdat, iclu
     sigma_half <- sigma_eig$inverse_sigma_half
   }
 
-  ## Obtain the weighted residuals once.
-  wt_resids_list = lapply(1:TT, function(tt){
-    y = ylist[[tt]]
-    mumat = matrix(mn[tt,],
-                   ncol = ncol(y),
-                   nrow = nrow(y),
-                   byrow = TRUE)
-    wt_resid = sqrt(resp[[tt]][, iclust]) * (y - mumat)
-  })
 
-  ## Calculate the inner product: resid * sigma^-1 * t(resid)
-  transformed_resids = do.call(rbind, wt_resids_list) %*% sigma_half
-  resid.prods = rowSums(transformed_resids * transformed_resids)
+  ## Obtain the weighted residuals once.
+  ## save(ylist, TT, mn, resp, iclust, sigma_half, file="~/Desktop/rcpp-speed.Rdata")
+  ## load(file="~/Desktop/rcpp-speed.Rdata", verbose=TRUE)
+  if(!rcpp){
+      wt_resids_list = lapply(1:TT, function(tt){
+        y = ylist[[tt]]
+        mumat = matrix(mn[tt,],
+                       ncol = ncol(y),
+                       nrow = nrow(y),
+                       byrow = TRUE)
+        wt_resid = sqrt(resp[[tt]][, iclust]) * (y - mumat)
+      })
+      transformed_resids = do.call(rbind, wt_resids_list) %*% sigma_half
+      resid.prods = rowSums(transformed_resids * transformed_resids)
+  }
+  if(rcpp){
+
+
+    ## This works and is slightly faster
+    ## wt_resids_list = list()
+    ## for(tt in 1:TT){
+    ##   wt_resids_list[[tt]] = subtractC3(sqrt(resp[[tt]][, iclust]),
+    ##                                     ylist[[tt]],
+    ##                                     mn[tt,])
+    ## }
+    form_wt_resid <- function(tt){
+      subtractC3(sqrt(resp[[tt]][, iclust]),
+                 ylist[[tt]],
+                 mn[tt,])
+    }
+    wt_resids_list = lapply(1:TT, form_wt_resid)
+    transformed_resids = do.call(rbind, wt_resids_list) %*% sigma_half
+    resid.prods = rowSumsC2_arma(transformed_resids)
+
+    ## Restructuring of data.
+    ## ylong = do.call(rbind, ylist) ## This can be done in \code{flowmix()}, once.
+    ## ntlist = sapply(ylist, nrow)
+    ## mumat = mn[rep(1:TT, ntlist), ] ## You can't get around this. ## this takes a long time.
+    ## longwt = do.call(c, lapply(1:TT, function(tt){ resp[[tt]][,iclust]})) %>% sqrt()
+    ## resid.prods = dothisC(longwt, ylong, mumat, sigma_half)
+  }
+
+  ## ## Calculate the inner product: resid * sigma^-1 * t(resid)
   grand.sum = sum(resid.prods)
 
   ## Calculate the objective value
@@ -146,11 +177,24 @@ objective_per_cluster <- function(beta, ylist, Xa, resp, lambda, N, dimdat, iclu
 
 
 ##' Calculate a specific least squares problem \deqn{\min_b \|c-Db\|^2}.
+##'
+##' @param wvec Numeric vector of length \code{p * dimdat}.
+##' @param uw Numeric vector of length \code{p * dimdat}.
+##' @param rho Positive scalar.
+##' @param Z Vector of size \code{dimdat * T}.
+##' @param Uz Matrix of size \code{TT} by \code{dimdat}.
+##' @param yvec Vector of size \code{dimdat * T}
+##' @param D Matrix of size (d(T+p) x (p+1)d)
+##' @param DtDinv \deqn{(D^T D)^{-1}}
+##' @param N Scalar.
+##'
+##' @return Least squares solution.
 b_update  <- function(wvec, uw, Z, Uz, rho, yvec, D, DtDinv, N){
 
   cvec = c(sqrt(1/(2*N)) * yvec,
            sqrt(rho/2) * (wvec - uw/rho),
            sqrt(rho/2) * as.numeric(t(Z - Uz/rho)))
+
   sol = DtDinv %*% crossprod(D, cvec)
   return(sol)
 }

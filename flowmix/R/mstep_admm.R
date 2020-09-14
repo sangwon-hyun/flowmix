@@ -113,10 +113,10 @@ Mstep_beta_admm <- function(resp,
     ## Store the results
     betas[[iclust]] = res$beta
     yhats[[iclust]] = res$yhat
-    fits[,iclust] = res$fits
+    ## fits[,iclust] = res$fits
     admm_niters[[iclust]] = res$kk
 
-    ## Store other things for for warmstart
+ ## Store other things for for warmstart
     Zs[[iclust]] = res$Z
     wvecs[[iclust]] = res$wvec
     uws[[iclust]] = res$uw
@@ -175,9 +175,12 @@ la_admm_oneclust <- function(K,
     args[['Uz']] <- Uz
   }
 
-  fits = c()
   cols = c()
   objectives = c()
+
+  ## Temporary
+  all_fits = c()
+  all_cols = c()
 
   ## Run ADMM repeatedly with (1) double rho, and (2) previous b
   for(kk in 1:K){
@@ -197,6 +200,18 @@ la_admm_oneclust <- function(K,
     names(argn) <- names(args)
     call <- as.call(c(list(as.name("admm_oneclust")), argn))
     res = eval(call, args)
+
+
+    ## ## Temporary (uncomment for plotting objectives)
+    ## fits = as.numeric(na.omit(res$fits))
+    ## all_fits = c(all_fits, fits)
+    ## all_cols = c(all_cols, rep(kk, length(fits)))
+    ## print(all_fits)
+    ## if(length(all_fits)!=0){
+    ##   plot(all_fits %>% log10(), col=all_cols, type='o', lwd=2, main = paste0("outer iter = ", kk))
+    ## }
+    ## ## End temporary
+
 
     ## See if outer iterations should terminate
     objectives = c(objectives, res$fit)
@@ -291,7 +306,13 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
 
   for(iter in 1:niter){
 
-    b <- b_update(wvec, uw, Z, Uz, rho, yvec, D, DtDinv, N)
+    if(!rcpp){
+      b <- b_update(wvec, uw, Z, Uz, rho, yvec, D, DtDinv, N)
+    }
+    if(rcpp){
+      cvec3_el = as.numeric(t(Z - Uz/rho)) ## This is still slow; make it faster!
+      b <- b_updateC(wvec, uw, rho, cvec3_el, yvec, DtDinv, D, N)
+    }
     b1 = b[-intercept_inds]
     b0 = b[intercept_inds]
     beta = matrix(b, nrow = p+1)
@@ -300,7 +321,7 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
 
     ## Update 1
     if(!rcpp)  wvec <- wvec_update(b1, uw, lambda, rho)
-    if(rcpp) wvec <- wvec_updateC(b1, uw, lambda, rho)
+    if(rcpp)   wvec <- wvec_updateC(b1, uw, lambda, rho)
     w <- matrix(wvec, nrow = p, byrow=FALSE)
 
     ## Update 2
@@ -317,7 +338,7 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
     ## 3. Check convergence
     if( iter > 1  & iter %% 5 == 0){## & !local_adapt){
 
-      ## Calculate ADMM convergence criterion
+      ## Calculate convergence criterion
       obj = converge(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX = tX,
                      Xbeta1 = Xbeta1, err_rel = err_rel,
                      err_abs = err_abs)
@@ -338,11 +359,19 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
     w_prev = w
     Z_prev = Z
 
+    ## ## Temporary (uncomment for plotting objectives)
     ## ## 4. Calculate things related to convergence (Slow).
-    if(iter %% space == 0 ){
-      ii = iter / space
-    }
+    ## if(iter %% space == 0 ){
+    ##   ii = iter / space
+    ##   fits[ii] = objective_per_cluster(beta, ylist, Xa, resp, lambda, N, dimdat,
+    ##                               iclust, sigma, iter, zerothresh,
+    ##                               is.null(sigma_eig_by_clust), sigma_eig_by_clust)
+    ## }
+    ## ## End of temporary
   }
+
+  ## plot(fits, type='l', title=iclust)
+  ## Sys.sleep(10)
 
   ## Gather results.
   beta[-1,] = w
@@ -351,7 +380,8 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
 
   fit = objective_per_cluster(beta, ylist, Xa, resp, lambda, N, dimdat,
                               iclust, sigma, iter, zerothresh,
-                              is.null(sigma_eig_by_clust), sigma_eig_by_clust)
+                              is.null(sigma_eig_by_clust), sigma_eig_by_clust,
+                              rcpp = rcpp)
 
   return(list(beta = beta,
               yhat = yhat,
