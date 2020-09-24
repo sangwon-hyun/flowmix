@@ -106,8 +106,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // b_updateC
-arma::vec b_updateC(const NumericVector& wvec, const NumericVector& uw, const double& rho, const NumericVector& cvec3_el, const NumericVector& yvec, const arma::mat& DtDinv, const arma::mat& D, const double& N);
-RcppExport SEXP _flowmix_b_updateC(SEXP wvecSEXP, SEXP uwSEXP, SEXP rhoSEXP, SEXP cvec3_elSEXP, SEXP yvecSEXP, SEXP DtDinvSEXP, SEXP DSEXP, SEXP NSEXP) {
+arma::colvec b_updateC(const NumericVector& wvec, const NumericVector& uw, const double& rho, const NumericVector& cvec3_el, const NumericVector& yvec, const arma::mat& D, const arma::mat& DtDinv, const double& N);
+RcppExport SEXP _flowmix_b_updateC(SEXP wvecSEXP, SEXP uwSEXP, SEXP rhoSEXP, SEXP cvec3_elSEXP, SEXP yvecSEXP, SEXP DSEXP, SEXP DtDinvSEXP, SEXP NSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -116,10 +116,10 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const double& >::type rho(rhoSEXP);
     Rcpp::traits::input_parameter< const NumericVector& >::type cvec3_el(cvec3_elSEXP);
     Rcpp::traits::input_parameter< const NumericVector& >::type yvec(yvecSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type DtDinv(DtDinvSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type D(DSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type DtDinv(DtDinvSEXP);
     Rcpp::traits::input_parameter< const double& >::type N(NSEXP);
-    rcpp_result_gen = Rcpp::wrap(b_updateC(wvec, uw, rho, cvec3_el, yvec, DtDinv, D, N));
+    rcpp_result_gen = Rcpp::wrap(b_updateC(wvec, uw, rho, cvec3_el, yvec, D, DtDinv, N));
     return rcpp_result_gen;
 END_RCPP
 }

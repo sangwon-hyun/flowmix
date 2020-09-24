@@ -77,10 +77,23 @@ Mstep_beta_admm <- function(resp,
   Xtildes = manip_obj$Xtildes
   yvecs = manip_obj$yvecs
 
+
   ## For every cluster, run LA-ADMM
   resid_mat_list = list()
   start.time = Sys.time()
   for(iclust in 1:numclust){
+
+  ## ## Begin temporary
+  ## Prepare an object for b_update()
+  Dfirst = sqrt(1/(2*N)) * Xtildes[[iclust]]
+  Drest = rbind(sqrt(rho/2) * I_aug,
+                sqrt(rho/2) * X0)
+  D = rbind(Dfirst, Drest)
+  DtD = crossprod(Dfirst, Dfirst) + crossprod(Drest, Drest)
+  DtDinv = chol2inv(chol(DtD))
+  Dobj = DtDinv %*% t(D)
+  ## ## End temporary
+
 
     ## Perform LA-ADMM.
     res = la_admm_oneclust(K = (if(local_adapt) local_adapt_niter else 1),
@@ -96,6 +109,7 @@ Mstep_beta_admm <- function(resp,
                            err_rel = err_rel,
                            err_abs = err_abs,
                            zerothresh = zerothresh,
+                           Dobj = Dobj,## Temporary
                            sigma_eig_by_clust = sigma_eig_by_clust,
                            plot = plot.admm,
                            space = space,
@@ -265,6 +279,7 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
                           intercept_inds, lambda,
                           resp, ylist, X, tX, err_rel, err_abs,
                           zerothresh,
+                          Dobj, ## Temporary
                           ## Warm startable variables
                           beta,
                           Z,
@@ -291,6 +306,7 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
   D = rbind(Dfirst, Drest)
   DtD = crossprod(Dfirst, Dfirst) + crossprod(Drest, Drest)
   DtDinv = chol2inv(chol(DtD))
+  Dobj = DtDinv %*% t(D)
 
   ###############################
   ## Initialize the variables ###
@@ -311,7 +327,7 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
     }
     if(rcpp){
       cvec3_el = as.numeric(t(Z - Uz/rho)) ## This is still slow; make it faster!
-      b <- b_updateC(wvec, uw, rho, cvec3_el, yvec, DtDinv, D, N)
+      b <- b_updateC(wvec, uw, rho, cvec3_el, yvec, D, DtDinv, N)
     }
     b1 = b[-intercept_inds]
     b0 = b[intercept_inds]
@@ -342,6 +358,7 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
       obj = converge(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX = tX,
                      Xbeta1 = Xbeta1, err_rel = err_rel,
                      err_abs = err_abs)
+      print(obj$converge)
       jj = (iter/ 5)
       resid_mat[jj,] = c(norm(obj$primal_resid, "F"),
                          obj$primal_err,

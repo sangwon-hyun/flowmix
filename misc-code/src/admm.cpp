@@ -106,14 +106,14 @@ arma::mat mv_mult(const arma::mat& lhs,
 
 
 //[[Rcpp::export]]
-arma::vec b_updateC(const NumericVector& wvec,
-		    const NumericVector& uw,
-		    const double& rho,
-		    const NumericVector& cvec3_el,
-		    const NumericVector& yvec,
-		    const arma::mat& DtDinv,
-		    const arma::mat& D,
-		    const double& N){
+arma::colvec b_updateC(const NumericVector& wvec,
+		       const NumericVector& uw,
+		       const double& rho,
+		       const NumericVector& cvec3_el,
+		       const NumericVector& yvec,
+		       const arma::mat& D,
+		       const arma::mat& DtDinv,
+		       const double& N){
 
   // Calculate the three subvectors
   arma::vec cvec1 = sqrt(1/(2*N)) * yvec;
@@ -123,7 +123,10 @@ arma::vec b_updateC(const NumericVector& wvec,
   cvec = arma::join_cols(cvec1, cvec2, cvec3);
 
   // Do the solve.
-  arma::mat betahat = DtDinv * D.t() * cvec;
+  // arma::mat betahat = DtDinv * D.t() * cvec; // use linear system solver.
+  // arma::mat betahat = Dobj * cvec; // use linear system solver.
+  arma::colvec betahat = arma::solve(D, cvec);
+  // Rcout << betahat << endl;
   return betahat;
 }
 
@@ -138,7 +141,6 @@ arma::mat subtractC2(const arma::vec& wt,
   int nc = mat.n_cols;
   arma::mat vect = vec.t();
   arma::mat matnew(nr, nc);
-  arma::rowvec rowvec(nc);
   for(int ii = 0; ii < nr; ii++){
     matnew.row(ii) = wt(ii) * (mat.row(ii) - vect) * mat2;
   }
@@ -156,7 +158,6 @@ arma::mat subtractC3(const arma::vec& wt,
   int nc = mat.n_cols;
   arma::mat vect = vec.t();
   arma::mat matnew(nr, nc);
-  arma::rowvec rowvec(nc);
   for(int ii = 0; ii < nr; ii++){
     matnew.row(ii) = wt(ii) * (mat.row(ii) - vect);
   }

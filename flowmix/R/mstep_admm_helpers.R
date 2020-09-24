@@ -96,6 +96,7 @@ converge <- function(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX, Xbeta1,
 
   ## return(primal_converge & dual_converge)
   converge = primal_converge & dual_converge
+  if(is.na(converge)) browser()
 
   return(list(primal_resid = primal_resid,
               primal_err = primal_err,
