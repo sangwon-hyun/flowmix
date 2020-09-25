@@ -358,7 +358,6 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
       obj = converge(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX = tX,
                      Xbeta1 = Xbeta1, err_rel = err_rel,
                      err_abs = err_abs)
-      print(obj$converge)
       jj = (iter/ 5)
       resid_mat[jj,] = c(norm(obj$primal_resid, "F"),
                          obj$primal_err,

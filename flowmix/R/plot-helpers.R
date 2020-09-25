@@ -20,10 +20,13 @@ collapse_3d_to_2d <- function(y, counts, dims=1:2){
   ymat = cbind(y[,dims], counts) %>% as.data.frame()
   names(ymat)[1:2] = c("dim1", "dim2")
   ymat_summary <- ymat %>% dplyr::group_by(dim1, dim2) %>%
-    dplyr::summarise(counts=sum(counts)) %>% as.matrix()
+    dplyr::summarise(counts=sum(counts), .groups = 'drop') %>%
+    as.matrix()
 
   ## Basic check
-  if(!is.null(colnames(y))){
+  if(is.null(colnames(y)) | all(colnames(y)=="")){
+    colnames(ymat_summary)[1:2] = paste0("dim", dims)
+  } else {
     colnames(ymat_summary)[1:2] = colnames(y)[dims]
   }
 
