@@ -341,7 +341,7 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
     w <- matrix(wvec, nrow = p, byrow=FALSE)
 
     ## Update 2
-    if(!rcpp) Z <- Z_update(Xbeta1, Uz, C, rho, dimdat, TT)
+    if(!rcpp) Z <- Z_update(Xbeta1, Uz, C, rho)##, dimdat, TT)
     if(rcpp)  Z <- Z_updateC(Xbeta1, Uz, C, rho, dimdat, TT)
 
     ## Update 3

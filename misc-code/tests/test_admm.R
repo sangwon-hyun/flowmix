@@ -3,6 +3,7 @@ context("Test M-step admm solver.")
 test_that("EM algorithm gives same results using ADMM solver or CVXR solver in M step.", {
 
   ## Generate data
+  la('flowmix')
   set.seed(0)
   TT = 100
   obj = generate_data_generic(TT = TT, fac = 0.1, dimdat = 3)
@@ -11,6 +12,7 @@ test_that("EM algorithm gives same results using ADMM solver or CVXR solver in M
   numclust = 2
   niter = 4
   for(mean_lambda in c(0,1,3,10,50,100)){
+    mean_lambda=1
     print(mean_lambda)
     set.seed(1)
     res.admm = flowmix_once(ylist, X,
@@ -23,6 +25,18 @@ test_that("EM algorithm gives same results using ADMM solver or CVXR solver in M
                             admm = TRUE,
                             admm_rho = 10,
                             admm_err_rel = 1E-3)
+    set.seed(1)
+    res.admm.rcpp = flowmix_once(ylist, X,
+                                 numclust = numclust,
+                                 niter = niter,
+                                 mean_lambda = mean_lambda,
+                                 pie_lambda = 10,
+                                 verbose = FALSE,
+                                 maxdev = 0.5,
+                                 admm = TRUE,
+                                 admm_rho = 10,
+                                 admm_err_rel = 1E-3,
+                                 rcpp = TRUE)
 
     set.seed(1)
     res.cvxr = flowmix_once(ylist, X,
