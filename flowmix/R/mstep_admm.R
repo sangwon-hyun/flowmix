@@ -92,10 +92,10 @@ Mstep_beta_admm <- function(resp,
   DtD = crossprod(Dfirst, Dfirst) + crossprod(Drest, Drest)
   DtDinv = chol2inv(chol(DtD))
   Dobj = DtDinv %*% t(D)
-  ## ## End temporary
+  ## ## End Perform
 
 
-    ## Perform LA-ADMM.
+    ## temporary LA-ADMM.
     res = la_admm_oneclust(K = (if(local_adapt) local_adapt_niter else 1),
                            local_adapt = local_adapt,
                            iclust = iclust,
@@ -299,6 +299,7 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
   resid_mat = matrix(NA, nrow = ceiling(niter/5), ncol = 4)
   colnames(resid_mat) = c("primresid", "primerr", "dualresid", "dualerr")
 
+
   ## Prepare an object for b_update()
   Dfirst = sqrt(1/(2*N)) * Xtilde
   Drest = rbind(sqrt(rho/2) * I_aug,
@@ -333,6 +334,7 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
     b0 = b[intercept_inds]
     beta = matrix(b, nrow = p+1)
     beta1 = matrix(b1, nrow = p)
+    ## save(beta, beta1, file="~/Desktop/beta-mstep-former.Rdata")
     Xbeta1 = X %*% beta1
 
     ## Update 1

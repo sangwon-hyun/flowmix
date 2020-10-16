@@ -121,7 +121,7 @@ det_from_eig <- function(sigma_eig){
 ##' @param sigma_eig Eigendecomposition (from \code{get_sigma_eig()}) of sigma.
 ##' @return Inverse of sigma.
 sigma_inv_from_eig <- function(sigma_eig){
-  vec = 1/sigma_eig$values
+  vec = 1 / sigma_eig$values
   if(length(vec)==1){
     mat = vec
   } else {

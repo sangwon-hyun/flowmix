@@ -79,7 +79,8 @@ flowmix_once <- function(ylist, X,
                          admm_local_adapt = TRUE,
                          admm_local_adapt_niter = 10,
                          admm_niter = (if(admm_local_adapt)1E3 else 1E4),
-                         rcpp = FALSE
+                         rcpp = FALSE,
+                         new_beta_mstep = FALSE
                          ){## Basic checks
 
   ## Basic checks
@@ -116,6 +117,11 @@ flowmix_once <- function(ylist, X,
   uws = NULL
   Uzs = NULL
 
+  ## New ADMM parameters.
+  Zs = NULL
+  Ws = NULL
+  Us = NULL
+
   ## The least elegant solution I can think of.. used only for blocked cv
   if(!is.null(countslist_overwrite)) countslist = countslist_overwrite
   if(!is.null(countslist)) check_trim(ylist, countslist)
@@ -137,7 +143,14 @@ flowmix_once <- function(ylist, X,
     alpha = res.alpha$alpha
     rm(res.alpha)
 
+    ## if(iter==3){
+    ##   save(pie, alpha, ## res.alpha,
+    ##        resp, sigma, ylist, X, file=file.path("~/Desktop", "ADMM-test.Rdata"))
+    ##   return()
+    ## }
+
     ## 2. Beta
+    if(!new_beta_mstep){
     res.beta = Mstep_beta_admm(resp, ylist, X,
                                mean_lambda = mean_lambda,
                                first_iter = (iter == 2),
@@ -156,6 +169,31 @@ flowmix_once <- function(ylist, X,
                                local_adapt = admm_local_adapt,
                                local_adapt_niter = admm_local_adapt_niter,
                                rcpp = rcpp)
+    }
+    if(new_beta_mstep){
+    res.beta = Mstep_beta_admm_new(resp, ylist, X,
+                               mean_lambda = mean_lambda,
+                               first_iter = (iter == 2),
+                               sigma_eig_by_clust = sigma_eig_by_clust,
+                               sigma = sigma, maxdev = maxdev, rho = admm_rho,
+
+                               betas = betas,
+                               ## Zs = Zs,
+                               ## wvecs=wvecs,
+                               ## uws=uws,
+                               ## Uzs=Uzs,
+                            Zs = Zs,
+                            Ws = Ws,
+                            Us = Us,
+
+                               err_rel = admm_err_rel,
+                               err_abs = admm_err_abs,
+                               niter = admm_niter,
+                               local_adapt = admm_local_adapt,
+                               local_adapt_niter = admm_local_adapt_niter,
+                               rcpp = rcpp)
+    }
+
     admm_niters[[iter]] = unlist(res.beta$admm_niters)
 
     ## Harvest means
@@ -163,10 +201,18 @@ flowmix_once <- function(ylist, X,
     betas = beta = res.beta$beta
 
     ## Harvest other things for next iteration's ADMM.
+    if(!new_beta_mstep){
     Zs = res.beta$Zs
     wvecs = res.beta$wvecs
     uws = res.beta$uws
     Uzs = res.beta$Uzs
+    }
+
+    if(new_beta_mstep){
+      Zs = res.beta$Zs
+      Ws = res.beta$Ws
+      Us = res.beta$Us
+    }
     rm(res.beta)
 
     ## Check if the number of zeros in the alphas and betas have stabilized.

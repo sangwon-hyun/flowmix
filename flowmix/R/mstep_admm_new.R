@@ -60,18 +60,25 @@ Mstep_beta_admm_new <- function(resp,
 
   ## Other preliminaries
   schur_syl_A_by_clust = schur_syl_B_by_clust = term3list = list()
+  ybarlist = list()
+  Qlist = list()
   for(iclust in 1:numclust){
     ## print(iclust, numclust, "iclust")
 
     ## Center y and X
-    ycentered <- center_y(iclust, ylist, resp, resp.sum)
+    ## load(file = file.path("~/Desktop", "ADMM-test.Rdata"), verbose=TRUE)
+    ## source("~/repos/flowmix/flowmix/R/mstep_admm_new.R")
+    obj <- weight_ylist(iclust, resp, resp.sum, ylist)
+    ## ycentered <- center_y(iclust, ylist, resp, resp.sum)
+    ycentered <- obj$ycentered
     Xcentered <- center_X(iclust, resp.sum, X)
     yXcentered = ycentered %*% Xcentered
     D = diag(resp.sum[,iclust])
 
     ## Form the Sylvester equation coefficients in AX + XB + C = 0
     syl_A = rho * sigma[iclust,,]
-    syl_B = 1/N * t(Xcentered) %*% D %*% Xcentered %*% Xinv
+    Q = 1/N * t(Xcentered) %*% D %*% Xcentered
+    syl_B = Q %*% Xinv
 
     ## Store the Schur decomposition
     schur_syl_A_by_clust[[iclust]] = myschur(syl_A)
@@ -84,8 +91,16 @@ Mstep_beta_admm_new <- function(resp,
       sigmainv = sigma_eig_by_clust[[iclust]]$sigma_inv
     }
 
+
+    ## ## Calculate coefficients for objective value  calculation
+    ## Q = syl_B / 2 ##(1 / (2 * N)) * t(Xcentered) %*% D %*% Xcentered
+    ## M = (1 / N) * yXcentered %*% sigmainv
+    Qlist[[iclust]] = Q
+    ## Mlist[[iclust]] = M
+
     ## Store the third term
     term3list[[iclust]] = 1 / N * sigmainv %*% yXcentered
+    ybarlist[[iclust]] = obj$ybar
   }
 
   ##########################################
@@ -127,6 +142,8 @@ Mstep_beta_admm_new <- function(resp,
                            rho = rho,
                            rhoinit = rho,
                            sigma = sigma,
+                           ybar = ybarlist[[iclust]],
+                           Q = Qlist[[iclust]],
                            lambda = mean_lambda,
                            resp = resp,
                            resp.sum = resp.sum,
@@ -318,6 +335,8 @@ admm_oneclust_new <- function(iclust, niter, Xtilde, yvec, p,
                           ## Xa, rho,
                           ## X0, I_aug,
                           ## intercept_inds,
+                          ybar,
+                          Q,
                           lambda,
                           resp,
                           resp.sum,
@@ -362,13 +381,11 @@ admm_oneclust_new <- function(iclust, niter, Xtilde, yvec, p,
   tUB = schurB$tQ
 
   ## if(rho == 0.02) browser()
-  print("outer_iter")
-  print(outer_iter)
-  print("inner iter")
+  ## print("outer_iter")
+  ## print(outer_iter)
+  ## print("inner iter")
   for(iter in 1:niter){
-    print(iter)
-    ## printprogress(iter, niter, "iters")
-    ## printprogress(iter, "iters")
+    ## print(iter)
 
     ## Update ytilde based on new beta
     syl_C = prepare_sylC_const3(U, Xaug, rho, Z, X, W,
@@ -378,41 +395,6 @@ admm_oneclust_new <- function(iclust, niter, Xtilde, yvec, p,
     beta = UA %*% matrix_function_solve_triangular_sylvester_barebones(TA, TB, F) %*% tUB
     beta = t(beta)
     if(any(is.nan(beta))) browser()
-
-    ## ##### Beginning of Test version ################3
-    ## ycentered <- center_y(iclust, ylist, resp, resp.sum)
-    ## Xcentered <- center_X(iclust, resp.sum, X)
-    ## yXcentered = ycentered %*% Xcentered
-    ## D = diag(resp.sum[,iclust])
-
-    ## ## Form the Sylvester equation coefficients in AX + XB + C = 0
-    ## syl_B = 1/N * t(Xcentered) %*% D %*% Xcentered %*% Xinv
-    ## syl_A = rho * sigma[iclust,,]
-
-    ## ## Retrieve sigma inverse from pre-computed SVD, if necessary
-    ## sigmainv = solve(sigma[iclust,,])
-
-    ## ## Store the third term
-    ## term3 = 1 / N * sigmainv %*% yXcentered
-    ## syl_C = prepare_sylC_const3(U, Xaug, rho, Z, X, W,
-    ##                             term3,
-    ##                             sigma[iclust,,], Xinv)
-    ## beta = sylC(syl_A, syl_B, syl_C) %>% t()
-
-
-    ## syl_A_reconstructed = UA %*% TA %*% tUA
-    ## syl_B_reconstructed = UB %*% TB %*% tUB
-    ## syl_A - syl_A_reconstructed
-    ## dim(syl_A)
-    ## syl_A_reconstructed
-    ## sylC(
-
-
-
-
-    ## browser()
-    ## beta0 <- intercept(resp, resp.sum, ylist, betanew, X, N, iclust)
-    ##### End of Test version ########################
 
 
     Xbeta = X %*% beta
@@ -473,18 +455,38 @@ admm_oneclust_new <- function(iclust, niter, Xtilde, yvec, p,
 
   ## Gather results.
   beta[which(abs(beta) < zerothresh, arr.ind = TRUE)] = 0
-  beta0 <- intercept(resp, resp.sum, ylist, beta, X, N, iclust)
+  ## beta0 <- intercept(resp, resp.sum, ylist, beta, X, N, iclust)
+  beta0 <- intercept_new(resp, resp.sum, ylist, beta, X, N, iclust,
+                            ybar) ## New argument
+
   betafull = rbind(beta0, beta)
   yhat = Xa %*% betafull
 
-  if(outer_iter %% 2 == 0){
-    fit = objective_per_cluster(betafull, ylist, Xa, resp, lambda, N, dimdat,
-                                iclust, sigma, iter, zerothresh,
-                                is.null(sigma_eig_by_clust), sigma_eig_by_clust,
-                                rcpp = rcpp)
-  } else {
-    fit = NA
-  }
+  ## if(outer_iter %% 2 == 0){
+
+    ## ## Complete calculation (super slow)
+    ## fit = objective_per_cluster(betafull, ylist, Xa, resp, lambda, N, dimdat,
+    ##                             iclust, sigma, iter, zerothresh,
+    ##                             is.null(sigma_eig_by_clust), sigma_eig_by_clust,
+    ##                             rcpp = rcpp)
+
+
+    ## ## (not needed but useful for testing) part of the objective value calculation
+    ## ylong = sweep(do.call(rbind, ylist), 2, obj$ybar)
+    ## longwt = do.call(c, lapply(1:TT, function(tt){ resp[[tt]][,iclust]})) %>% sqrt()
+    ## wt.long = longwt * ylong
+    ## wt.ylong = longwt * ylong
+    ## objective_first_term = sum(diag(crossprod(wt.ylong, wt.ylong) %*% sigmainv))/ (2*N)
+    ## stopifnot(fit, objective_first_term + sum(diag(Q)) - sum(diag(M)) + lambda * sum(abs(beta) > zerothresh))
+
+    ## ## Todo: get rid of the transposes
+    Q2 = (1 / 2) * Q %*% (beta %*% sigmainv %*% t(beta))
+    M = t(term3) %*% t(beta)
+    fit = sum(diag(Q)) - sum(diag(M)) + lambda * sum(abs(beta) > zerothresh)
+
+  ## } else {
+  ##   fit = NA
+  ## }
 
   return(list(beta = betafull,
               yhat = yhat,
@@ -565,6 +567,16 @@ intercept <- function(resp, resp.sum, ylist, beta, X, N, iclust){
   return(wt.resid.sum / sum(resp.sum[,iclust]))##N)
 }
 
+intercept_new <- function(resp, resp.sum, ylist, beta, X, N, iclust, ybar){
+  dimdat = ncol(ylist[[1]])
+  TT = length(ylist)
+  resp.sum.thisclust = sum(resp.sum[,iclust])
+  wt.resid.sum = rep(0, dimdat)
+  mn = X %*% beta
+  yhat = (resp.sum[,iclust] / resp.sum.thisclust) * mn
+  return(ybar - colSums(yhat))
+}
+
 
 
 sigma_half_from_eig_temp <- function(sigma_eig){
@@ -605,6 +617,8 @@ center_X <- function(iclust, resp.sum, X){
   Xcentered = sweep(X, 2, Xtilde, check.margin=FALSE)
   return(Xcentered)
 }
+
+
 center_y <- function(iclust, ylist, resp, resp.sum){
   resp.sum.thisclust = sum(resp.sum[,iclust])
   ybar = Reduce("+", Map(function(y, myresp){
@@ -617,6 +631,37 @@ center_y <- function(iclust, ylist, resp, resp.sum){
   return(ycentered)
 }
 
+weight_ylist <- function(iclust, resp, resp.sum, ylist){
+  ## load(file = file.path("~/Desktop", "ADMM-test.Rdata"), verbose=TRUE)
+
+  ## Setup
+  dimdat = ncol(ylist[[1]])
+  TT = length(ylist)
+
+  ## All weighted data
+  weighted_ylist = Map(function(myresp, y){
+    myresp[,iclust, drop = TRUE] * y
+  }, resp, ylist)
+
+  ## All weighted data SUMs
+  weighted_ysum = lapply(weighted_ylist, colSums)
+
+  ## Grand mean of data
+  resp.sum.thisclust = sum(resp.sum[,iclust])
+  ybar = Reduce("+", weighted_ysum) / resp.sum.thisclust
+
+  ## Centered weighted ylist
+  centered_y = lapply(weighted_ylist, colSums)
+  weighted_ybar = resp.sum[,iclust] * matrix(ybar,
+                                             ncol = dimdat,
+                                             nrow = TT,
+                                             byrow = TRUE)
+  ycentered = do.call(rbind, centered_y) - weighted_ybar##sweep(do.call(cbind, centered_y), 1, ybar)
+  return(list(weighted_ylist = weighted_ylist,
+              weighted_ysum = weighted_ysum,
+              ybar = ybar,
+              ycentered = t(ycentered)))
+}
 
 myschur <- function(mat){
   stopifnot(nrow(mat) == ncol(mat))

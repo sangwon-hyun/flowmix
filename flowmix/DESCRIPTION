@@ -14,8 +14,9 @@ Imports:
     data.table,
     dplyr,
     Rcpp,
-    RcppArmadillo
-LinkingTo: Rcpp, RcppArmadillo
+    RcppArmadillo,
+    RcppEigen
+LinkingTo: Rcpp, RcppArmadillo, RcppEigen
 Suggests:
      testthat 
 Description: Tools for analyzing ocean flow cytometry data.
