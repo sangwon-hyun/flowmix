@@ -49,7 +49,6 @@ Mstep_beta_admm_new <- function(resp,
   numclust = ncol(resp[[1]])
   dimdat = ncol(ylist[[1]])
   ntlist = sapply(ylist, nrow)
-  ## N = sum(ntlist) ## OLD BUG!!
   resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
   resp.sum = as.matrix(resp.sum)
   N = sum(resp.sum) ## NEW (make more efficient, later)
@@ -61,6 +60,7 @@ Mstep_beta_admm_new <- function(resp,
   ## Other preliminaries
   schur_syl_A_by_clust = schur_syl_B_by_clust = term3list = list()
   ybarlist = list()
+  ycentered_list = Xcentered_list = yXcentered_list = list()
   Qlist = list()
   for(iclust in 1:numclust){
     ## print(iclust, numclust, "iclust")
@@ -91,16 +91,23 @@ Mstep_beta_admm_new <- function(resp,
       sigmainv = sigma_eig_by_clust[[iclust]]$sigma_inv
     }
 
-
-    ## ## Calculate coefficients for objective value  calculation
-    ## Q = syl_B / 2 ##(1 / (2 * N)) * t(Xcentered) %*% D %*% Xcentered
-    ## M = (1 / N) * yXcentered %*% sigmainv
+    ## Calculate coefficients for objective value  calculation
     Qlist[[iclust]] = Q
-    ## Mlist[[iclust]] = M
+
+    ## ## Also calculate some things for the objective value
+    ## ylong = sweep(do.call(rbind, ylist), 2, obj$ybar)
+    ## longwt = do.call(c, lapply(1:TT, function(tt){ resp[[tt]][,iclust]})) %>% sqrt()
+    ## wt.long = longwt * ylong
+    ## wt.ylong = longwt * ylong
+    ## crossprod(wt.ylong, wt.ylong)
 
     ## Store the third term
     term3list[[iclust]] = 1 / N * sigmainv %*% yXcentered
     ybarlist[[iclust]] = obj$ybar
+
+    ycentered_list[[iclust]] = ycentered
+    Xcentered_list[[iclust]] = Xcentered
+    yXcentered_list[[iclust]] = yXcentered
   }
 
   ##########################################
@@ -198,7 +205,14 @@ Mstep_beta_admm_new <- function(resp,
               ## For warmstarts
               Zs = Zs,
               Ws = Ws,
-              Us = Us
+              Us = Us,
+
+
+              ## For using in the Sigma M step
+              ycentered_list = ycentered_list,
+              Xcentered_list = Xcentered_list,
+              yXcentered_list = yXcentered_list,
+              Qlist = Qlist
               ))
 }
 
@@ -428,7 +442,6 @@ admm_oneclust_new <- function(iclust, niter, Xtilde, yvec, p,
                          obj$dual_err)
 
       if(obj$converge){
-        print("converged!")
         converge = TRUE
         break
       }
@@ -482,7 +495,7 @@ admm_oneclust_new <- function(iclust, niter, Xtilde, yvec, p,
     ## ## Todo: get rid of the transposes
     Q2 = (1 / 2) * Q %*% (beta %*% sigmainv %*% t(beta))
     M = t(term3) %*% t(beta)
-    fit = sum(diag(Q)) - sum(diag(M)) + lambda * sum(abs(beta) > zerothresh)
+    fit = sum(diag(Q2)) - sum(diag(M)) + lambda * sum(abs(beta) > zerothresh)
 
   ## } else {
   ##   fit = NA
@@ -619,6 +632,7 @@ center_X <- function(iclust, resp.sum, X){
 }
 
 
+##' Not used anymore; erase soon
 center_y <- function(iclust, ylist, resp, resp.sum){
   resp.sum.thisclust = sum(resp.sum[,iclust])
   ybar = Reduce("+", Map(function(y, myresp){
@@ -638,6 +652,7 @@ weight_ylist <- function(iclust, resp, resp.sum, ylist){
   dimdat = ncol(ylist[[1]])
   TT = length(ylist)
 
+
   ## All weighted data
   weighted_ylist = Map(function(myresp, y){
     myresp[,iclust, drop = TRUE] * y
@@ -651,12 +666,12 @@ weight_ylist <- function(iclust, resp, resp.sum, ylist){
   ybar = Reduce("+", weighted_ysum) / resp.sum.thisclust
 
   ## Centered weighted ylist
-  centered_y = lapply(weighted_ylist, colSums)
-  weighted_ybar = resp.sum[,iclust] * matrix(ybar,
-                                             ncol = dimdat,
-                                             nrow = TT,
-                                             byrow = TRUE)
-  ycentered = do.call(rbind, centered_y) - weighted_ybar##sweep(do.call(cbind, centered_y), 1, ybar)
+  ## weighted_ybar = resp.sum[,iclust] * matrix(ybar,
+  ##                                            ncol = dimdat,
+  ##                                            nrow = TT,
+  ##                                            byrow = TRUE)
+  weighted_ybar = resp.sum[,iclust] * matrix(ybar, TT, dimdat, byrow=TRUE)
+  ycentered = do.call(rbind, weighted_ysum) - weighted_ybar##sweep(do.call(cbind, centered_y), 1, ybar)
   return(list(weighted_ylist = weighted_ylist,
               weighted_ysum = weighted_ysum,
               ybar = ybar,

@@ -75,9 +75,161 @@ Mstep_alpha <- function(resp, X, numclust, lambda,
   return(list(pie = piehat, alpha = alpha))
 }
 
-##' Estimate sigma. TODO: Change the format of the sigma matrix so that the
-##' covariance at each time is only recorded once i.e. it is a numclust lengthed
-##' list of (dimdat x dimdat) matrices.
+
+##' Estimate sigma.
+##'
+##' @param mn Fitted means.
+##' @param resp Responsibilities.
+##' @param ylist List of cytograms.
+##' @param numclust Number of clusters.
+##'
+##' @return An array of size (numclust x dimdat x dimdat) containing the
+##'   covariance matrices.
+Mstep_sigma_covar_new <- function(resp, ylist, mn, numclust,
+                                  beta,
+                                  ycentered_list,
+                                  Xcentered_list,
+                                  yXcentered_list,
+                                  Qlist
+                                  ){
+                                  ## resp, ylist, mn, numclust){
+
+  ## Find some sizes
+  TT = length(ylist)
+  ntlist = sapply(ylist, nrow)
+  dimdat = ncol(ylist[[1]])
+  cs = c(0, cumsum(ntlist))
+  irows.list = lapply(1:TT, function(tt){irows = (cs[tt] + 1):cs[tt + 1]})
+
+  ## Set up empty residual matrix (to be reused)
+  resid.rows = matrix(0, nrow = sum(ntlist), ncol=dimdat) ## trying env
+  cs = c(0, cumsum(ntlist))
+  vars <- vector(mode = "list", numclust)
+  ylong = do.call(rbind, ylist)
+  ntlist = sapply(ylist, nrow)
+  ## resp.grandsums = rowSums(sapply(1:TT, function(tt){ colSums(resp[[tt]]) }))
+
+  for(iclust in 1:numclust){
+
+    ## Calculate all the residuals, and weight them.
+    ## Xa = cbind(1,X)
+    ## mn2 = Xa %*% beta[[iclust]]##[-1,]
+    ## mn[,,iclust] - mn2
+
+    ## Calculate things the hard way
+    resp.thisclust = lapply(resp, function(myresp) myresp[,iclust, drop = TRUE])
+    resp.long = do.call(c, resp.thisclust)
+    irows = rep(1:nrow(mn), times = ntlist)
+    mnlong = mn[irows,,iclust]
+    resid.rows = sqrt(resp.long) * (ylong - mnlong)
+
+    ## Also try it the "alternate" way with centered y's and X's.
+    resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
+    resp.sum = as.matrix(resp.sum)
+    resp.thisclust = lapply(resp, function(myresp) myresp[,iclust, drop = TRUE])
+    resp.long = do.call(c, resp.thisclust)
+    irows = rep(1:nrow(mn), times = ntlist)
+    mnlong = mn[irows,,iclust]
+    resids = (ylong - mnlong)
+    obj <- weight_ylist(iclust, resp, resp.sum, ylist)
+    ycentered_long = sweep(ylong, 2, obj$ybar)
+    Xcentered <- center_X(iclust, resp.sum, X)
+    this_beta = beta[[iclust]][-1,]
+    mn_from_centered = Xcentered %*% this_beta
+    resid.rows2 = sqrt(resp.long) * (ycentered_long - mn_from_centered[rep(1:TT, times=ntlist),])
+    stopifnot(all(abs(resid.rows - resid.rows2)<1E-10))
+
+
+    ## Calculate the covariance matrix
+    myvar = crossprod(resid.rows, resid.rows) / sum(resp.long)##resp.grandsums[iclust]
+
+    ## save(ylong, mn, resp, file="~/Desktop/temp-mstep.Rdata")
+    ## load( file="~/Desktop/temp-mstep.Rdata")
+
+    ## Now, first, load quantities that've been formed already in beta M step
+    N = sum(unlist(resp)) ## NEW (make more efficient, later)
+    this_beta = beta[[iclust]][-1,]
+    yXcentered = yXcentered_list[[iclust]]
+    ycentered = ycentered_list[[iclust]]
+    Xcentered = Xcentered_list[[iclust]]
+    Q = Qlist[[iclust]]
+
+    ## (Instead of the above blocK: manually create them instead)
+    resp.sum = t(sapply(resp, colSums)) ## (T x numclust)
+    resp.sum = as.matrix(resp.sum)
+    obj <- weight_ylist(iclust, resp, resp.sum, ylist)
+    ## ycentered <- center_y(iclust, ylist, resp, resp.sum)
+    ycentered <- obj$ycentered
+    Xcentered <- center_X(iclust, resp.sum, X)
+    yXcentered = ycentered %*% Xcentered
+    D = diag(resp.sum[,iclust])
+    C = sum(unlist(resp.thisclust))
+
+    ## 1. I've checked the correctness of this
+    resp.thisclust = lapply(resp, function(myresp) myresp[,iclust, drop = TRUE])
+    resp.long = do.call(c, resp.thisclust)
+    ylong = sqrt(resp.long) * do.call(rbind, ylist)
+    first_term = crossprod(ylong, ylong)
+    ## resid.rows = matrix(0, nrow = sum(ntlist), ncol=dimdat) ## trying env
+    ## for(tt in 1:TT){ resid.rows[irows.list[[tt]],] = sqrt(resp[[tt]][,iclust]) * ylist[[tt]] }
+    ## myvar0 = crossprod(resid.rows, resid.rows) / resp.grandsums[iclust]
+    ## stopifnot(all(myvar0 == first_term/C))
+
+
+    ## 2. How to check the correctness of this?
+    ## second_term0 = (yXcentered %*% this_beta)
+    ## second_term = second_term0 + t(second_term0)
+
+    ## Checking ycentered and yXentered
+    weighted_ylist_centered = Map(function(myresp, y){
+      myresp[,iclust, drop = TRUE] * sweep(y,2, obj$ybar)
+    }, resp, ylist)
+    weighted_ysum_centered = lapply(weighted_ylist_centered, colSums)
+    ycentered2 = do.call(rbind, weighted_ysum_centered)
+    stopifnot(all.equal(t(ycentered2), obj$ycentered))
+    ycentered = obj$ycentered
+    yXcentered2 = ycentered %*% Xcentered
+    stopifnot(all.equal(yXcentered2, yXcentered))
+
+    second_term0 = (yXcentered %*% this_beta)
+    second_term = second_term0 + t(second_term0)
+
+    ## 3. How to check the correctness of this?
+    ## third_term = t(this_beta) %*% (Q * N) %*% this_beta
+    third_term = t(this_beta) %*% t(Xcentered) %*% D %*% Xcentered %*% this_beta
+    mnhat_centered  = Xcentered %*% this_beta
+
+    ## Putting it all together
+    myvar_new = (first_term - second_term + third_term) / C
+    ## first_term/C
+    ## second_term/C
+    ## third_term/C
+
+    ## Testing it
+    myvar_new/myvar
+    myvar %>% round(3)
+    myvar_new %>% round(3)
+
+
+
+    vars[[iclust]] = myvar ##NEXT UP!! Work on this.
+  }
+  rm(resid.rows)
+
+  ## Make into an array
+  sigma_array = array(NA, dim=c(numclust, dimdat, dimdat))
+  for(iclust in 1:numclust){
+      sigma_array[iclust,,] = vars[[iclust]]
+  }
+
+  ## Basic check
+  stopifnot(all(dim(sigma_array) == c(numclust, dimdat, dimdat)))
+  return(sigma_array)
+}
+
+
+
+##' Estimate sigma.
 ##'
 ##' @param mn Fitted means.
 ##' @param resp Responsibilities.
@@ -96,25 +248,18 @@ Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
   irows.list = lapply(1:TT, function(tt){irows = (cs[tt] + 1):cs[tt + 1]})
 
   ## Set up empty residual matrix (to be reused)
-  resid.rows = matrix(0, nrow = sum(ntlist), ncol=dimdat) ## trying env
   cs = c(0, cumsum(ntlist))
   vars <- vector(mode = "list", numclust)
-  resp.grandsums = rowSums(sapply(1:TT, function(tt){ colSums(resp[[tt]]) }))
+  ylong = do.call(rbind, ylist)
+  ntlist = sapply(ylist, nrow)
+  irows = rep(1:nrow(mn), times = ntlist)
 
   for(iclust in 1:numclust){
-
-    ## Calculate all the residuals, and weight them.
-    for(tt in 1:TT){
-      row.to.subtract = mn[tt,,iclust]
-      resid.rows[irows.list[[tt]],] = sqrt(resp[[tt]][,iclust]) *
-        sweep(ylist[[tt]], 2, rbind(row.to.subtract))
-    }
-
-    ## Calculate the covariance matrix
-    myvar = crossprod(resid.rows, resid.rows) / resp.grandsums[iclust]
-    vars[[iclust]] = myvar ##NEXT UP!! Work on this.
+      resp.thisclust = lapply(resp, function(myresp) myresp[,iclust, drop = TRUE])
+      resp.long = do.call(c, resp.thisclust)
+      mnlong = mn[irows,,iclust]
+      vars[[iclust]] = estepC(ylong, mnlong, sqrt(resp.long), sum(resp.long))
   }
-  rm(resid.rows)
 
   ## Make into an array
   sigma_array = array(NA, dim=c(numclust, dimdat, dimdat))

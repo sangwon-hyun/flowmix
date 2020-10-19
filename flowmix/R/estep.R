@@ -32,7 +32,7 @@ Estep <- function(mn, sigma, pie, ylist = NULL,
     mu <- mn[tt,,iclust] ## No problem with memory leak here.
 
     if(first_iter){
-      dens = mvnfast::dmvn(y, mu = mu, sigma[iclust,,], log = FALSE)
+      dens = dmvnrm_arma_fast(y, mu, sigma[iclust,,], FALSE)
     } else {
       dens = unlist(denslist_by_clust[[iclust]][[tt]])
     }

@@ -36,16 +36,16 @@ flowmix <- function(..., nrep = 5){
 ##' @param refit (experimental), defaults to FALSE. If TRUE, then the refitted
 ##'   non-regularized solutions (with only a user-specified set of active
 ##'   coefficients, coded in the argument \code{sel_coef}) are calculated.
-##' @param sel_coef (Experimental feature) Boolean matrices of the same
-##'   structure as beta and alpha, whose TRUE entries are the active
-##'   coefficients to be refitted in a nonregularized way.
+##' @param sel_coef (Optional) Boolean matrices of the same structure as beta
+##'   and alpha, whose TRUE entries are the active coefficients to be refitted
+##'   in a nonregularized way.
 ##' @param tol_em Relative tolerance for EM convergence. Defaults to 1E-4.
 ##' @param zero_stabilize Defaults to FALSE. If TRUE, the EM is only run until
 ##'   the zero pattern in the coefficients stabilize.
 ##'
 ##' @return List containing fitted parameters and means and mixture weights,
-##'   across algorithm iterations. beta is a (p+1 x 3 x dimdat) array. Alpha is
-##'   a (dimdat x (p+1)) array.
+##'   across algorithm iterations. \code{beta} is a list of (p+1 x dimdat)
+##'   arrays. \code{alpha} is a (numclust x (p+1)) array.
 ##'
 ##' @export
 flowmix_once <- function(ylist, X,
@@ -59,10 +59,12 @@ flowmix_once <- function(ylist, X,
                          maxdev = NULL,
                          countslist_overwrite = NULL,
                          zero_stabilize  = FALSE,
+
                          ## Temporary
                          ridge = FALSE,
                          ridge_lambda = 0,
                          ## End of temporary
+
                          plot = FALSE,
                          plotdir = "~/Desktop",
                          init_mn_flatten = FALSE,
@@ -213,7 +215,7 @@ flowmix_once <- function(ylist, X,
       Ws = res.beta$Ws
       Us = res.beta$Us
     }
-    rm(res.beta)
+    ## rm(res.beta)
 
     ## Check if the number of zeros in the alphas and betas have stabilized.
     zero.betas[[iter]] = lapply(beta, function(mybeta) which(mybeta==0))
@@ -228,6 +230,17 @@ flowmix_once <- function(ylist, X,
                               ylist,
                               mn,
                               numclust)
+
+    ## sigma_new = Mstep_sigma_covar_new(resp,
+    ##                                   ylist,
+    ##                                   mn,
+    ##                                   numclust,
+    ##                                   beta,
+    ##                                   res.beta$ycentered_list,
+    ##                                   res.beta$Xcentered_list,
+    ##                                   res.beta$yXcentered_list,
+    ##                                   res.beta$Qlist)
+    ## stopifnot(all(abs(sigma - sigma_new) < 1E-8))
 
     ## 3. (Continue) Decompose the sigmas.
     sigma_eig_by_clust <- eigendecomp_sigma_array(sigma)
@@ -416,9 +429,12 @@ make_denslist_eigen <- function(ylist, mu,
   lapply(1:numclust, function(iclust){
     mysigma_eig <- sigma_eig_by_clust[[iclust]]
       lapply(1:TT, function(tt){
-        return(dmvnorm_fast(ylist[[tt]],
-                            mu[tt,,iclust],
-                            sigma_eig=mysigma_eig))
+        ## return(dmvnorm_fast(ylist[[tt]],
+        ##                     mu[tt,,iclust],
+        ##                     sigma_eig=mysigma_eig))
+        return(dmvnorm_arma_fast(ylist[[tt]],
+                                 mu[tt,,iclust],
+                                 mysigma_eig$sigma))
     })
   })
 }

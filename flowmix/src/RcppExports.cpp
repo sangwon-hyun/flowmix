@@ -178,6 +178,46 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// dmvnorm_arma_fast
+arma::vec dmvnorm_arma_fast(arma::mat const& x, arma::rowvec const& mean, arma::mat const& sigma, bool const logd);
+RcppExport SEXP _flowmix_dmvnorm_arma_fast(SEXP xSEXP, SEXP meanSEXP, SEXP sigmaSEXP, SEXP logdSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat const& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< arma::rowvec const& >::type mean(meanSEXP);
+    Rcpp::traits::input_parameter< arma::mat const& >::type sigma(sigmaSEXP);
+    Rcpp::traits::input_parameter< bool const >::type logd(logdSEXP);
+    rcpp_result_gen = Rcpp::wrap(dmvnorm_arma_fast(x, mean, sigma, logd));
+    return rcpp_result_gen;
+END_RCPP
+}
+// estepC
+arma::mat estepC(const arma::mat& ylong, const arma::mat& mnlong, const arma::vec& sqrt_resp_long, const double& resp_sum);
+RcppExport SEXP _flowmix_estepC(SEXP ylongSEXP, SEXP mnlongSEXP, SEXP sqrt_resp_longSEXP, SEXP resp_sumSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type ylong(ylongSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type mnlong(mnlongSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type sqrt_resp_long(sqrt_resp_longSEXP);
+    Rcpp::traits::input_parameter< const double& >::type resp_sum(resp_sumSEXP);
+    rcpp_result_gen = Rcpp::wrap(estepC(ylong, mnlong, sqrt_resp_long, resp_sum));
+    return rcpp_result_gen;
+END_RCPP
+}
+// ss
+arma::mat ss(const arma::mat& X, const arma::uvec& ind);
+RcppExport SEXP _flowmix_ss(SEXP XSEXP, SEXP indSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const arma::uvec& >::type ind(indSEXP);
+    rcpp_result_gen = Rcpp::wrap(ss(X, ind));
+    return rcpp_result_gen;
+END_RCPP
+}
 // matrix_function_solve_triangular_sylvester_barebones
 Eigen::MatrixXd matrix_function_solve_triangular_sylvester_barebones(const Eigen::MatrixXd& TA, const Eigen::MatrixXd& TB, const Eigen::MatrixXd& C);
 RcppExport SEXP _flowmix_matrix_function_solve_triangular_sylvester_barebones(SEXP TASEXP, SEXP TBSEXP, SEXP CSEXP) {
@@ -263,6 +303,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_flowmix_subtractC2", (DL_FUNC) &_flowmix_subtractC2, 4},
     {"_flowmix_subtractC3", (DL_FUNC) &_flowmix_subtractC3, 3},
     {"_flowmix_dothisC", (DL_FUNC) &_flowmix_dothisC, 4},
+    {"_flowmix_dmvnorm_arma_fast", (DL_FUNC) &_flowmix_dmvnorm_arma_fast, 4},
+    {"_flowmix_estepC", (DL_FUNC) &_flowmix_estepC, 4},
+    {"_flowmix_ss", (DL_FUNC) &_flowmix_ss, 2},
     {"_flowmix_matrix_function_solve_triangular_sylvester_barebones", (DL_FUNC) &_flowmix_matrix_function_solve_triangular_sylvester_barebones, 3},
     {"_flowmix_sylC_upper_tri", (DL_FUNC) &_flowmix_sylC_upper_tri, 7},
     {"_flowmix_prepare_sylC_const3", (DL_FUNC) &_flowmix_prepare_sylC_const3, 9},
