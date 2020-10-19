@@ -1,0 +1,73 @@
+---
+title: Short demo
+author: Sangwon Hyun, Mattias Rolfe Cape, Francois Ribalet, Jacob Bien
+output: html_document
+code_folding: fold
+---
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.width=14, fig.height=5, echo=TRUE, warning=FALSE,
+                      message=FALSE, eval=TRUE, cache=TRUE)
+library(tidyverse)
+outputdir = "."
+library(flowmix)
+```
+
+# Artificial data
+
+First, generate data:
+
+```{r, eval=TRUE, echo=TRUE}
+set.seed(0)
+datobj = generate_data_generic(p=5, TT=300, fac=.5, nt=2000, dimdat = 3)
+ylist = datobj$ylist
+X = datobj$X
+```
+
+This produces three dimensional cytograms `ylist` and covariates `X`.
+
+`ylist` is a list of length $T=300$, the number of time points (or
+cytograms). Each element of `ylist` is an array with $d=3$ rows (a single
+cytogram) and $n_t$ columns. The number of columns $n_t$ of each element in
+`ylist` can be different.
+
+`X` is a $T \times d$ matrix, whose $t$'th rows contain the relevant
+(environmental) factors of the $t$'th cytogram.
+
+```{r viz-one-cytogram, eval=TRUE, fig.width=5, fig.height=5}
+plot(ylist[[1]][,1:2], ylab="", xlab="", pch=16, col=rgb(0,0,1,0.2), cex=.5)
+```
+
+Now, we estimate the data with *fixed* regularization parameters
+$\lambda_\alpha=0.01$ and $\lambda_\beta=0.01$, and $K=10$ clusters.
+
+Internally, `flowmix()` repeats the estimation 5 (the default) times, and returns the
+estimated model providing the best data fit.
+
+```{r fit-model, eval=FALSE}
+numclust = 10
+res = flowmix(ylist=ylist, X=X, numclust=numclust,
+              niter = 300, mean_lambda = 0.01, pie_lambda = 0.1)
+
+## These three things are nice to have:
+print(res)
+plot(res)
+plot2d(res, ylist)
+```
+
+Of course, the regularization parameters should be chosen from the data, in our
+case using cross-validation. This is done using this code.
+
+```{r, eval=FALSE}
+maxres = get_max_lambda(ylist, X, numclust)
+  
+## Now, run the CV loop
+la()
+cvres = cv.flowmix(ylist=ylist, X=X, numclust=numclust,
+                   max_mean_lambda=maxres$beta,
+                   max_pie_lambda=maxres$alpha,
+                   gridsize=10,
+                   niter=500,
+                   verbose=TRUE)
+```
+
+Since this is an expensive process, do
