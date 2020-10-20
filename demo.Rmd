@@ -8,15 +8,16 @@ code_folding: fold
 knitr::opts_chunk$set(fig.width=14, fig.height=5, echo=TRUE, warning=FALSE,
                       message=FALSE, eval=TRUE, cache=TRUE)
 library(tidyverse)
-outputdir = "."
 library(flowmix)
+la('flowmix')
+outputdir = "."
 ```
 
 # Artificial data
 
 First, generate data:
 
-```{r, eval=TRUE, echo=TRUE}
+```{r generate-data, eval=TRUE, echo=TRUE}
 set.seed(0)
 datobj = generate_data_generic(p=5, TT=300, fac=.5, nt=2000, dimdat = 3)
 ylist = datobj$ylist
@@ -37,37 +38,191 @@ cytogram) and $n_t$ columns. The number of columns $n_t$ of each element in
 plot(ylist[[1]][,1:2], ylab="", xlab="", pch=16, col=rgb(0,0,1,0.2), cex=.5)
 ```
 
+Especially if your data is a time series, it could be useful to plot the
+covariates once across time.
+
+```{r viz-covariates, eval=TRUE}
+matplot(X, type='l')
+```
+
 Now, we estimate the data with *fixed* regularization parameters
 $\lambda_\alpha=0.01$ and $\lambda_\beta=0.01$, and $K=10$ clusters.
 
 Internally, `flowmix()` repeats the estimation 5 (the default) times, and returns the
 estimated model providing the best data fit.
 
-```{r fit-model, eval=FALSE}
-numclust = 10
-res = flowmix(ylist=ylist, X=X, numclust=numclust,
-              niter = 300, mean_lambda = 0.01, pie_lambda = 0.1)
-
-## These three things are nice to have:
+```{r fit-model, eval=TRUE}
+numclust = 4
+set.seed(0)
+res = flowmix(ylist = ylist, X = X, numclust = numclust,
+              niter = 300, mean_lambda = 0.01, pie_lambda = 0.001,
+              nrep = 1)
 print(res)
-plot(res)
-plot2d(res, ylist)
 ```
+
+
+The cluster probabilities look like this:
+
+```{r plot-pie, eval=TRUE, fig.width=5, fig.height=5}
+plot_pie(res)
+```
+
+
+The estimated cluster means along the three dimensions look like this:
+
+```{r summarize-model, eval=TRUE, fig.width=15, fig.height=5}
+par(mfrow = c(1,3), cex=1.2)
+for(idim in 1:3){
+  matplot(res$mn[,idim,], type='l', lty=1, ylab = paste0("Mean, dim=", idim))
+}
+```
+
+The estimated cluster means, drawn on scatterplots of the data two dimensions at
+a time, look like this:
+
+```{r summarize-model-2, eval=TRUE, fig.width=15, fig.height=5}
+par(mfrow = c(1,3))
+ylim = c(-3,8)
+xlim = c(-5,8)
+for(dims in list(c(1,2), c(2,3), c(3,1))){
+  scatterplot_2d(ylist, res, 100, dims = dims, cex_fac=1, ylim=ylim, xlim=xlim)
+}
+```
+
+Next, the first two dimensions only, shown at three different time points:
+
+```{r summarize-model-3, eval=TRUE, fig.width=15, fig.height=5}
+par(mfrow = c(1,3))
+for(tt in c(1,50,200)){
+  scatterplot_2d(ylist, res, tt,   dims = c(1,2), cex_fac=1, ylim=ylim, xlim=xlim)
+}
+```
+
+# Cross-validation
 
 Of course, the regularization parameters should be chosen from the data, in our
-case using cross-validation. This is done using this code.
+case using cross-validation. This is done using this code:
 
 ```{r, eval=FALSE}
-maxres = get_max_lambda(ylist, X, numclust)
   
-## Now, run the CV loop
-la()
-cvres = cv.flowmix(ylist=ylist, X=X, numclust=numclust,
-                   max_mean_lambda=maxres$beta,
-                   max_pie_lambda=maxres$alpha,
-                   gridsize=10,
-                   niter=500,
-                   verbose=TRUE)
+## Define the locations to save the CV.
+destin = "." 
+
+## Define the CV folds (e.g. 5 big consecutive time blocks)
+folds = blockcv_make_folds(ylist = ylist, nfold = 5)
+
+## Define the candidate lambda values (logarithmically spaced)
+cv_gridsize = 5
+pie_lambdas =  logspace(min = 0.0001, max = 1, length = cv_gridsize)
+mean_lambdas = logspace(min = 0.0001, max = 1, length = cv_gridsize)
+
+## Example of one CV job for one pair of regularization parameters (and CV folds
+## and EM replicates)
+ialpha = 1
+ibeta = 1
+ifold = 1
+irep = 1
+one_job(ialpha = ialpha,
+        ibeta = ibeta,
+        ifold = ifold,
+        irep = irep,
+        folds = folds,
+        destin = destin,
+        mean_lambda = mean_lambdas, pie_lambdas = pie_lambdas,
+        ## The rest that is needed explicitly for flowmix()
+        ylist = ylist,
+        countslist = NULL,
+        X = X,
+        numclust = 4,
+        maxdev = 0.5)
 ```
 
-Since this is an expensive process, do
+Since this is clearly parallelizable, we recommend using multiple computers or
+servers.
+
+Also, since it is not clear what to use for the maximum value for the candidate
+regularization parameters, one can numerically obtain this like this:
+
+```{r eval=FALSE}
+maxres = get_max_lambda(destin, "maxres.Rdata",
+                        ylist = ylist,
+                        countslist = NULL,
+                        X = X,
+                        numclust = 4,
+                        maxdev = 0.5,
+                        max_lambda_alpha = 40,
+                        max_lambda_beta =  2)
+```
+
+(Next up is to wrap most of the above into a single function, like this:)
+
+```{r, eval=FALSE}
+cvres = cv.flowmix(ylist = ylist, X = X, numclust = numclust,
+                   max_mean_lambda = 1,
+                   max_pie_lambda = 1,
+                   cv_gridsize = 10) 
+```
+
+# Binning data
+
+If the data contains too many particles, there is an option to reduce the size
+of `ylist` and deal with counts. The new object `countslist` can be
+*additionally* provided to `flowmix()`. Here is an example:
+
+```{r, eval=FALSE}
+## bin this data
+grid = make_grid(ylist, gridsize = 30, grid.ind=FALSE)
+obj = bin_many_cytograms(ylist,grid, mc.cores=8, verbose=FALSE)  
+ylist = obj$ybin_list
+countslist = obj$counts_list
+
+## Run the algorithm on binned data
+res = flowmix(ylist, X, numclust = numclust,
+                   countslist = countslist,
+                   mean_lambda = 0.01,
+                   pie_lambda = 0.1,
+                   verbose = FALSE,
+                   maxdev = 0.5)
+```
+
+
+# Real data
+
+You can repeat the above code blocks.
+
+```{r real-data, eval=TRUE}
+## Load data
+load(file = "~/repos/flowmix/demo-MGL1704.Rdata")
+X = X %>% select(-time, -lat, -lon) %>% as.matrix()
+ylist = ybin_list
+countslist = biomass_list
+
+## Estimate model
+set.seed(0)
+res = flowmix(ylist, X, numclust = 10,
+              countslist = countslist,
+              mean_lambda = 0.01,
+              pie_lambda = 0.1,
+              verbose = TRUE,
+              maxdev = 0.5,
+              nrep = 1)
+
+## Plot estimated probabilities
+plot_pie(res)
+
+## Three scatterplots of one time point
+par(mfrow = c(1,3))
+ylim = c(-3,8)
+xlim = c(-5,8)
+dimnames = c("diam", "red", "orange")
+for(dims in list(c(1,2), c(2,3), c(3,1))){
+  scatterplot_2d(ylist = ylist,
+                 countslist = countslist,
+                 obj = res,
+                 300,
+                 dims = dims, cex_fac=8,
+                 pt_col = rgb(0 ,0, 1, 0.1),
+                 xlab = dimnames[dims[1]],
+                 ylab = dimnames[dims[2]])
+}
+```

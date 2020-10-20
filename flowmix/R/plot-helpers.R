@@ -1,5 +1,5 @@
 ##' Collapses from a 3d cytogram to two dimensions. This is mainly used by
-##' \code{one_dim_scatterplot()}.
+##' \code{scatterplot_2d()}.
 ##'
 ##' @param y 3d cytogram.
 ##' @param counts The multiplicity for each of the particles in \code{y}.

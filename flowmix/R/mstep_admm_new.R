@@ -12,14 +12,13 @@
 ##'
 ##' @return Result of M step; a |numclust| length list of (p+1)x(d) matrices,
 ##'   each containing the estimated coefficients for the mean estimation.
-Mstep_beta_admm_new <- function(resp,
+Mstep_beta_admm <- function(resp,
                             ylist,
                             X,
                             mean_lambda = 0,
                             sigma,
                             sigma_eig_by_clust = NULL,
                             first_iter = TRUE,
-                            ## em_iter,
 
                             ## Warm startable variables
                             betas = NULL,
@@ -37,8 +36,7 @@ Mstep_beta_admm_new <- function(resp,
                             plot.admm = FALSE,
                             local_adapt = FALSE,
                             local_adapt_niter = 5,
-                            space = 50,
-                            rcpp = FALSE
+                            space = 50
                             ){
 
   ####################
@@ -62,14 +60,12 @@ Mstep_beta_admm_new <- function(resp,
   ybarlist = list()
   ycentered_list = Xcentered_list = yXcentered_list = list()
   Qlist = list()
+  sigmainv_list = list()
   for(iclust in 1:numclust){
     ## print(iclust, numclust, "iclust")
 
     ## Center y and X
-    ## load(file = file.path("~/Desktop", "ADMM-test.Rdata"), verbose=TRUE)
-    ## source("~/repos/flowmix/flowmix/R/mstep_admm_new.R")
     obj <- weight_ylist(iclust, resp, resp.sum, ylist)
-    ## ycentered <- center_y(iclust, ylist, resp, resp.sum)
     ycentered <- obj$ycentered
     Xcentered <- center_X(iclust, resp.sum, X)
     yXcentered = ycentered %*% Xcentered
@@ -108,6 +104,7 @@ Mstep_beta_admm_new <- function(resp,
     ycentered_list[[iclust]] = ycentered
     Xcentered_list[[iclust]] = Xcentered
     yXcentered_list[[iclust]] = yXcentered
+    sigmainv_list[[iclust]] = sigmainv
   }
 
   ##########################################
@@ -126,25 +123,18 @@ Mstep_beta_admm_new <- function(resp,
   start.time = Sys.time()
   for(iclust in 1:numclust){
 
-    ## temporary LA-ADMM.
-    res = la_admm_oneclust_new(K = (if(local_adapt) local_adapt_niter else 1),
+    ## Locally adaptive ADMM.
+    res = la_admm_oneclust(K = (if(local_adapt) local_adapt_niter else 1),
                            local_adapt = local_adapt,
                            iclust = iclust,
                            niter = niter,
                            p = p , TT = TT, N = N, dimdat = dimdat, maxdev = maxdev,
-
-                           ## Also important: the Schur factorization of A and B in AX + XB + C = 0
                            schurA = schur_syl_A_by_clust[[iclust]],
                            schurB = schur_syl_B_by_clust[[iclust]],
                            term3 = term3list[[iclust]],
-                           ## sigmainv = sigmainv,
-                           sigmainv = solve(sigma[iclust,,]),
+                           sigmainv = sigmainv,
                            Xinv = Xinv,
-
                            Xaug = Xaug,
-                           ## Xa = Xa,
-                           ## rho = rho,
-                           ## X0 = X0, I_aug = I_aug,
                            Xa = Xa,
                            rho = rho,
                            rhoinit = rho,
@@ -161,11 +151,9 @@ Mstep_beta_admm_new <- function(resp,
                            sigma_eig_by_clust = sigma_eig_by_clust,
                            plot = plot.admm,
                            space = space,
-                           rcpp = rcpp,
 
                            ## Warm starts from previous *EM* iteration
                            first_iter = first_iter,
-                           ## em_iter = em_iter,
                            beta = betas[[iclust]],
                            U = Us[[iclust]],
                            Z = Zs[[iclust]],
@@ -221,7 +209,7 @@ Mstep_beta_admm_new <- function(resp,
 ##'
 ##' @param K Number of outer iterations.
 ##'
-la_admm_oneclust_new <- function(K,
+la_admm_oneclust <- function(K,
                              ...){
 
   ## Initialize arguments for ADMM.
@@ -233,17 +221,9 @@ la_admm_oneclust_new <- function(K,
   ## This initialization can come from the previous *EM* iteration.
   if(args$first_iter){
     beta = matrix(0, nrow=p+1, ncol=dimdat)
-    ## Z = matrix(0, nrow = TT, ncol = dimdat)
-    ## wvec = rep(0, p * dimdat)
-    ## uw  = rep(0, p * dimdat)
-    ## Uz = matrix(0, nrow = TT, ncol = dimdat)
-
-    ## New
     Z = matrix(0, nrow = TT, ncol = dimdat)
     W = matrix(0, nrow = p, ncol = dimdat)
     U = matrix(0, nrow = TT + p, ncol = dimdat)
-    ## End of new
-
 
     args[['beta']] <- beta
     args[['Z']] <- Z
@@ -274,7 +254,7 @@ la_admm_oneclust_new <- function(K,
     ## Call main function
     argn <- lapply(names(args), as.name)
     names(argn) <- names(args)
-    call <- as.call(c(list(as.name("admm_oneclust_new")), argn))
+    call <- as.call(c(list(as.name("admm_oneclust")), argn))
     res = eval(call, args)
 
 
@@ -311,12 +291,13 @@ la_admm_oneclust_new <- function(K,
   return(res)
 }
 
+
 ##' Check if 4 consecutive objective values are sufficiently close to 1.
 ##'
 ##' @param objectives Numeric vector.
 ##'
 ##' @return Boolean.
-outer_converge_new <- function(objectives){
+outer_converge <- function(objectives){
   consec = 4
   if(length(objectives) < consec){
     return(FALSE)
@@ -334,7 +315,7 @@ outer_converge_new <- function(objectives){
 ##' @param local_adapt TRUE if locally adaptive ADMM is to be used.
 ##'
 ##' @return List containing |beta|, |yhat|, |resid_mat|, |fits|.
-admm_oneclust_new <- function(iclust, niter, Xtilde, yvec, p,
+admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
                           TT, N, dimdat, maxdev,
                           Xa,
                           rho,
@@ -363,14 +344,12 @@ admm_oneclust_new <- function(iclust, niter, Xtilde, yvec, p,
                           U,
                           first_iter,## Not used
                           outer_iter,
-                          ## em_iter,
                           ## End of warm startable variables
                           local_adapt,
                           sigma,
                           sigma_eig_by_clust,
                           space = 20,
-                          plot = FALSE,
-                          rcpp = FALSE){
+                          plot = FALSE){
 
   ## Initialize the variables ###
   resid_mat = matrix(NA, nrow = ceiling(niter/5), ncol = 4)
@@ -409,7 +388,6 @@ admm_oneclust_new <- function(iclust, niter, Xtilde, yvec, p,
     beta = UA %*% matrix_function_solve_triangular_sylvester_barebones(TA, TB, F) %*% tUB
     beta = t(beta)
     if(any(is.nan(beta))) browser()
-
 
     Xbeta = X %*% beta
     ## print(summary(Xbeta))
@@ -468,9 +446,8 @@ admm_oneclust_new <- function(iclust, niter, Xtilde, yvec, p,
 
   ## Gather results.
   beta[which(abs(beta) < zerothresh, arr.ind = TRUE)] = 0
-  ## beta0 <- intercept(resp, resp.sum, ylist, beta, X, N, iclust)
-  beta0 <- intercept_new(resp, resp.sum, ylist, beta, X, N, iclust,
-                            ybar) ## New argument
+  beta0 <- intercept(resp, resp.sum, ylist, beta, X, N, iclust,
+                     ybar)
 
   betafull = rbind(beta0, beta)
   yhat = Xa %*% betafull
@@ -481,7 +458,7 @@ admm_oneclust_new <- function(iclust, niter, Xtilde, yvec, p,
     ## fit = objective_per_cluster(betafull, ylist, Xa, resp, lambda, N, dimdat,
     ##                             iclust, sigma, iter, zerothresh,
     ##                             is.null(sigma_eig_by_clust), sigma_eig_by_clust,
-    ##                             rcpp = rcpp)
+    ##                             rcpp = FALSE)
 
 
     ## ## (not needed but useful for testing) part of the objective value calculation
@@ -511,39 +488,7 @@ admm_oneclust_new <- function(iclust, niter, Xtilde, yvec, p,
               Z = Z,
               W = W,
               U = U
-              ## wvec = wvec,
-              ## uw = uw,
-              ## Uz = Uz
               ))
-}
-
-##' Update beta using sylvester equations.
-beta_update <- function(beta, ylist, rho, sigma,
-                        X, Xinv, Xaug,
-                        iclust,
-                        U, Z, W,
-                        yXcentered,
-                        ## Xcentered_Xinv,
-                        syl_B,
-                        D,
-                        N,
-                        sigmainv
-                        ){
-
-  ## Setup
-  dimdat = ncol(ylist[[1]])
-
-  ## Solve Sylvester Equation. (SH: correct)
-  syl_A = rho * sigma[iclust,,]
-  ## syl_B = 1/N * t(Xcentered) %*% D %*% Xcentered_Xinv ##Xcentered %*% Xinv
-  ## syl_C = sigma[iclust,,] %*% C2 %*% Xinv
-  syl_C = prepare_sylC_const3(U, Xaug, rho, Z, X, W, N, sigmainv, yXcentered, sigma[iclust,,], Xinv)
-
-
-
-  sol = t(sylC(syl_A, syl_B, syl_C))## %>% t()
-
-  return(sol)
 }
 
 
@@ -557,30 +502,7 @@ W_update  <- function(beta, Uw, lambda, rho){
   soft_thresh(beta + Uw/rho, lambda/rho)
 }
 
-intercept <- function(resp, resp.sum, ylist, beta, X, N, iclust){
-  dimdat = ncol(ylist[[1]])
-  TT = length(ylist)
-  wt.resid.sum = rep(0, dimdat)
-  mn = X %*% beta
-
-  ## ## Is this any faster if we do a complete restructuring?
-  ## resp_long = do.call(c,  lapply(1:TT, function(tt){resp[[tt]][,iclust, drop=TRUE]}))
-  ## ylong = do.call(rbind, ylist)
-  ## mnlong = do.call(rbind, mnlong)
-
-  for(tt in 1:TT){
-    resid_tt = sweep(ylist[[tt]], 2,
-                     mn[tt,,drop=TRUE], check.margin=FALSE)
-    resp_tt = resp[[tt]][,iclust, drop=TRUE]
-    wt.resid = resp_tt * resid_tt
-    wt.resid.sum = wt.resid.sum + colSums(wt.resid)
-  }
-
-  ## TODO There must be a faster way to do this.
-  return(wt.resid.sum / sum(resp.sum[,iclust]))##N)
-}
-
-intercept_new <- function(resp, resp.sum, ylist, beta, X, N, iclust, ybar){
+intercept <- function(resp, resp.sum, ylist, beta, X, N, iclust, ybar){
   dimdat = ncol(ylist[[1]])
   TT = length(ylist)
   resp.sum.thisclust = sum(resp.sum[,iclust])
@@ -590,17 +512,6 @@ intercept_new <- function(resp, resp.sum, ylist, beta, X, N, iclust, ybar){
   return(ybar - colSums(yhat))
 }
 
-
-
-sigma_half_from_eig_temp <- function(sigma_eig){
-  vec = sqrt(sigma_eig$values)
-  if(length(vec)==1){
-    mat = vec
-  } else {
-    mat = diag(vec)
-  }
-  (sigma_eig$vectors %*% mat %*% t(sigma_eig$vectors))
-}
 
 Z_update  <- function(Xbeta, Uz, C, rho){
   mat = Xbeta + Uz/rho
@@ -646,12 +557,10 @@ center_y <- function(iclust, ylist, resp, resp.sum){
 }
 
 weight_ylist <- function(iclust, resp, resp.sum, ylist){
-  ## load(file = file.path("~/Desktop", "ADMM-test.Rdata"), verbose=TRUE)
 
   ## Setup
   dimdat = ncol(ylist[[1]])
   TT = length(ylist)
-
 
   ## All weighted data
   weighted_ylist = Map(function(myresp, y){
@@ -666,10 +575,6 @@ weight_ylist <- function(iclust, resp, resp.sum, ylist){
   ybar = Reduce("+", weighted_ysum) / resp.sum.thisclust
 
   ## Centered weighted ylist
-  ## weighted_ybar = resp.sum[,iclust] * matrix(ybar,
-  ##                                            ncol = dimdat,
-  ##                                            nrow = TT,
-  ##                                            byrow = TRUE)
   weighted_ybar = resp.sum[,iclust] * matrix(ybar, TT, dimdat, byrow=TRUE)
   ycentered = do.call(rbind, weighted_ysum) - weighted_ybar##sweep(do.call(cbind, centered_y), 1, ybar)
   return(list(weighted_ylist = weighted_ylist,
@@ -678,6 +583,12 @@ weight_ylist <- function(iclust, resp, resp.sum, ylist){
               ycentered = t(ycentered)))
 }
 
+##' Convenience function for obtaining a Schur decomposition of a matrix
+##' \code{mat}. Used for simplifying a Sylvester equation.
+##'
+##' @param mat Numeric matrix.
+##'
+##' @return List.
 myschur <- function(mat){
   stopifnot(nrow(mat) == ncol(mat))
   obj = Matrix::Schur(mat)
@@ -685,7 +596,3 @@ myschur <- function(mat){
   obj$orig = mat
   return(obj)
 }
-
-
-
-

@@ -27,12 +27,10 @@ Estep <- function(mn, sigma, pie, ylist = NULL,
   ntlist = sapply(ylist, nrow)
   resp = list() ## Next up: try to /not/ do this.
 
-  calculate_dens <- function(iclust, tt, y, mn, sigma, denslist_by_clust, first_iter){ ## temporary
-
+  calculate_dens <- function(iclust, tt, y, mn, sigma, denslist_by_clust, first_iter){
     mu <- mn[tt,,iclust] ## No problem with memory leak here.
-
     if(first_iter){
-      dens = dmvnrm_arma_fast(y, mu, sigma[iclust,,], FALSE)
+      dens = dmvnorm_arma_fast(y, mu, sigma[iclust,,], FALSE)
     } else {
       dens = unlist(denslist_by_clust[[iclust]][[tt]])
     }

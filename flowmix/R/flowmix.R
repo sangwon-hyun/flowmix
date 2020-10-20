@@ -80,13 +80,15 @@ flowmix_once <- function(ylist, X,
                          ## beta M step (Locally Adaptive ADMM) settings
                          admm_local_adapt = TRUE,
                          admm_local_adapt_niter = 10,
-                         admm_niter = (if(admm_local_adapt)1E3 else 1E4),
-                         rcpp = FALSE,
-                         new_beta_mstep = FALSE
-                         ){## Basic checks
+                         admm_niter = (if(admm_local_adapt)1E3 else 1E4)
+                         ){
 
   ## Basic checks
-  if(!is.null(maxdev)){ assertthat::assert_that(maxdev!=0) }
+  if(!is.null(maxdev)){
+    assertthat::assert_that(maxdev!=0)
+  } else {
+    maxdev = 1E10 ## Some large number
+  }
   ## assert_that(!(is.data.frame(ylist[[1]])))
   assert_that(!(is.data.frame(X)))
   assertthat::assert_that(sum(is.na(X)) == 0)
@@ -152,49 +154,20 @@ flowmix_once <- function(ylist, X,
     ## }
 
     ## 2. Beta
-    if(!new_beta_mstep){
     res.beta = Mstep_beta_admm(resp, ylist, X,
                                mean_lambda = mean_lambda,
                                first_iter = (iter == 2),
                                sigma_eig_by_clust = sigma_eig_by_clust,
                                sigma = sigma, maxdev = maxdev, rho = admm_rho,
-
                                betas = betas,
                                Zs = Zs,
-                               wvecs=wvecs,
-                               uws=uws,
-                               Uzs=Uzs,
-
+                               Ws = Ws,
+                               Us = Us,
                                err_rel = admm_err_rel,
                                err_abs = admm_err_abs,
                                niter = admm_niter,
                                local_adapt = admm_local_adapt,
-                               local_adapt_niter = admm_local_adapt_niter,
-                               rcpp = rcpp)
-    }
-    if(new_beta_mstep){
-    res.beta = Mstep_beta_admm_new(resp, ylist, X,
-                               mean_lambda = mean_lambda,
-                               first_iter = (iter == 2),
-                               sigma_eig_by_clust = sigma_eig_by_clust,
-                               sigma = sigma, maxdev = maxdev, rho = admm_rho,
-
-                               betas = betas,
-                               ## Zs = Zs,
-                               ## wvecs=wvecs,
-                               ## uws=uws,
-                               ## Uzs=Uzs,
-                            Zs = Zs,
-                            Ws = Ws,
-                            Us = Us,
-
-                               err_rel = admm_err_rel,
-                               err_abs = admm_err_abs,
-                               niter = admm_niter,
-                               local_adapt = admm_local_adapt,
-                               local_adapt_niter = admm_local_adapt_niter,
-                               rcpp = rcpp)
-    }
+                               local_adapt_niter = admm_local_adapt_niter)
 
     admm_niters[[iter]] = unlist(res.beta$admm_niters)
 
@@ -203,18 +176,9 @@ flowmix_once <- function(ylist, X,
     betas = beta = res.beta$beta
 
     ## Harvest other things for next iteration's ADMM.
-    if(!new_beta_mstep){
     Zs = res.beta$Zs
-    wvecs = res.beta$wvecs
-    uws = res.beta$uws
-    Uzs = res.beta$Uzs
-    }
-
-    if(new_beta_mstep){
-      Zs = res.beta$Zs
-      Ws = res.beta$Ws
-      Us = res.beta$Us
-    }
+    Ws = res.beta$Ws
+    Us = res.beta$Us
     ## rm(res.beta)
 
     ## Check if the number of zeros in the alphas and betas have stabilized.

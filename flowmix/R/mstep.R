@@ -299,7 +299,8 @@ mtsqrt_inv <- function(a){
 ##' \code{Mstep_admm()}, which is much faster.
 ##'
 ##' @param maxdev The desired maximum radius of the fitted means from beta0k.
-##' @param sel_coef Sparsity pattern. Only active when refit=TRUE.
+##' @param sel_coef Sparsity pattern. Only active when refit=TRUE. List
+##'   containing boolean matrices named "alpha" and "beta".
 ##' @param sigma (numclust x dimdat x dimdat) matrix.
 ##'
 ##' @return Result of M step; a |numclust| length list of (p+1)x(d) matrices,

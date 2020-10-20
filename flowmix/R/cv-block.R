@@ -1,4 +1,4 @@
-##' Synopsis: BLOCKED cross-validation function goes here.
+## Synopsis: BLOCKED cross-validation function goes here.
 
 
 ##' CV wrapper for flowmix().
@@ -194,7 +194,7 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
                     mean_lambdas, pie_lambdas,
                     ## The rest that is needed explicitly for flowmix()
                     ylist, countslist,
-                    sim, isim,## Temporary
+                    sim=FALSE, isim,## Temporary
                     X, ...){
 
   ## Get the train/test data

@@ -113,3 +113,4 @@ check_zero_stabilize <- function(zero.betas, zero.alphas, iter){
 
   return(zero.alpha.stable & zero.beta.stable)
 }
+
