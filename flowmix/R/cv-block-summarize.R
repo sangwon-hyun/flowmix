@@ -43,7 +43,7 @@ blockcv_reduce_by_nrep <- function(destin, cv_gridsize, nfold, nrep,
 
   ## Clean a bit
   cvscore.mat[which(is.nan(cvscore.mat), arr.ind=TRUE)] = NA
-  rownames(cvscore.mat) = signif(pie_lambdas,3)
+  rownames(cvscore.mat) = signif(prob_lambdas,3)
   colnames(cvscore.mat) = signif(mean_lambdas,3)
 
 
@@ -57,7 +57,7 @@ blockcv_reduce_by_nrep <- function(destin, cv_gridsize, nfold, nrep,
     save(cvscore.array,
          cvscore.mat,
          mean_lambdas,
-         pie_lambdas,
+         prob_lambdas,
          min.inds,
          file = file.path(destin, resfile))
   }
@@ -65,7 +65,7 @@ blockcv_reduce_by_nrep <- function(destin, cv_gridsize, nfold, nrep,
   return(list(cvscore.array = cvscore.array,
               cvscore.mat = cvscore.mat,
               mean_lambdas = mean_lambdas,
-              pie_lambdas = pie_lambdas,
+              prob_lambdas = prob_lambdas,
               min.inds = min.inds))
 }
 
@@ -119,7 +119,7 @@ blockcv_aggregate <- function(destin, cv_gridsize, nfold, nrep,
 
   ## Clean a bit
   cvscore.mat[which(is.nan(cvscore.mat), arr.ind=TRUE)] = NA
-  rownames(cvscore.mat) = signif(pie_lambdas,3)
+  rownames(cvscore.mat) = signif(prob_lambdas,3)
   colnames(cvscore.mat) = signif(mean_lambdas,3)
 
 
@@ -133,7 +133,7 @@ blockcv_aggregate <- function(destin, cv_gridsize, nfold, nrep,
     save(cvscore.array,
          cvscore.mat,
          mean_lambdas,
-         pie_lambdas,
+         prob_lambdas,
          min.inds,
          file = file.path(destin, resfile))
   }
@@ -141,7 +141,7 @@ blockcv_aggregate <- function(destin, cv_gridsize, nfold, nrep,
   return(list(cvscore.array = cvscore.array,
               cvscore.mat = cvscore.mat,
               mean_lambdas = mean_lambdas,
-              pie_lambdas = pie_lambdas,
+              prob_lambdas = prob_lambdas,
               min.inds = min.inds))
 }
 

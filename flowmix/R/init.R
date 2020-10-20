@@ -19,7 +19,7 @@ calc_mu <- function(beta, X, dimdat, numclust){
 }
 
 
-calc_pie <- function(TT,numclust){
+calc_prob <- function(TT,numclust){
 
   ## For now, return a dummy of
   return(matrix(1/numclust, nrow=TT, ncol=numclust))

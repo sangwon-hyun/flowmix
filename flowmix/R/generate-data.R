@@ -117,15 +117,15 @@ get_mixture_at_timepoint <- function(tt, nt, mnlist, pilist, sigma=NULL, sigmali
   dimdat = length(mnlist[[1]])
 
   ## Draw data from randomly chosen mean.
-  pie = sapply(pilist, function(pie)pie[[tt]])
-  pie = pie/sum(pie)
-  stopifnot(sum(pie) == 1)
+  prob = sapply(pilist, function(prob)prob[[tt]])
+  prob = prob/sum(prob)
+  stopifnot(sum(prob) == 1)
   mns = lapply(1:length(mnlist),
                function(ii){mnlist[[ii]][tt,]})
-  numclust = length(pie)
+  numclust = length(prob)
 
-  ## Samples nt memberships out of 1:numclust according to the probs in pie.
-  draws = sample(1:numclust, size = nt, replace = TRUE, prob = pie)
+  ## Samples nt memberships out of 1:numclust according to the probs in prob.
+  draws = sample(1:numclust, size = nt, replace = TRUE, prob = prob)
 
   ## Randomly chosen means according to pi
   if(!is.null(sigmalist)){
@@ -156,7 +156,7 @@ get_mixture_at_timepoint <- function(tt, nt, mnlist, pilist, sigma=NULL, sigmali
 ##' @param nt Number of points in the first cluster.
 ##'
 ##' @return List containing data: {ylist, X, countslist}, and true underlying
-##'   coefficients and mean/probs {mnmat, pie, alpha, beta}.
+##'   coefficients and mean/probs {mnmat, prob, alpha, beta}.
 generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos/cruisedat/export",
                                         nt = 1000,
                                         beta_par = 0.5,
@@ -205,19 +205,19 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
   alpha[2+1, 2] = 10 + log(1/4)
   colnames(alpha) = paste0("clust", 1:numclust)
   rownames(alpha) = c("intercept", "par", "cp", paste0("noise", 1:(p-2)))
-  pie = exp(cbind(1,X) %*% alpha)
-  pie = pie/rowSums(pie)
+  prob = exp(cbind(1,X) %*% alpha)
+  prob = prob/rowSums(prob)
 
 
-  ## Samples |nt| memberships out of (1:numclust) according to the probs in pie.
+  ## Samples |nt| memberships out of (1:numclust) according to the probs in prob.
   ## Data is a probabilistic mixture from these two means, over time.
   ylist = lapply(1:TT,
                  function(tt){
-                   ## print(round(pie[[tt]],3))
+                   ## print(round(prob[[tt]],3))
                    draws = sample(1:numclust,
                                   size = ntlist[tt], replace = TRUE,
-                                  ## prob = c(pie[[tt]], 1-pie[[tt]]))
-                                  prob = c(pie[tt,1], pie[tt,2]))
+                                  ## prob = c(prob[[tt]], 1-prob[[tt]]))
+                                  prob = c(prob[tt,1], prob[tt,2]))
                    mns = mnmat[tt,]
                    means = mns[draws]
                    datapoints = means + stats::rnorm(ntlist[tt], 0, 1)
@@ -261,7 +261,7 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
               countslist = countslist,
               ## The true generating model:
               mnmat = mnmat,
-              pie = pie,
+              prob = prob,
               mn = mn,
               numclust = numclust,
               alpha = alpha,
@@ -314,21 +314,21 @@ generate_data_1d_pseudoreal_from_cv <- function(datadir, seed = NULL,
   mnmat = cbind(1, X) %*% gen_beta
 
   ## Alpha coefficients
-  pie = exp(cbind(1,X) %*% gen_alpha)
-  pie = pie/rowSums(pie)
+  prob = exp(cbind(1,X) %*% gen_alpha)
+  prob = prob/rowSums(prob)
 
   ## Particles per cytogram
   ntlist = rep(nt, TT)
 
-  ## Samples |nt| memberships out of (1:numclust) according to the probs in pie.
+  ## Samples |nt| memberships out of (1:numclust) according to the probs in prob.
   ## Data is a probabilistic mixture from these two means, over time.
   ylist = lapply(1:TT,
                  function(tt){
-                   ## print(round(pie[[tt]],3))
+                   ## print(round(prob[[tt]],3))
                    draws = sample(1:numclust,
                                   size = ntlist[tt], replace = TRUE,
-                                  ## prob = c(pie[[tt]], 1-pie[[tt]]))
-                                  prob = c(pie[tt,]))
+                                  ## prob = c(prob[[tt]], 1-prob[[tt]]))
+                                  prob = c(prob[tt,]))
                    mns = mnmat[tt,]
                    means = mns[draws]
                    noises = sapply(draws, function(iclust){ stats::rnorm(1, 0, sigmas[iclust])})
@@ -359,7 +359,7 @@ generate_data_1d_pseudoreal_from_cv <- function(datadir, seed = NULL,
   return(list(ylist = ylist, X = X,
               countslist = countslist,
               mnmat = mnmat,
-              pie = pie,
+              prob = prob,
               alpha = gen_alpha,
               beta = gen_beta,
               numclust = numclust))

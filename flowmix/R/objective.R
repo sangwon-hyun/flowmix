@@ -1,19 +1,19 @@
 ##' Objectives (negative log likelihood).
 ##'
-##' @param pie matrix of mixture proportions, T by M.
+##' @param prob matrix of mixture proportions, T by M.
 ##' @param mu array of dimension (T x dimdat x numclust ) ; old: T by M by p.
 ##' @param data TT lengthed list of data
 ##' @param sigma array of dimension T by M by p by p.
-##' @param alpha linear coefficients for regression on (log ratio of) pie.
+##' @param alpha linear coefficients for regression on (log ratio of) prob.
 ##' @param beta linear coefficients for regression on mean.
 ##' @param N Sum of the counts/biomass across all cytograms.
 ##'
 ##' @return Either the original objective value or, T-lengthed vector of
 ##'   objective values at each time point.
-objective <- function(mu, pie, sigma,
+objective <- function(mu, prob, sigma,
                       ## TT, N, dimdat, numclust,
                       ylist,
-                      pie_lambda=0, mean_lambda=0,
+                      prob_lambda=0, mean_lambda=0,
                       alpha = NULL, beta = NULL,
                       denslist_by_clust = NULL,
                       countslist = NULL,
@@ -36,9 +36,9 @@ objective <- function(mu, pie, sigma,
   ## Calculate the log likelihood
   loglik = sapply(1:TT, function(tt){
     if(is.null(denslist_by_clust)){
-      return(loglikelihood_tt(ylist, tt, mu, sigma, pie, countslist, numclust))
+      return(loglikelihood_tt(ylist, tt, mu, sigma, prob, countslist, numclust))
     } else {
-      return(loglikelihood_tt_precalculate(ylist, tt, denslist_by_clust, pie, countslist, numclust))
+      return(loglikelihood_tt_precalculate(ylist, tt, denslist_by_clust, prob, countslist, numclust))
     }
   })
 
@@ -46,14 +46,14 @@ objective <- function(mu, pie, sigma,
   l1norm <- function(coef){ sum(abs(coef)) }
 
   ## Recent change: This now excludes the intercept!!!!
-  pen1 = (if(!is.null(alpha)) pie_lambda * l1norm(alpha[,-1]) else 0)
+  pen1 = (if(!is.null(alpha)) prob_lambda * l1norm(alpha[,-1]) else 0)
   pen2 = (if(!is.null(beta)) mean_lambda * sum(sapply(beta, function(mybeta) l1norm(mybeta[-1,]))) else 0)
   obj = - 1/N * sum(unlist(loglik)) + pen1 + pen2
 
   ## Temporary addition: calculate per-particle, in the same format as ylist.
   if(sep){
     logliksep = sapply(1:TT, function(tt){
-      return(loglikelihood_tt(ylist, tt, mu, sigma, pie, countslist, numclust,
+      return(loglikelihood_tt(ylist, tt, mu, sigma, prob, countslist, numclust,
                               sep=TRUE))
     })
   }
@@ -74,15 +74,15 @@ objective <- function(mu, pie, sigma,
 ##'
 ##' @param tt Time point of interest.
 ##' @param denslist_by_clust Pre-calculated densities.
-##' @param pie Population proportions.
+##' @param prob Population proportions.
 ##'
 ##' @return Log likelihood.
 ##'
-loglikelihood_tt_precalculate <- function(ylist, tt, denslist_by_clust, pie, countslist = NULL, numclust){
+loglikelihood_tt_precalculate <- function(ylist, tt, denslist_by_clust, prob, countslist = NULL, numclust){
 
   ## One particle's log likelihood (weighted density)
   weighted.densities = lapply(1:numclust, function(iclust){
-    return(pie[tt,iclust] * denslist_by_clust[[iclust]][[tt]])
+    return(prob[tt,iclust] * denslist_by_clust[[iclust]][[tt]])
   })
   nt = nrow(ylist[[tt]])
   counts = (if(!is.null(countslist)) countslist[[tt]] else rep(1, nt))
@@ -94,20 +94,20 @@ loglikelihood_tt_precalculate <- function(ylist, tt, denslist_by_clust, pie, cou
 ##'
 ##' @param ylist Response data.
 ##' @param mu Means.
-##' @param pie Population proportions.
+##' @param prob Population proportions.
 ##' @param tt Time point of interest.
 ##' @param sigma Covariances.
 ##' @param countslist (Optional) Counts corresponding to \code{ylist}.
 ##'
 ##' @return Log likelihood.
 ##'
-loglikelihood_tt <- function(ylist, tt, mu, sigma, pie, countslist = NULL, numclust,
+loglikelihood_tt <- function(ylist, tt, mu, sigma, prob, countslist = NULL, numclust,
                              sep=FALSE){
   ### STUPID MISTAKE!!!!!!!!!!!!!! Although it's hard to see why this would affect things at iter>1
 
   ## One particle's log likelihood (weighted density)
   weighted.densities = sapply(1:numclust, function(iclust){
-    return(pie[tt,iclust] * mvnfast::dmvn(ylist[[tt]],
+    return(prob[tt,iclust] * mvnfast::dmvn(ylist[[tt]],
                                           mu = mu[tt,,iclust],
                                           sigma = as.matrix(sigma[iclust,,]),
                                           log = FALSE))
@@ -133,7 +133,7 @@ objective_subset <- function(times, ...){
   ## Subset things to pass to objective()
   args = list(...)
   args$mu = (args$mu)[times,,,drop=FALSE]
-  args$pie = (args$pie)[times,,drop=FALSE]
+  args$prob = (args$prob)[times,,drop=FALSE]
   args$ylist = (args$ylist)[times]
   args$countslist = (args$countslist)[times]
   stopifnot(all(sapply(args$ylist, nrow) == sapply(args$countslist, length)))
@@ -159,20 +159,20 @@ objective_newdat <- function(res, ylist, countslist){
 
   ## ## Calculate the cross-validation score.
   ## cvscore = objective(mu = pred$newmn,
-  ##                     pie = pred$newpie,
+  ##                     prob = pred$newprob,
   ##                     sigma = pred$sigma,
   ##                     ylist = ylist,
   ##                     countslist = countslist,
-  ##                     pie_lambda = 0,
+  ##                     prob_lambda = 0,
   ##                     mean_lambda = 0)
 
   ## Calculate the cross-validation score.
   cvscore = objective(mu = res$mn,
-                      pie = res$pie,
+                      prob = res$prob,
                       sigma = res$sigma,
                       ylist = ylist,
                       countslist = countslist,
-                      pie_lambda = 0,
+                      prob_lambda = 0,
                       mean_lambda = 0)
   return(cvscore)
 }

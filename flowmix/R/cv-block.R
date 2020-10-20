@@ -7,7 +7,7 @@
 ##' @param cv_gridsize Grid size of CV.
 ##' @param destin Destination directory.
 ##' @param mean_lambdas List of regularization parameters for mean model.
-##' @param pie_lambdas List of regularization parameters for pie model.
+##' @param prob_lambdas List of regularization parameters for prob model.
 ##' @param iirange Which of the \code{cv_gridsize^2*nfold*nrep} jobs (e.g. of
 ##'   the form 5-3-2-5) to run. Defaults to \code{NULL}, in which case all jobs
 ##'   are run in order of these indices i.e. 1-1-1-1, then 1-1-1-2, and so on.
@@ -17,7 +17,7 @@
 blockcv <- function(cl, folds, cv_gridsize, iirange=NULL,
                     ylist, countslist, X,
                     mean_lambdas,
-                    pie_lambdas,
+                    prob_lambdas,
                     destin,
                     parallel=TRUE,
                     sim=FALSE,
@@ -56,7 +56,7 @@ blockcv <- function(cl, folds, cv_gridsize, iirange=NULL,
       cat('(ialpha, ibeta, ifold, irep)=', c(ialpha, ibeta, ifold, irep), fill=TRUE)
       }
       one_job(ialpha, ibeta, ifold, irep,
-              folds, destin, mean_lambdas, pie_lambdas,
+              folds, destin, mean_lambdas, prob_lambdas,
               ylist, countslist, X,
               sim, isim,## Temporary
               ...)
@@ -71,7 +71,7 @@ blockcv <- function(cl, folds, cv_gridsize, iirange=NULL,
       irep = iimat[ii,"irep"]
       cat('iii=', c(ialpha, ibeta, ifold, irep), fill=TRUE)
       one_job(ialpha, ibeta, ifold, irep,
-              folds, destin, mean_lambdas, pie_lambdas,
+              folds, destin, mean_lambdas, prob_lambdas,
               ylist, countslist,
               sim, isim,## Temporary
               X, ...)
@@ -92,7 +92,7 @@ blockcv <- function(cl, folds, cv_gridsize, iirange=NULL,
 blockcv_fitmodel <- function(cl, destin,
                              cv_gridsize,
                              mean_lambdas,
-                             pie_lambdas,
+                             prob_lambdas,
                              ## Arguments to flowmix()
                              ylist,
                              countslist,
@@ -106,7 +106,7 @@ blockcv_fitmodel <- function(cl, destin,
     ibeta = iimat[ii, "ibeta"]
     print('iii='); print(c(ialpha, ibeta))
     one_job_refit(ialpha, ibeta, destin,
-                  mean_lambdas, pie_lambdas,
+                  mean_lambdas, prob_lambdas,
                   ## Arguments to flowmix()
                   ylist, countslist, X,
                   ...)
@@ -181,7 +181,7 @@ blockcv_hourlong_make_folds <- function(ylist, nfold, verbose=FALSE, blocksize=2
 ##' @param folds CV folds.
 ##' @param destin Destination directory.
 ##' @param mean_lambdas List of regularization parameters for mean model.
-##' @param pie_lambdas List of regularization parameters for pie model.
+##' @param prob_lambdas List of regularization parameters for prob model.
 ##' @param ylist Data.
 ##' @param countslist Counts or biomass.
 ##' @param X Covariates.
@@ -191,7 +191,7 @@ blockcv_hourlong_make_folds <- function(ylist, nfold, verbose=FALSE, blocksize=2
 ##'   is saved in \code{destin}. (The indices here are ialpha-ibeta-ifold-irep).
 ##'
 one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
-                    mean_lambdas, pie_lambdas,
+                    mean_lambdas, prob_lambdas,
                     ## The rest that is needed explicitly for flowmix()
                     ylist, countslist,
                     sim=FALSE, isim,## Temporary
@@ -213,7 +213,7 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
     return(NULL)
   }
 
-  pie_lambda = pie_lambdas[ialpha]
+  prob_lambda = prob_lambdas[ialpha]
   mean_lambda = mean_lambdas[ibeta]
 
   ## Run the algorithm (all this trouble because of |nrep|)
@@ -222,7 +222,7 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
   args$countslist = train.count
   args$X = train.X
   args$mean_lambda = mean_lambda
-  args$pie_lambda = pie_lambda
+  args$prob_lambda = prob_lambda
   if("nrep" %in% names(args)){
     args = args[-which(names(args) %in% "nrep")] ## remove |nrep| prior to feeding to flowmix_once().
   }
@@ -237,17 +237,17 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
     call <- as.call(c(list(as.name("flowmix_once")), argn))
     res.train = eval(call, args)
 
-    ## Assign mn and pie
+    ## Assign mn and prob
     pred = predict.flowmix(res.train, newx = test.X)
-    stopifnot(all(pred$newpie >= 0))
+    stopifnot(all(pred$newprob >= 0))
 
     ## Evaluate on test data, by calculating objective (penalized likelihood)
     cvscore = objective(mu = pred$newmn,
-                        pie = pred$newpie,
+                        prob = pred$newprob,
                         sigma = pred$sigma,
                         ylist = test.dat,
                         countslist = test.count,
-                        pie_lambda = 0,
+                        prob_lambda = 0,
                         mean_lambda = 0,
                         alpha = res.train$alpha,
                         beta = res.train$beta)
@@ -267,9 +267,9 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
          total_time,
          ## Results
          mean_lambda,
-         pie_lambda,
+         prob_lambda,
          mean_lambdas,
-         pie_lambdas,
+         prob_lambdas,
          beta,
          alpha,
          objectives,
@@ -280,7 +280,7 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
   }, error = function(err) {
     err$message = paste(err$message,
                         "\n(No file will be saved for lambdas (",
-                        signif(pie_lambdas[ialpha],3), ", ", signif(mean_lambdas[ibeta],3),
+                        signif(prob_lambdas[ialpha],3), ", ", signif(mean_lambdas[ibeta],3),
                         ") whose indices are: ",
                         ialpha, "-", ibeta, "-", ifold, "-", irep,
                         " .)",sep="")
@@ -291,7 +291,7 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
 
 ##' Refit one job
 one_job_refit <- function(ialpha, ibeta, destin,
-                          mean_lambdas, pie_lambdas,
+                          mean_lambdas, prob_lambdas,
                           ## The rest that is needed explicitly for flowmix_once()
                           ylist, countslist, X,
                           sim = FALSE, isim=1,
@@ -313,7 +313,7 @@ one_job_refit <- function(ialpha, ibeta, destin,
       args$ylist = ylist
       args$countslist = countslist
       args$X = X
-      args$pie_lambda = pie_lambdas[ialpha]
+      args$prob_lambda = prob_lambdas[ialpha]
       args$mean_lambda = mean_lambdas[ibeta]
       if("nrep" %in% names(args)) args = args[-which(names(args) %in% "nrep")] ## remove |nrep| prior to feeding
 

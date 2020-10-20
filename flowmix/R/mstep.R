@@ -48,8 +48,8 @@ Mstep_alpha <- function(resp, X, numclust, lambda,
 
   ## Calculate the fitted values (\pi) as well:
   Xa = cbind(1, X)
-  piehatmat = as.matrix(exp(Xa %*% t(alpha)))
-  piehat = piehatmat / rowSums(piehatmat)
+  probhatmat = as.matrix(exp(Xa %*% t(alpha)))
+  probhat = probhatmat / rowSums(probhatmat)
 
   ## ## Start of temporary
 
@@ -59,20 +59,20 @@ Mstep_alpha <- function(resp, X, numclust, lambda,
 
   ## ## Calculate the fitted values (\pi) as well:
   ## Xa = cbind(1, X)
-  ## piehatmat = as.matrix(exp(Xa %*% t(alpha2)))
-  ## piehat2 = piehatmat / rowSums(piehatmat)
+  ## probhatmat = as.matrix(exp(Xa %*% t(alpha2)))
+  ## probhat2 = probhatmat / rowSums(probhatmat)
 
-  ## print(range(piehat2 - piehat))
+  ## print(range(probhat2 - probhat))
   ## ## End of temporary
 
 
   ## Checking dimensions one last time.
-  stopifnot(all(dim(piehat) == c(TT,numclust)))
-  if(any(is.na(piehat))){ print(piehat); stop("piehat was erroneous") }
-  if(!(all(piehat >=0))){ print(piehat); stop("piehat was erroneous") }
-  stopifnot(all(piehat >= 0))
+  stopifnot(all(dim(probhat) == c(TT,numclust)))
+  if(any(is.na(probhat))){ print(probhat); stop("probhat was erroneous") }
+  if(!(all(probhat >=0))){ print(probhat); stop("probhat was erroneous") }
+  stopifnot(all(probhat >= 0))
 
-  return(list(pie = piehat, alpha = alpha))
+  return(list(prob = probhat, alpha = alpha))
 }
 
 
@@ -313,7 +313,7 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda = 0, sigma,
                        first_iter = FALSE,
                        ridge = FALSE,
                        ridge_lambda = NULL,
-                       ridge_pie = NULL,
+                       ridge_prob = NULL,
                        cvxr_ecos_thresh = 1E-8,
                        cvxr_scs_eps = 1E-5,
                        zerothresh = 1E-8
@@ -342,7 +342,7 @@ Mstep_beta <- function(resp, ylist, X, mean_lambda = 0, sigma,
                             sigma_eig_by_clust = sigma_eig_by_clust,
                             first_iter = first_iter,
                             ridge_lambda = ridge_lambda,
-                            ridge_pie = ridge_pie)
+                            ridge_prob = ridge_prob)
   } else {
     manip_obj = manip(ylist, Xa, resp, sigma, numclust,
                       sigma_eig_by_clust = sigma_eig_by_clust,
@@ -456,7 +456,7 @@ manip_ridge <- function(ylist, X, resp, sigma, numclust,
                         sigma_eig_by_clust = NULL,
                         first_iter = FALSE,
                         ridge_lambda = 0,
-                        ridge_pie = NULL){
+                        ridge_prob = NULL){
 
   ## Make some quantities
   ntlist = sapply(ylist, nrow)

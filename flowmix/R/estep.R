@@ -2,7 +2,7 @@
 ##' compared to the sum over all clusters k=1:K. These are called responsibilities (a
 ##' posterieri membership probabilities).
 ##'
-##' @param pie Matrix of component weights.
+##' @param prob Matrix of component weights.
 ##' @param ylist Data.
 ##' @param mn Array of all means.
 ##' @param sigma (numclust x dimdat x dimdat) array.
@@ -17,7 +17,7 @@
 ##'   probabilities of the latent variable $Z$ (memberships to each cluster)
 ##'   given the parameter estimate. T-length list of (nt x dimdat)
 ##'
-Estep <- function(mn, sigma, pie, ylist = NULL,
+Estep <- function(mn, sigma, prob, ylist = NULL,
                   numclust,
                   denslist_by_clust = NULL,
                   first_iter = FALSE,
@@ -38,7 +38,7 @@ Estep <- function(mn, sigma, pie, ylist = NULL,
   }
 
   ## Calculate the responsibilities at each time point, separately
-  ncol.pie = ncol(pie)
+  ncol.prob = ncol(prob)
   for(tt in 1:TT){
     ylist_tt = ylist[[tt]]
 
@@ -49,8 +49,8 @@ Estep <- function(mn, sigma, pie, ylist = NULL,
                       tt, ylist_tt, mn, sigma,
                       denslist_by_clust, first_iter)
 
-    ## Weight them by pie, to produce responsibilities.
-    wt.densmat <- matrix(pie[tt,], nrow = ntlist[tt], ncol = ncol.pie, byrow = TRUE) * densmat
+    ## Weight them by prob, to produce responsibilities.
+    wt.densmat <- matrix(prob[tt,], nrow = ntlist[tt], ncol = ncol.prob, byrow = TRUE) * densmat
     wt.densmat = wt.densmat + 1E-10 ## Add some small number to prevent ALL zeros.
     wt.densmat <- wt.densmat / rowSums(wt.densmat)
     resp[[tt]] <- wt.densmat

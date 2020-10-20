@@ -30,9 +30,9 @@ flowmix <- function(..., nrep = 5){
 ##'   3), which contains coordinates of the 3-variate particles, organized over
 ##'   time (T) and with (nt) particles at every time.
 ##' @param X Matrix of size (T x p+1)
-##' @param pie.list (T by K)
+##' @param prob.list (T by K)
 ##' @param mean_lambda lambda for lasso for the mean.
-##' @param pie_lambda lambda for lasso for pie.
+##' @param prob_lambda lambda for lasso for probabilities.
 ##' @param refit (experimental), defaults to FALSE. If TRUE, then the refitted
 ##'   non-regularized solutions (with only a user-specified set of active
 ##'   coefficients, coded in the argument \code{sel_coef}) are calculated.
@@ -51,7 +51,7 @@ flowmix <- function(..., nrep = 5){
 flowmix_once <- function(ylist, X,
                          countslist = NULL,
                          numclust, niter = 1000,
-                         mn = NULL, pie_lambda,
+                         mn = NULL, prob_lambda,
                          mean_lambda, verbose = FALSE,
                          sigma_fac = 1, tol_em = 1E-4,
                          refit = FALSE, ## EXPERIMENTAL FEATURE.
@@ -93,7 +93,7 @@ flowmix_once <- function(ylist, X,
   assert_that(!(is.data.frame(X)))
   assertthat::assert_that(sum(is.na(X)) == 0)
   assertthat::assert_that(length(ylist) == nrow(X))
-  ## assertthat::assert_that(pie_lambda > 0)
+  ## assertthat::assert_that(prob_lambda > 0)
   if(ridge) assertthat::assert_that(!admm) ## temporary
   assertthat::assert_that(numclust > 1)
 
@@ -106,7 +106,7 @@ flowmix_once <- function(ylist, X,
   N = sum(ntlist)
 
   ## Initialize some objects
-  pie = calc_pie(TT, numclust) ## Let's just say it is all 1/K for now.
+  prob = calc_prob(TT, numclust) ## Let's just say it is all 1/K for now.
   denslist_by_clust <- NULL
   objectives = c(+1E20, rep(NA, niter-1))
   sigma = init_sigma(ylist, numclust, TT, fac=sigma_fac) ## (T x numclust x dimdat x dimdat)
@@ -135,20 +135,20 @@ flowmix_once <- function(ylist, X,
     if(verbose){
       printprogress(iter-1, niter-1, "EM iterations.", start.time = start.time)
     }
-    resp <- Estep(mn, sigma, pie, ylist = ylist, numclust = numclust,
+    resp <- Estep(mn, sigma, prob, ylist = ylist, numclust = numclust,
                   denslist_by_clust = denslist_by_clust,
                   first_iter = (iter == 2), countslist = countslist)
 
     ## M step (three parts)
     ## 1. Alpha
-    res.alpha = Mstep_alpha(resp, X, numclust, lambda = pie_lambda,
+    res.alpha = Mstep_alpha(resp, X, numclust, lambda = prob_lambda,
                             zerothresh = zerothresh)
-    pie = res.alpha$pie
+    prob = res.alpha$prob
     alpha = res.alpha$alpha
     rm(res.alpha)
 
     ## if(iter==3){
-    ##   save(pie, alpha, ## res.alpha,
+    ##   save(prob, alpha, ## res.alpha,
     ##        resp, sigma, ylist, X, file=file.path("~/Desktop", "ADMM-test.Rdata"))
     ##   return()
     ## }
@@ -213,8 +213,8 @@ flowmix_once <- function(ylist, X,
                                              countslist)
 
     ## Calculate the objectives
-    objectives[iter] = objective(mn, pie, sigma, ylist,
-                                 pie_lambda = pie_lambda,
+    objectives[iter] = objective(mn, prob, sigma, ylist,
+                                 prob_lambda = prob_lambda,
                                  mean_lambda = mean_lambda,
                                  alpha = alpha, beta = beta,
                                  denslist_by_clust = denslist_by_clust,
@@ -226,7 +226,7 @@ flowmix_once <- function(ylist, X,
     ## Make plots ##########
     ########################
     if(plot){
-      plot_iter(ylist, countslist, iter, tt=1, TT, mn, sigma, pie, objectives,
+      plot_iter(ylist, countslist, iter, tt=1, TT, mn, sigma, prob, objectives,
                 saveplot = TRUE,
                 ## saveplot = FALSE,
                 plotdir = plotdir,
@@ -250,15 +250,15 @@ flowmix_once <- function(ylist, X,
   time_per_iter = lapsetime / (iter-1)
 
   ## Also calculate per-cytogram likelihoods (NOT divided by nt)
-  loglikelihoods = objective(mn, pie, sigma, ylist,
-                             pie_lambda = pie_lambda,
+  loglikelihoods = objective(mn, prob, sigma, ylist,
+                             prob_lambda = prob_lambda,
                              mean_lambda = mean_lambda,
                              alpha = alpha, beta = beta,
                              denslist_by_clust = denslist_by_clust,
                              countslist = countslist,
                              each = TRUE)
-  ## loglikelihoods_particle = objective(mn, pie, sigma, ylist,
-  ##                            pie_lambda = pie_lambda,
+  ## loglikelihoods_particle = objective(mn, prob, sigma, ylist,
+  ##                            prob_lambda = prob_lambda,
   ##                            mean_lambda = mean_lambda,
   ##                            alpha = alpha, beta = beta,
   ##                            denslist_by_clust = denslist_by_clust,
@@ -274,7 +274,7 @@ flowmix_once <- function(ylist, X,
   return(structure(list(alpha = alpha,
                         beta = beta,
                         mn = mn,
-                        pie = pie,
+                        prob = prob,
                         sigma = sigma,
                         ## denslist_by_clust = denslist_by_clust,
                         objectives = objectives[2:iter],
@@ -290,7 +290,7 @@ flowmix_once <- function(ylist, X,
                         p = p,
                         numclust = numclust,
                         X = X,
-                        pie_lambda = pie_lambda,
+                        prob_lambda = prob_lambda,
                         mean_lambda = mean_lambda,
                         maxdev=maxdev,
                         refit = refit,
@@ -315,11 +315,11 @@ flowmix_once <- function(ylist, X,
 
 
 
-##' Prediction: given  new X's,  generate a set of means and pies (and return
+##' Prediction: given  new X's,  generate a set of means and probs (and return
 ##' the same Sigma)
 ##' @param res object returned from covariate EM flowmix().
 ##' @param newx New covariate.
-##' @return List containing mean, pie, and sigma.
+##' @return List containing mean, prob, and sigma.
 predict.flowmix <- function(res, newx = NULL){
 
   ## ## Check the dimensions
@@ -347,18 +347,18 @@ predict.flowmix <- function(res, newx = NULL){
   newmn_array = array(NA, dim=c(TT, dimdat, numclust))
   for(iclust in 1:numclust){ newmn_array[,,iclust] = newmn[[iclust]] }
 
-  ## Predict the pies.
-  ## newpie = predict(res$alpha.fit, newx=newx, type='response')[,,1]
+  ## Predict the probs.
+  ## newprob = predict(res$alpha.fit, newx=newx, type='response')[,,1]
 
-  piehatmat = as.matrix(exp(cbind(1,newx) %*% t(res$alpha)))
-  newpie = piehatmat / rowSums(piehatmat)
+  probhatmat = as.matrix(exp(cbind(1,newx) %*% t(res$alpha)))
+  newprob = probhatmat / rowSums(probhatmat)
   ## predict(fit, newx=X, type="response")[,,1]
-  stopifnot(all(dim(newpie) == c(TT,numclust)))
-  stopifnot(all(newpie >= 0))
+  stopifnot(all(dim(newprob) == c(TT,numclust)))
+  stopifnot(all(newprob >= 0))
 
   ## Return all three things
   return(list(newmn = newmn_array,
-              newpie = newpie,
+              newprob = newprob,
               sigma = res$sigma,
               TT = res$TT,
               N = res$N))
@@ -405,7 +405,7 @@ make_denslist_eigen <- function(ylist, mu,
 
 
 ##' Helper function for plotting within \code{flowmix_once()} iterations.
-plot_iter <- function(ylist, countslist, iter=NULL, tt = 1, TT, mn, sigma, pie,
+plot_iter <- function(ylist, countslist, iter=NULL, tt = 1, TT, mn, sigma, prob,
                       objectives, saveplot=TRUE, plotdir=NULL, numclust){
 
   if(!is.null(countslist)){
@@ -463,8 +463,8 @@ plot_iter <- function(ylist, countslist, iter=NULL, tt = 1, TT, mn, sigma, pie,
     graphics::points(x = mn[tt,dims[1],],
            y = mn[tt,dims[2],],
            pch = 16, col = cols,
-           cex = pie[1,]/max(pie[1,])*5)
-           ## cex = log(pie[1,]/max(pie[1,]) + 1)*3)
+           cex = prob[1,]/max(prob[1,])*5)
+           ## cex = log(prob[1,]/max(prob[1,]) + 1)*3)
 
 
     ## All time points' means

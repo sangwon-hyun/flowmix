@@ -9,9 +9,9 @@
 ##' @return List containing (1) the set of coefficients
 ##'
 cv.flowmix <- function(ylist, X, mean_lambdas = NULL,
-                       pie_lambdas = NULL,
+                       prob_lambdas = NULL,
                        max_mean_lambda = NULL,
-                       max_pie_lambda = NULL,
+                       max_prob_lambda = NULL,
                        gridsize = 5,
                        nsplit = 5,
                        verbose = FALSE,

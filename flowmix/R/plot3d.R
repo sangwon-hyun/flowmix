@@ -107,12 +107,12 @@ plot3d.covarem <- function(obj,
   if(only_plot_cytograms){ return(NULL) }
 
   ##########################
-  ## Plot pies over time ###
+  ## Plot probs over time ###
   ##########################
-  ## Todo: replace the following code with with plot_pie()
-  pies = lapply(1:numclust, function(iclust){ obj$pie[,iclust] })
-  pies.right.now = sapply(1:numclust, function(iclust){pies[[iclust]][[tt]]})
-  names(pies.right.now) = paste("Clust", 1:numclust)
+  ## Todo: replace the following code with with plot_prob()
+  probs = lapply(1:numclust, function(iclust){ obj$prob[,iclust] })
+  probs.right.now = sapply(1:numclust, function(iclust){probs[[iclust]][[tt]]})
+  names(probs.right.now) = paste("Clust", 1:numclust)
   cols = RColorBrewer::brewer.pal(numclust, "Set3")
   plot(NA, xlim=c(0,TT), ylim=c(0,1),
        ylab = "",
@@ -121,12 +121,12 @@ plot3d.covarem <- function(obj,
        axes=FALSE)
   add_date_ticks(obj)
   for(iclust in 1:numclust){
-    lines(pies[[iclust]], col=cols[iclust], lwd=2)##, lty=iclust)
+    lines(probs[[iclust]], col=cols[iclust], lwd=2)##, lty=iclust)
   }
   for(iclust in 1:numclust){
     x = TT-2*numclust+2*iclust
     text(x=x,
-         y=pies[[iclust]][x],
+         y=probs[[iclust]][x],
          label = iclust, cex=1.5)
   }
   abline(v = tt, col='green', lwd=3)
@@ -137,19 +137,19 @@ plot3d.covarem <- function(obj,
          bty = "n")
 
   ## TODO: try this instead.
-  ## plot_pie(res)
+  ## plot_prob(res)
 
 
   ####################
-  ## Plot pies now ###
+  ## Plot probs now ###
   ####################
   ## cols = rep("lightblue", numclust)
-  names(pies.right.now) = 1:numclust
-  barplot(pies.right.now, ylim=c(0,1),
+  names(probs.right.now) = 1:numclust
+  barplot(probs.right.now, ylim=c(0,1),
           cex.axis = 2,
           cex.names = 2.5)
   abline(h=seq(from=0, to=1, by= 0.1), col='grey80')
-  barplot(pies.right.now,
+  barplot(probs.right.now,
           col = cols,
           lwd = 1, add=TRUE,
           names.arg = rep("", numclust))
@@ -173,8 +173,8 @@ plot3d.covarem <- function(obj,
   ## ###########################################
   ## if(is.null(obj$loglikelihoods)){
   ##   ## Also get per-cytogram likelihoods
-  ##   obj$loglikelihoods = objective(obj$mn, obj$pie, obj$sigma, ylist,
-  ##                                  pie_lambda = obj$pie_lambda,
+  ##   obj$loglikelihoods = objective(obj$mn, obj$prob, obj$sigma, ylist,
+  ##                                  prob_lambda = obj$prob_lambda,
   ##                                  mean_lambda = obj$mean_lambda,
   ##                                  alpha = obj$alpha, beta = obj$beta,
   ##                                  countslist = obj$countslist,
@@ -226,7 +226,7 @@ fancyplot <- function(res, saveplot = FALSE, filename = NULL,
     y = res$mn[,dims[2],iclust]
     z = 1:(res$TT)
     c = rep(iclust, res$TT)
-    s = res$pie[,iclust]*50
+    s = res$prob[,iclust]*50
     dat = data.frame(x, y, z, c, s)
     names(dat) = paste0( c("x", "y", "z", "c", "s"), iclust)
     dat
@@ -681,9 +681,9 @@ scatterplot_2d_addmodel <- function(obj, tt, dims,
   }
 
   ## Add fitted means
-  pies = lapply(1:numclust, function(iclust){ obj$pie[,iclust] })
-  pies.right.now = sapply(1:numclust, function(iclust){pies[[iclust]][[tt]]})
-  mn.cex = pies.right.now/max(pies.right.now) * mn_cex_fac
+  probs = lapply(1:numclust, function(iclust){ obj$prob[,iclust] })
+  probs.right.now = sapply(1:numclust, function(iclust){probs[[iclust]][[tt]]})
+  mn.cex = probs.right.now/max(probs.right.now) * mn_cex_fac
 
   ## Make the minimum size not so small
   if(not_so_small_cex){
@@ -757,12 +757,12 @@ one_3d_plot <- function(ylist, obj=NULL, tt, countslist=NULL, phi = 40,
   ylim = ranges[,2]
   zlim = ranges[,3]
 
-  ## Collect pies
+  ## Collect probs
   if(!is.null(obj)){
     numclust = obj$numclust
-    pies = lapply(1:numclust, function(iclust){ obj$pie[,iclust] })
-    pies.right.now = sapply(1:numclust, function(iclust){pies[[iclust]][[tt]]})
-    mn.cex = pies.right.now/max(pies.right.now)*8
+    probs = lapply(1:numclust, function(iclust){ obj$prob[,iclust] })
+    probs.right.now = sapply(1:numclust, function(iclust){probs[[iclust]][[tt]]})
+    mn.cex = probs.right.now/max(probs.right.now)*8
     mns = obj$mn
   }
 
