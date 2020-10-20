@@ -20,9 +20,9 @@ install_github("robohyun66/flowcy", subdir = "flowcy")
 
 ## Demo
 
-For a short demo about using the package, see [main-demo.Rmd](main-demo.Rmd). A
+For a short demo about using the package, see [demo.Rmd](demo.Rmd). A
 longer vignette is in the works.
 	
 ## Authors & Contributors
 
-The contributors are Sangwon Hyun, Mattias Rolf Cape, Francois Ribalet, and Jacob Bien.
+The contributors are (Sangwon Hyun)[http://sangwon-hyun.org/], Mattias Rolf Cape, Francois Ribalet, and Jacob Bien.

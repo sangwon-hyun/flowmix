@@ -188,7 +188,7 @@ res = flowmix(ylist, X, numclust = numclust,
 
 # Real data
 
-You can repeat the above code blocks.
+You can repeat the above code blocks, with real data.
 
 ```{r real-data, eval=TRUE}
 ## Load data
@@ -203,9 +203,15 @@ res = flowmix(ylist, X, numclust = 10,
               countslist = countslist,
               mean_lambda = 0.01,
               pie_lambda = 0.1,
-              verbose = TRUE,
               maxdev = 0.5,
               nrep = 1)
+```
+
+Now visualizing the results as before.
+
+```{r real-data-plot, eval=TRUE}
+## Default print
+print(res)
 
 ## Plot estimated probabilities
 plot_pie(res)
