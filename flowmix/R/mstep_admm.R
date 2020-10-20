@@ -1,4 +1,4 @@
-##' The M step of beta, using ADMM. (TODO: This should be able to use the
+##' (OLD, slower) The M step of beta, using ADMM. (TODO: This should be able to use the
 ##' eigendecomp of the Sigmas for the objective value calculation. That is next
 ##' up.)
 ##'
@@ -12,7 +12,7 @@
 ##'
 ##' @return Result of M step; a |numclust| length list of (p+1)x(d) matrices,
 ##'   each containing the estimated coefficients for the mean estimation.
-Mstep_beta_admm <- function(resp,
+Mstep_beta_admm_old <- function(resp,
                             ylist,
                             X,
                             mean_lambda = 0,
@@ -96,7 +96,7 @@ Mstep_beta_admm <- function(resp,
 
 
     ## temporary LA-ADMM.
-    res = la_admm_oneclust(K = (if(local_adapt) local_adapt_niter else 1),
+    res = la_admm_oneclust_old(K = (if(local_adapt) local_adapt_niter else 1),
                            local_adapt = local_adapt,
                            iclust = iclust,
                            niter = niter, Xtilde = Xtildes[[iclust]], yvec = yvecs[[iclust]],
@@ -166,7 +166,7 @@ Mstep_beta_admm <- function(resp,
 ##'
 ##' @param K Number of outer iterations.
 ##'
-la_admm_oneclust <- function(K,
+la_admm_oneclust_old <- function(K,
                              ...){
 
   ## Initialize arguments for ADMM.
@@ -212,7 +212,7 @@ la_admm_oneclust <- function(K,
     ## Call main function
     argn <- lapply(names(args), as.name)
     names(argn) <- names(args)
-    call <- as.call(c(list(as.name("admm_oneclust")), argn))
+    call <- as.call(c(list(as.name("admm_oneclust_old")), argn))
     res = eval(call, args)
 
 
@@ -273,7 +273,7 @@ outer_converge <- function(objectives){
 ##' @param local_adapt TRUE if locally adaptive ADMM is to be used.
 ##'
 ##' @return List containing |beta|, |yhat|, |resid_mat|, |fits|.
-admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
+admm_oneclust_old <- function(iclust, niter, Xtilde, yvec, p,
                           TT, N, dimdat, maxdev, Xa, rho,
                           X0, I_aug,
                           intercept_inds, lambda,
