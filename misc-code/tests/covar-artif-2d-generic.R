@@ -8,15 +8,15 @@ get_2d_mixture_at_timepoint <- function(tt, nt, mnlist, pilist, sigma=NULL, sigm
   stopifnot(nrow(sigma)==ncol(mnlist[[1]]))
 
   ## Draw data from randomly chosen mean.
-  pie = sapply(pilist, function(pie)pie[[tt]])
-  pie = pie/sum(pie)
-  stopifnot(sum(pie)==1)
+  prob = sapply(pilist, function(prob)prob[[tt]])
+  prob = prob/sum(prob)
+  stopifnot(sum(prob)==1)
   mns = lapply(1:length(mnlist),
                function(ii){mnlist[[ii]][tt,]})
-  numclust = length(pie)
+  numclust = length(prob)
 
-  ## Samples nt memberships out of 1:numclust according to the probs in pie.
-  draws = sample(1:numclust, size=nt, replace=TRUE, prob=pie)
+  ## Samples nt memberships out of 1:numclust according to the probs in prob.
+  draws = sample(1:numclust, size=nt, replace=TRUE, prob=prob)
 
   ## Randomly chosen means according to pi
   if(!is.null(sigmalist)){

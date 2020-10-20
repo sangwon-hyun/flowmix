@@ -7,7 +7,7 @@
 ## ##' @return List containing (1) the set of coefficients
 ## parallel_cv_test.covarem <- function(ylist, X,
 ##                                      mean_lambda,
-##                                      pie_lambda,
+##                                      prob_lambda,
 ##                                      nsplit = 5,
 ##                                      numfork = 3,
 ##                                      verbose = FALSE,
@@ -27,13 +27,13 @@
 
 ##   ## Parallelize for one pair of lambda values.
 ##   do_one_pair = function(ylist, X, splits, nsplit, refit, mean_lambda,
-##                          pie_lambda, multicore.cv, gridsize, destin, ...){
+##                          prob_lambda, multicore.cv, gridsize, destin, ...){
 
 ##       ## The rest is similar to move_to_up() or move_to_left().
 ##       cvres = get_cv_score(ylist, X, splits, nsplit, refit,
 ##                            ## Additional arguments for covarem
 ##                            mean_lambda = mean_lambda
-##                            pie_lambda = pie_lambda,
+##                            prob_lambda = prob_lambda,
 ##                            multicore.cv = FALSE,
 ##                            ...)
 
@@ -45,7 +45,7 @@
 ##       ## Get the fitted results on the entire data
 ##       res = covarem(ylist = ylist, X = X,
 ##                     mean_lambda = beta_lambdas[ibeta],
-##                     pie_lambda = alpha_lambdas[ialpha],
+##                     prob_lambda = alpha_lambdas[ialpha],
 ##                     ...)
 ##       saveres(res = res,
 ##               cvres = cvres,
@@ -56,7 +56,7 @@
 ##   }
 
 ##   do_one_pair(end.ind, ## The rest of the arguments go here
-##               ylist, X, mysplits, nsplit, refit, mean_lambdas, pie_lambdas,
+##               ylist, X, mysplits, nsplit, refit, mean_lambdas, prob_lambdas,
 ##               multicore.cv, gridsize, destin, ...)
 ## }
 
@@ -67,9 +67,9 @@
 ##' @return List containing (1) the set of coefficients
 parallel_cv2.covarem <- function(ylist, X,
                                 mean_lambdas = NULL,
-                                pie_lambdas = NULL,
+                                prob_lambdas = NULL,
                                 max_mean_lambda = NULL,
-                                max_pie_lambda = NULL,
+                                max_prob_lambda = NULL,
                                 gridsize = 9,
                                 nsplit = 5,
                                 numfork = 3,
@@ -87,14 +87,14 @@ parallel_cv2.covarem <- function(ylist, X,
   }
 
   ## Basic checks
-  stopifnot(length(mean_lambdas) == length(pie_lambdas))
+  stopifnot(length(mean_lambdas) == length(prob_lambdas))
   assert_that(!is.null(max_mean_lambda) | !is.null(mean_lambdas) )
-  assert_that(!is.null(max_pie_lambda) | !is.null(pie_lambdas) )
+  assert_that(!is.null(max_prob_lambda) | !is.null(prob_lambdas) )
   if(is.null(mean_lambdas)){
     mean_lambdas = c(exp(seq(from = -8, to = log(max_mean_lambda), length = gridsize)))
   }
-  if(is.null(pie_lambdas)){
-    pie_lambdas = c(exp(seq(from = -8, to = log(max_pie_lambda), length = gridsize)))
+  if(is.null(prob_lambdas)){
+    prob_lambdas = c(exp(seq(from = -8, to = log(max_prob_lambda), length = gridsize)))
   }
 
   ## Create CV split indices
@@ -142,7 +142,7 @@ parallel_cv2.covarem <- function(ylist, X,
       ## Get the fitted results on the entire data
       res = covarem(ylist = ylist, X = X,
                     mean_lambda = beta_lambdas[ibeta],
-                    pie_lambda = alpha_lambdas[ialpha],
+                    prob_lambda = alpha_lambdas[ialpha],
                     ...)
 
       ## Temporary
@@ -174,6 +174,6 @@ parallel_cv2.covarem <- function(ylist, X,
     parallel::parLapplyLB(cl, end.ind:1, do_one_pair, end.ind,
                 ## The rest of the arguments go here
                 ylist, X, mysplits, nsplit, refit, mean_lambdas,
-                pie_lambdas, multicore.cv, gridsize, destin, ...)
+                prob_lambdas, multicore.cv, gridsize, destin, ...)
 
 }

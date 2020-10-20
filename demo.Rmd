@@ -55,7 +55,7 @@ estimated model providing the best data fit.
 numclust = 4
 set.seed(0)
 res = flowmix(ylist = ylist, X = X, numclust = numclust,
-              niter = 300, mean_lambda = 0.01, pie_lambda = 0.001,
+              niter = 300, mean_lambda = 0.01, prob_lambda = 0.001,
               nrep = 1)
 print(res)
 ```
@@ -63,8 +63,8 @@ print(res)
 
 The cluster probabilities look like this:
 
-```{r plot-pie, eval=TRUE, fig.width=5, fig.height=5}
-plot_pie(res)
+```{r plot-prob, eval=TRUE, fig.width=5, fig.height=5}
+plot_prob(res)
 ```
 
 
@@ -113,7 +113,7 @@ folds = blockcv_make_folds(ylist = ylist, nfold = 5)
 
 ## Define the candidate lambda values (logarithmically spaced)
 cv_gridsize = 5
-pie_lambdas =  logspace(min = 0.0001, max = 1, length = cv_gridsize)
+prob_lambdas =  logspace(min = 0.0001, max = 1, length = cv_gridsize)
 mean_lambdas = logspace(min = 0.0001, max = 1, length = cv_gridsize)
 
 ## Example of one CV job for one pair of regularization parameters (and CV folds
@@ -128,7 +128,7 @@ one_job(ialpha = ialpha,
         irep = irep,
         folds = folds,
         destin = destin,
-        mean_lambda = mean_lambdas, pie_lambdas = pie_lambdas,
+        mean_lambda = mean_lambdas, prob_lambdas = prob_lambdas,
         ## The rest that is needed explicitly for flowmix()
         ylist = ylist,
         countslist = NULL,
@@ -159,7 +159,7 @@ maxres = get_max_lambda(destin, "maxres.Rdata",
 ```{r, eval=FALSE}
 cvres = cv.flowmix(ylist = ylist, X = X, numclust = numclust,
                    max_mean_lambda = 1,
-                   max_pie_lambda = 1,
+                   max_prob_lambda = 1,
                    cv_gridsize = 10) 
 ```
 
@@ -180,7 +180,7 @@ countslist = obj$counts_list
 res = flowmix(ylist, X, numclust = numclust,
                    countslist = countslist,
                    mean_lambda = 0.01,
-                   pie_lambda = 0.1,
+                   prob_lambda = 0.1,
                    verbose = FALSE,
                    maxdev = 0.5)
 ```
@@ -202,7 +202,7 @@ set.seed(0)
 res = flowmix(ylist, X, numclust = 10,
               countslist = countslist,
               mean_lambda = 0.01,
-              pie_lambda = 0.1,
+              prob_lambda = 0.1,
               maxdev = 0.5,
               nrep = 1)
 ```
@@ -214,7 +214,7 @@ Now visualizing the results as before.
 print(res)
 
 ## Plot estimated probabilities
-plot_pie(res)
+plot_prob(res)
 
 ## Three scatterplots of one time point
 par(mfrow = c(1,3))

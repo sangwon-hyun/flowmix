@@ -29,7 +29,7 @@ plot_1d <- function(ylist, countslist, res = NULL, scale = TRUE, main = "",
       cols = RColorBrewer::brewer.pal(max(3,res$numclust), "Paired")
     }
 
-    ## Reorder clusters, according to total pie.
+    ## Reorder clusters, according to total prob.
     if(reorder_clusters) res <- reorder_clust(res)
 
     ## Plot the means
@@ -113,7 +113,7 @@ add_cluster_label <- function(res, cex=1.5){
 add_mn <- function(res, cols, mn.scale = 5){
   for(iclust in 1:res$numclust){
     lines(res$mn[,1,iclust], type = 'o', lty = 1, lwd = .1,
-             cex = res$pie[,iclust] * mn.scale, pch = 15, col = cols[iclust])
+             cex = res$prob[,iclust] * mn.scale, pch = 15, col = cols[iclust])
   }
 }
 
@@ -207,7 +207,7 @@ reorder_clust <- function(res){
   ## consistent coloring/labeling in all the tiny plots.  Actually, the
   ## "largest pi" approach would work for the 3d plots as well.
 
-  ## ord = res$pie %>% colSums %>% order(decreasing=TRUE)
+  ## ord = res$prob %>% colSums %>% order(decreasing=TRUE)
   ## ord = res$mn %>% colSums %>% order(decreasing=TRUE)
   ord = res$mn[,1,] %>% colSums %>% order(decreasing=TRUE)
 
@@ -217,8 +217,8 @@ reorder_clust <- function(res){
   ## Reorder sigma
   res$sigma = res$sigma[ord,,,drop=FALSE]
 
-  ## Reorder pie
-  res$pie = res$pie[,ord, drop=FALSE]
+  ## Reorder prob
+  res$prob = res$prob[,ord, drop=FALSE]
 
   ## Reorder the alpha coefficients
   res$alpha = res$alpha[ord,, drop=FALSE] ## Also rename the row names

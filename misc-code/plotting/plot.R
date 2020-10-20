@@ -73,12 +73,12 @@ prettify <- function(res, signif_digit=2){
 }
 
 
-##' Plot pies.
+##' Plot probs.
 ##' @param res covarem object.
 ##' @param iclusts Optionally, provide the cluster numbers to plot just those.
 ##'
 ##' @return NULL
-plot_pie <- function(res, iclusts=NULL, main=NULL,
+plot_prob <- function(res, iclusts=NULL, main=NULL,
                      cols = NULL
                      ){
 
@@ -92,10 +92,10 @@ plot_pie <- function(res, iclusts=NULL, main=NULL,
     cols = RColorBrewer::brewer.pal(res$numclust, "Set3")
   }
 
-  matplot(NA, xlim = c(0, res$TT),## res$pie
+  matplot(NA, xlim = c(0, res$TT),## res$prob
           ylab="", xlab="", ylim = c(0,1), axes = FALSE)
   abline(h = seq(from = 0, to = 1, by = 0.1), col='grey90', lwd=2, lty=3)
-  matlines(res$pie[,iclusts], type='l', lty=1, lwd=3, col=cols[iclusts])
+  matlines(res$prob[,iclusts], type='l', lty=1, lwd=3, col=cols[iclusts])
   ## axis(1); axis(2)
   if(is.null(main)){
     title(main="Cluster probabilities", cex.main=2)
@@ -238,19 +238,19 @@ plot2d_generic.covarem <- function(obj, ylist, ask=TRUE, show.fewer=NULL,
       }
     }
 
-    ## Collect pies
-    pies = lapply(1:numclust, function(iclust){  obj$pie[,iclust] })
+    ## Collect probs
+    probs = lapply(1:numclust, function(iclust){  obj$prob[,iclust] })
 
     ## Add fitted means
     for(kk in 1:numclust){
       points(x=mns[tt,1,kk],
              y=mns[tt,2,kk],
-             col='red', pch=1, cex=pies[[kk]][tt]*10)
+             col='red', pch=1, cex=probs[[kk]][tt]*10)
 
       text(x=mns[tt,1,kk],
            y=mns[tt,2,kk],
            labels=kk,
-           col='red', pch=16, cex=pies[[kk]][tt]*5)
+           col='red', pch=16, cex=probs[[kk]][tt]*5)
     }
 
     ## Add legend
@@ -266,20 +266,20 @@ plot2d_generic.covarem <- function(obj, ylist, ask=TRUE, show.fewer=NULL,
     }
 
     ## 2. Pies right now.
-    pies.right.now = sapply(1:numclust, function(iclust){pies[[iclust]][[tt]]})
-    names(pies.right.now) = paste("Clust", 1:numclust)
-    barplot(pies.right.now,
+    probs.right.now = sapply(1:numclust, function(iclust){probs[[iclust]][[tt]]})
+    names(probs.right.now) = paste("Clust", 1:numclust)
+    barplot(probs.right.now,
             col = cols,
             lwd = 1,
             ylim = c(0, 1),
             main = paste0("Cluster prob. at time ", tt)
             )##, lwd=2, type='o', pch=toString(iclust))
 
-    ## 3. Plot pies
+    ## 3. Plot probs
     plot(NA, xlim=c(0,TT), ylim=c(0,1.4), main="Cluster probs.",
          ylab = "Mixture probability", xlab="time, t=1,..,T")
     for(iclust in 1:numclust){
-      lines(pies[[iclust]], col=cols[iclust], lwd=2, type='o', pch=toString(iclust))
+      lines(probs[[iclust]], col=cols[iclust], lwd=2, type='o', pch=toString(iclust))
     }
     abline(v=tt, col='green')
   }
@@ -369,19 +369,19 @@ plot2d.covarem <- function(obj, ylist, ask=TRUE, show.fewer=NULL,
     }
     ## End of temporary
 
-    ## Collect pies
-    pies = lapply(1:numclust, function(iclust){  obj$pie[,iclust] })
+    ## Collect probs
+    probs = lapply(1:numclust, function(iclust){  obj$prob[,iclust] })
 
     ## Add fitted means
     for(kk in 1:numclust){
       points(x=mns[tt,1,kk],
              y=mns[tt,2,kk],
-             col='red', pch=1, cex=pies[[kk]][tt]*10)
+             col='red', pch=1, cex=probs[[kk]][tt]*10)
 
       text(x=mns[tt,1,kk],
            y=mns[tt,2,kk],
            labels=kk,
-           col='red', pch=16, cex=pies[[kk]][tt]*5)
+           col='red', pch=16, cex=probs[[kk]][tt]*5)
     }
 
     ## Add legend
@@ -397,20 +397,20 @@ plot2d.covarem <- function(obj, ylist, ask=TRUE, show.fewer=NULL,
     }
 
     ## 2. Pies right now.
-    pies.right.now = sapply(1:numclust, function(iclust){pies[[iclust]][[tt]]})
-    names(pies.right.now) = paste("Clust", 1:numclust)
-    barplot(pies.right.now,
+    probs.right.now = sapply(1:numclust, function(iclust){probs[[iclust]][[tt]]})
+    names(probs.right.now) = paste("Clust", 1:numclust)
+    barplot(probs.right.now,
             col = cols,
             lwd = 1,
             ylim = c(0, 1),
             main = paste0("Cluster prob. at time ", tt)
             )##, lwd=2, type='o', pch=toString(iclust))
 
-    ## 3. Plot pies
+    ## 3. Plot probs
     plot(NA, xlim=c(0,TT), ylim=c(0,1.4), main="Cluster probs.",
          ylab = "Mixture probability", xlab="time, t=1,..,T")
     for(iclust in 1:numclust){
-      lines(pies[[iclust]], col=cols[iclust], lwd=2, type='o', pch=toString(iclust))
+      lines(probs[[iclust]], col=cols[iclust], lwd=2, type='o', pch=toString(iclust))
     }
     abline(v=tt, col='green')
 
@@ -610,7 +610,7 @@ get_table <- function(res){
 ##       for(kk in 1:numclust.truth){
 ##         points(x=truths$mns[tt,1,kk],
 ##                y=truths$mns[tt,2,kk],
-##                col="black", pch=16, cex=truths$pies[[kk]][tt]*5)
+##                col="black", pch=16, cex=truths$probs[[kk]][tt]*5)
 ##       }
 ##     }
 
@@ -643,7 +643,7 @@ get_table <- function(res){
 ##     par(mfrow=c(1,2))
 ##     matplot(mn, type='l', lty=1, lwd=2, main=paste0("Means in ", idim, "-th dim"),
 ##             col=cols)
-##     wt = obj$pie
+##     wt = obj$prob
 ##     matplot(wt, type='l', lty=1, lwd=2, main="Weight", ylim=c(0,1),
 ##             col=cols)
 ##   }

@@ -19,7 +19,7 @@ test_that("EM algorithm gives same results using ADMM solver or CVXR solver in M
                             numclust = numclust,
                             niter = niter,
                             mean_lambda = mean_lambda,
-                            pie_lambda = 10,
+                            prob_lambda = 10,
                             verbose = FALSE,
                             maxdev = 0.5,
                             admm = TRUE,
@@ -30,7 +30,7 @@ test_that("EM algorithm gives same results using ADMM solver or CVXR solver in M
                                  numclust = numclust,
                                  niter = niter,
                                  mean_lambda = mean_lambda,
-                                 pie_lambda = 10,
+                                 prob_lambda = 10,
                                  verbose = FALSE,
                                  maxdev = 0.5,
                                  admm = TRUE,
@@ -43,7 +43,7 @@ test_that("EM algorithm gives same results using ADMM solver or CVXR solver in M
                             numclust = numclust,
                             niter = niter,
                             mean_lambda = mean_lambda,
-                            pie_lambda = 10,
+                            prob_lambda = 10,
                             maxdev = 0.5,
                             admm = FALSE)
 

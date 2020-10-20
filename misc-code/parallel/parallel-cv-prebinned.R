@@ -7,9 +7,9 @@
 ##' @return List containing (1) the set of coefficients
 parallel_cv_prebinned.covarem <- function(ylist, X,
                                 mean_lambdas = NULL,
-                                pie_lambdas = NULL,
+                                prob_lambdas = NULL,
                                 max_mean_lambda = NULL,
-                                max_pie_lambda = NULL,
+                                max_prob_lambda = NULL,
                                 gridsize = 9,
                                 nsplit = 5,
                                 splits = NULL,
@@ -31,14 +31,14 @@ parallel_cv_prebinned.covarem <- function(ylist, X,
   }
 
   ## Basic checks
-  stopifnot(length(mean_lambdas) == length(pie_lambdas))
+  stopifnot(length(mean_lambdas) == length(prob_lambdas))
   assert_that(!is.null(max_mean_lambda) | !is.null(mean_lambdas) )
-  assert_that(!is.null(max_pie_lambda) | !is.null(pie_lambdas) )
+  assert_that(!is.null(max_prob_lambda) | !is.null(prob_lambdas) )
   if(is.null(mean_lambdas)){
     mean_lambdas = c(exp(seq(from = -8, to = log(max_mean_lambda), length = gridsize)))
   }
-  if(is.null(pie_lambdas)){
-    pie_lambdas = c(exp(seq(from = -8, to = log(max_pie_lambda), length = gridsize)))
+  if(is.null(prob_lambdas)){
+    prob_lambdas = c(exp(seq(from = -8, to = log(max_prob_lambda), length = gridsize)))
   }
   assert_that(!is.null(splits))
   assert_that(!is.null(cl),
@@ -77,14 +77,14 @@ parallel_cv_prebinned.covarem <- function(ylist, X,
                                    ylist_orig,
                                    ## Additional arguments for covarem
                                    mean_lambda = beta_lambdas[ibeta],
-                                   pie_lambda = alpha_lambdas[ialpha],
+                                   prob_lambda = alpha_lambdas[ialpha],
                                    ...)
 
     ## Get the fitted results on the entire data
     res = covarem(ylist = ylist, X = X,
                   ## Additional arguments for covarem
                   mean_lambda = beta_lambdas[ibeta],
-                  pie_lambda = alpha_lambdas[ialpha],
+                  prob_lambda = alpha_lambdas[ialpha],
                   ...)
 
     ## Temporary
@@ -115,7 +115,7 @@ parallel_cv_prebinned.covarem <- function(ylist, X,
   if(tester){
     lapply(end.ind:1, do_one_pair, end.ind,
            ## The rest of the arguments go here
-           ylist, X, splits, nsplit, refit, mean_lambdas, pie_lambdas,
+           ylist, X, splits, nsplit, refit, mean_lambdas, prob_lambdas,
            gridsize, destin,
            train_ybin_list_by_split,
            train_counts_list_by_split,
@@ -125,7 +125,7 @@ parallel_cv_prebinned.covarem <- function(ylist, X,
     parallel::parLapplyLB(cl, end.ind:1, do_one_pair, end.ind,
                           ## The rest of the arguments go here
                           ylist, X, splits, nsplit, refit, mean_lambdas,
-                          pie_lambdas, gridsize, destin,
+                          prob_lambdas, gridsize, destin,
                           train_ybin_list_by_split,
                           train_counts_list_by_split,
                           ylist_orig,

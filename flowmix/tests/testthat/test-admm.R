@@ -15,7 +15,7 @@ test_that("New m step ADMM solver", {
   niter = 100
   maxdev = 0.5
   mean_lam = 0.001
-  pie_lam = 0.01
+  prob_lam = 0.01
   niter = 20
   admm_rho = 0.01
   la('flowmix')
@@ -24,7 +24,7 @@ test_that("New m step ADMM solver", {
     obj.new.aggtype3 = flowmix_once(ylist=ylist,
                            countslist = countslist,
                            X=X, numclust=numclust,
-                           pie_lambda = pie_lam,
+                           prob_lambda = prob_lam,
                            mean_lambda = mean_lam,
                            maxdev = maxdev,##0.5,
                            niter = niter,
@@ -34,8 +34,8 @@ test_that("New m step ADMM solver", {
   speed.new.aggtype1
   ## speed.new.aggtype2
   speed.new.aggtype4
-  range(obj.new.aggtype1$pie -   obj.new.aggtype2$pie)
-  range(obj.new.aggtype1$pie -   obj.new.aggtype3$pie)
+  range(obj.new.aggtype1$prob -   obj.new.aggtype2$prob)
+  range(obj.new.aggtype1$prob -   obj.new.aggtype3$prob)
   speed.new2
   ## save(obj.new, speed.new, file="~/Desktop/slow-obj.Rdata")
   ## save(obj.new, speed.new, file="~/Desktop/fast-obj.Rdata")
@@ -47,7 +47,7 @@ test_that("New m step ADMM solver", {
     obj.old = flowmix_once(ylist=ylist,
                            countslist = countslist,
                            X=X, numclust=numclust,
-                           pie_lambda = pie_lam,
+                           prob_lambda = prob_lam,
                            mean_lambda=mean_lam,
                            new_beta_mstep = FALSE,
                            maxdev = maxdev, ##0.5
@@ -75,7 +75,7 @@ test_that("New m step ADMM solver", {
   obj.old$niter
 
   obj.new %>% objects()
-  plot(obj.new$pie, obj.old$pie)
+  plot(obj.new$prob, obj.old$prob)
   plot(obj.new$mn,obj.old$mn, pch=16)##, cex=.2)
   abline(0,1)
   par(mfrow=c(1,2))

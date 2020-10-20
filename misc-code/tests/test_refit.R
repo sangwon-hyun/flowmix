@@ -24,7 +24,7 @@ test_that("flowmix() with refit=TRUE option gives the correct sparsity pattern."
   res0 = covarem(ylist = ylist, X = X,
                  numclust = numclust,
                  mean_lambda = 0.01,
-                 pie_lambda = 0.01,
+                 prob_lambda = 0.01,
                  maxdev = maxdev,
                  niter = 100,
                  verbose = TRUE, nrep = 3)
@@ -34,7 +34,7 @@ test_that("flowmix() with refit=TRUE option gives the correct sparsity pattern."
   set.seed(1)
   res = covarem(ylist = ylist, X = X, numclust = numclust,
                 mean_lambda = 0.01,
-                pie_lambda = 0.01,
+                prob_lambda = 0.01,
                 refit = TRUE,
                 maxdev = maxdev,
                 sel_coef = sel_coef,

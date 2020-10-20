@@ -40,7 +40,7 @@ test_that("flowmix() works under no noise.", {
 ## for(tt in 1:50){
 ##   plot(ylist[[tt]], ylim=ylim, xlim=xlim, pch=16, cex=0.5, col='grey50')
 ##   points(t(res$mn.list[[res$final.iter]][tt,,]), col='red',
-##          pch=16, cex=5*res$pie.list[[res$final.iter]][tt,])
+##          pch=16, cex=5*res$prob.list[[res$final.iter]][tt,])
 ## }
 ## graphics.off()
 
