@@ -405,7 +405,7 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
       ## Calculate convergence criterion
       obj = converge(beta, rho,
                      W, Z,
-                     w_prev, Z_prev,
+                     W_prev, Z_prev,
                      Uw = U[wrows,], Uz = U[zrows,],
                      tX = tX,
                      Xbeta = Xbeta,
@@ -426,7 +426,7 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
     }
 
     ## ## 3. Calculate objective values for this cluster.
-    w_prev = W
+    W_prev = W
     Z_prev = Z
     ## Zlist[[iter]] = Z
 
@@ -445,6 +445,7 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
   }
 
   ## Gather results.
+  beta = W
   beta[which(abs(beta) < zerothresh, arr.ind = TRUE)] = 0
   beta0 <- intercept(resp, resp.sum, ylist, beta, X, N, iclust,
                      ybar)
