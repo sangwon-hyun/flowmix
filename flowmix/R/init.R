@@ -50,7 +50,8 @@ init_mn <- function(ylist, numclust, TT, dimdat, countslist = NULL){
       ## Sample so that, in total, we get mean(nt)*30 sized sample. In the case
       ## of binned data, nt is the number of bins.
       nsize = nrow(y) / TT * 30
-      y[sample(1:nrow(y), size = nsize, prob = counts/sum(counts)),, drop=FALSE]
+      some_rows = sample(1:nrow(y), size = nsize, prob = counts/sum(counts))
+      y[some_rows,, drop=FALSE]
     })
 
     ## Combine all and sample just |numclust| rows
