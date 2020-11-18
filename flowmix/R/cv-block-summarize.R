@@ -82,15 +82,14 @@ blockcv_aggregate <- function(destin, cv_gridsize, nfold, nrep,
                               sim = FALSE, isim = NULL,
                               save = FALSE, resfile = "all-cvres.Rdata"){
 
-  ## Read the meta data (for |nfold|, |cv_gridsize|, |nrep|)
-  load(file = file.path(destin, 'meta.Rdata'))
+  ## ## Read the meta data (for |nfold|, |cv_gridsize|, |nrep|)
+  ## load(file = file.path(destin, 'meta.Rdata'))
 
   ## Aggregate the results
   cvscore.array = array(NA, dim = c(cv_gridsize, cv_gridsize, nfold, nrep))
   cvscore.mat = matrix(NA, nrow = cv_gridsize, ncol = cv_gridsize)
   for(ialpha in 1:cv_gridsize){
     for(ibeta in 1:cv_gridsize){
-      ## cvscores <- sapply(1:nfold, function(igrid){
       obj = matrix(NA, nrow=nfold, ncol=nrep)
       for(ifold in 1:nfold){
         for(irep in 1:nrep){
@@ -383,59 +382,61 @@ blockcv_summary_sim <- function(nsim = 100,
 
 
   if(!plotonly){
-  ## Get |nsim| lists, each containing gridsize^2 best replicates.
-  print("Getting all gridsize^2 best replicates, from nsim simulations.")
-  start.time = Sys.time()
-  reslists = mclapply(1:nsim, function(isim){
-    printprogress(isim, nsim, start.time=start.time)
-    tryCatch({
-      reslist = blockcv_aggregate_res(cv_gridsize = cv_gridsize,
-                                      nrep = nrep,
-                                      sim = TRUE, isim = isim,
-                                      destin = destin)
-      return(reslist)
-    }, error = function(e){ return(NULL)  })
-  }, mc.cores = mc.cores)
-  save(reslists, file=file.path(destin, "summary",  "reslists.Rdata"))
-  cat(fill=TRUE)
-  print('Saved results to reslist.Rdata')
 
-
-
-  ## Get the |min.inds|.
-  print("Getting all best CV results, from nsim simulations.")
-  start.time = Sys.time()
-  cv_info_list = mclapply(1:nsim, function(isim){
-    tryCatch({
+    ## Get |nsim| lists, each containing gridsize^2 best replicates.
+    print("Getting all gridsize^2 best replicates, from nsim simulations.")
+    start.time = Sys.time()
+    reslists = mclapply(1:nsim, function(isim){
       printprogress(isim, nsim, start.time=start.time)
-      obj = blockcv_aggregate(destin, "summary",  cv_gridsize, nfold, nrep, sim = TRUE, isim = isim)
-      ialpha = obj$min.inds[1]
-      ibeta = obj$min.inds[2]
-      cvscore = obj$cvscore.mat[ialpha, ibeta]
-      return(c(isim = isim, ialpha = ialpha, ibeta = ibeta, cvscore = cvscore))
-    }, error=function(e){ return(NULL)  })
-  }, mc.cores = mc.cores)
-  save(cv_info_list, file=file.path(destin, "summary",  "cv_info_list.Rdata"))
-  cv_info_mat = do.call(rbind, cv_info_list)
-  save(cv_info_mat, file=file.path(destin, "summary",  "cv_info_mat.Rdata"))
-  cat(fill = TRUE)
-  print('Saved results to cv_info_list.Rdata and cv_info_mat.Rdata')
+      tryCatch({
+        reslist = blockcv_aggregate_res(cv_gridsize = cv_gridsize,
+                                        nrep = nrep,
+                                        sim = TRUE, isim = isim,
+                                        destin = destin)
+        return(reslist)
+      }, error = function(e){ return(NULL)  })
+    }, mc.cores = mc.cores)
+    save(reslists, file=file.path(destin, "summary",  "reslists.Rdata"))
+    cat(fill=TRUE)
+    print('Saved results to reslist.Rdata')
 
 
-  ## Get bestres of each of the nsim simulations.
-  bestreslist = list()
-  for(isim in 1:nsim){
-    min.inds = cv_info_mat[isim, c("ialpha", "ibeta")]
-    if(is.null(reslists[[isim]])) next
-    reslist = reslists[[isim]]
-    bestreslist[[isim]] = reslist[[paste0(min.inds[1], "-", min.inds[2])]]
-  }
-  save(bestreslist, file=file.path(destin, "summary",  "bestreslist.Rdata"))
-  print('Saved results to bestreslist.Rdata')
+
+    ## Get the |min.inds|.
+    print("Getting all best CV results, from nsim simulations.")
+    start.time = Sys.time()
+    cv_info_list = mclapply(1:nsim, function(isim){
+      tryCatch({
+        printprogress(isim, nsim, start.time=start.time)
+        obj = blockcv_aggregate(destin, cv_gridsize = cv_gridsize, nfold = nfold, nrep = nrep, sim = TRUE, isim = isim, save=FALSE)
+        ialpha = obj$min.inds[1]
+        ibeta = obj$min.inds[2]
+        cvscore = obj$cvscore.mat[ialpha, ibeta]
+        return(c(isim = isim, ialpha = ialpha, ibeta = ibeta, cvscore = cvscore))
+      }, error=function(e){ return(NULL)  })
+    }, mc.cores = mc.cores)
+    print(cv_info_list)
+    save(cv_info_list, file=file.path(destin, "summary",  "cv_info_list.Rdata"))
+    cv_info_mat = do.call(rbind, cv_info_list)
+    save(cv_info_mat, file=file.path(destin, "summary",  "cv_info_mat.Rdata"))
+    cat(fill = TRUE)
+    print('Saved results to cv_info_list.Rdata and cv_info_mat.Rdata')
+
+    ## Get bestres of each of the nsim simulations.
+    bestreslist = list()
+    for(isim in 1:nsim){
+      min.inds = cv_info_mat[isim, c("ialpha", "ibeta")]
+      if(is.null(reslists[[isim]])) next
+      reslist = reslists[[isim]]
+      bestreslist[[isim]] = reslist[[paste0(min.inds[1], "-", min.inds[2])]]
+    }
+    save(bestreslist, file=file.path(destin, "summary",  "bestreslist.Rdata"))
+      print(bestreslist)
+    print('Saved results to bestreslist.Rdata')
 
   } else {
     ## Load already existing summaries.
-    ## load(file=file.path(destin, "summary",  "bestreslist.Rdata"))
+    load(file=file.path(destin, "summary",  "bestreslist.Rdata"))
     load(file=file.path(destin, "summary",  "reslists.Rdata"))
     load(file=file.path(destin, "summary",  "cv_info_mat.Rdata"))
   }
