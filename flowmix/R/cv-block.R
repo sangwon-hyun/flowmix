@@ -190,6 +190,7 @@ blockcv_hourlong_make_folds <- function(ylist, nfold, verbose=FALSE, blocksize=2
 ##' @return Nothing is returned. Instead, a file named "1-1-1-1-cvscore.Rdata"
 ##'   is saved in \code{destin}. (The indices here are ialpha-ibeta-ifold-irep).
 ##'
+##' @export
 one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
                     mean_lambdas, prob_lambdas,
                     ## The rest that is needed explicitly for flowmix()
@@ -289,7 +290,9 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
 }
 
 
-##' Refit one job
+##' Refit one job.
+##'
+##' @export
 one_job_refit <- function(ialpha, ibeta, destin,
                           mean_lambdas, prob_lambdas,
                           ## The rest that is needed explicitly for flowmix_once()
