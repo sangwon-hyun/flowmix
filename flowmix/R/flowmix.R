@@ -96,6 +96,7 @@ flowmix_once <- function(ylist, X,
   ## assertthat::assert_that(prob_lambda > 0)
   if(ridge) assertthat::assert_that(!admm) ## temporary
   assertthat::assert_that(numclust > 1)
+  assertthat::assert_that(all(sapply(ylist, nrow) == sapply(countslist, length)))
 
   ## Setup
   TT = length(ylist)

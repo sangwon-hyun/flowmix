@@ -125,6 +125,8 @@ calc_max_lambda <- function(ylist, countslist = NULL, X, numclust,
 ##' @param ... Additional arguments to \code{flowmix()}.
 ##'
 ##' @return No return
+##'
+##' @export
 get_max_lambda <- function(destin, maxres_file = "maxres.Rdata",
                            ylist,
                            countslist,
