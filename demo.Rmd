@@ -6,10 +6,10 @@ code_folding: fold
 ---
 ```{r global_options, include=FALSE}
 knitr::opts_chunk$set(fig.width=14, fig.height=5, echo=TRUE, warning=FALSE,
-                      message=FALSE, eval=TRUE, cache=TRUE)
+                      message=FALSE, eval=TRUE)##, cache=TRUE)
 library(tidyverse)
 library(flowmix)
-la('flowmix')
+load_all('flowmix')
 outputdir = "."
 ```
 
@@ -172,7 +172,7 @@ of `ylist` and deal with counts. The new object `countslist` can be
 ```{r, eval=FALSE}
 ## bin this data
 grid = make_grid(ylist, gridsize = 30, grid.ind=FALSE)
-obj = bin_many_cytograms(ylist,grid, mc.cores=8, verbose=FALSE)  
+obj = bin_many_cytograms(ylist,grid, mc.cores = 8, verbose=FALSE)  
 ylist = obj$ybin_list
 countslist = obj$counts_list
 
@@ -180,7 +180,7 @@ countslist = obj$counts_list
 res = flowmix(ylist, X, numclust = numclust,
                    countslist = countslist,
                    mean_lambda = 0.01,
-                   prob_lambda = 0.1,
+                   prob_lambda = 0.01,
                    verbose = FALSE,
                    maxdev = 0.5)
 ```
@@ -231,4 +231,20 @@ for(dims in list(c(1,2), c(2,3), c(3,1))){
                  xlab = dimnames[dims[1]],
                  ylab = dimnames[dims[2]])
 }
+```
+
+Also, not run in this script, but here is how to obtain the maximum
+regularization parameters to use for the 2-dimensional cross-validation. (This
+saves to a file called "maxres.Rdata" into the directory specified in `destin`.
+
+```{r get-max-lambda, eval=FALSE}
+destin = "."
+maxres = get_max_lambda(destin, "maxres.Rdata",
+                        ylist = ylist,
+                        countslist = countslist,
+                        X = X %>% as.matrix(),
+                        numclust = 10,
+                        maxdev = 0.5,
+                        max_prob_lambda = 1,
+                        max_mean_lambda = 3)
 ```

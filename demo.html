@@ -287,7 +287,7 @@ one_job(ialpha = ialpha,
 <p>If the data contains too many particles, there is an option to reduce the size of <code>ylist</code> and deal with counts. The new object <code>countslist</code> can be <em>additionally</em> provided to <code>flowmix()</code>. Here is an example:</p>
 <pre class="r"><code>## bin this data
 grid = make_grid(ylist, gridsize = 30, grid.ind=FALSE)
-obj = bin_many_cytograms(ylist,grid, mc.cores=8, verbose=FALSE)  
+obj = bin_many_cytograms(ylist,grid, mc.cores = 8, verbose=FALSE)  
 ylist = obj$ybin_list
 countslist = obj$counts_list
 
@@ -295,7 +295,7 @@ countslist = obj$counts_list
 res = flowmix(ylist, X, numclust = numclust,
                    countslist = countslist,
                    mean_lambda = 0.01,
-                   prob_lambda = 0.1,
+                   prob_lambda = 0.01,
                    verbose = FALSE,
                    maxdev = 0.5)</code></pre>
 </div>

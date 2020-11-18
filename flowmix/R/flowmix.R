@@ -315,11 +315,16 @@ flowmix_once <- function(ylist, X,
 
 
 
-##' Prediction: given  new X's,  generate a set of means and probs (and return
-##' the same Sigma)
-##' @param res object returned from covariate EM flowmix().
+##' Prediction: Given new X's, generate a set of means and probs (and return the
+##' same Sigma).
+##'
+##' @param res Object returned from covariate EM flowmix().
 ##' @param newx New covariate.
+##'
 ##' @return List containing mean, prob, and sigma.
+##'
+##' @export
+##'
 predict.flowmix <- function(res, newx = NULL){
 
   ## ## Check the dimensions
@@ -328,6 +333,11 @@ predict.flowmix <- function(res, newx = NULL){
   if(is.null(newx)){
     newx = res$X
   }
+
+  ## Check if the variable names are the same.
+  cnames = res$X %>% colnames()
+  cnames_new = newx %>% colnames()
+  stopifnot(all(cnames == cnames_new))
 
   ## Augment it with a dummy variable 1
   if(nrow(newx)>1){
@@ -342,7 +352,7 @@ predict.flowmix <- function(res, newx = NULL){
 
   ## Predict the means (manually).
   newmn = lapply(1:numclust, function(iclust){
-    newx.a  %*%  res$beta[[iclust]]
+    newx.a %*% res$beta[[iclust]]
   })
   newmn_array = array(NA, dim=c(TT, dimdat, numclust))
   for(iclust in 1:numclust){ newmn_array[,,iclust] = newmn[[iclust]] }
@@ -357,11 +367,15 @@ predict.flowmix <- function(res, newx = NULL){
   stopifnot(all(newprob >= 0))
 
   ## Return all three things
-  return(list(newmn = newmn_array,
-              newprob = newprob,
+  return(list(mn = newmn_array,
+              prob = newprob,
+              pie = newprob, ## Just a copy of prob, for back-compatibility
+              alpha = res$alpha,
+              beta = res$beta,
               sigma = res$sigma,
               TT = res$TT,
-              N = res$N))
+              N = res$N,
+              numclust = res$numclust))
 }
 
 

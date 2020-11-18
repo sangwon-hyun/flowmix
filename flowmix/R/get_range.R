@@ -1,5 +1,5 @@
 ##' Estimate maximum lambda values by brute force.  First starts with a large
-##' initial value \code{max_lambda_beta} and \code{max_lambda_alpha}, and runs
+##' initial value \code{max_mean_lambda} and \code{max_prob_lambda}, and runs
 ##' the EM algorithm on decreasing set of values (sequentially halved). This
 ##' stops once you see any non-zero coefficients, and returns the *smallest*
 ##' regularization (lambda) value pair that gives full sparsity. Note that the
@@ -10,8 +10,8 @@
 ##' @param ylist List of responses.
 ##' @param X Covariates.
 ##' @param numclust Number of clusters.
-##' @param max_lambda_beta Defaults to 4000.
-##' @param max_lambda_beta Defaults to 1000.
+##' @param max_mean_lambda Defaults to 4000.
+##' @param max_prob_lambda Defaults to 1000.
 ##' @param iimax Maximum value of x for 2^{-x} factors to try.
 ##' @param ... Other arguments to \code{flowmix_once()}.
 ##' @return list containing the two maximum values to use.
@@ -34,18 +34,18 @@
 ##'                             parallelize = FALSE,
 ##'                             iimax = 20,
 ##'                             niter = 1000,
-##'                             max_lambda_alpha = 10000,
+##'                             max_prob_lambda = 10000,
 ##'                             tol = 1E-3 ## This doesn't need to be so low here.
 ##'                             )
 ##'
 ##' }
 calc_max_lambda <- function(ylist, countslist = NULL, X, numclust,
-                               max_lambda_beta = 4000,
-                               max_lambda_alpha = 1000,
-                               verbose=FALSE,
-                               iimax = 16,
-                               cl = NULL,
-                               ...){
+                            max_mean_lambda = 4000,
+                            max_prob_lambda = 1000,
+                            verbose=FALSE,
+                            iimax = 16,
+                            cl = NULL,
+                            ...){
 
   ## Get range of regularization parameters.
   ## res0 = flowmix_getrange(ylist=ylist, X=X, numclust=numclust, niter=2)
@@ -57,15 +57,15 @@ calc_max_lambda <- function(ylist, countslist = NULL, X, numclust,
       cat("============================================================", fill=TRUE)
       printprogress(ii, iimax, fill=TRUE)
       cat("============================================================", fill=TRUE)
-      cat("lambda_alpha = ", max_lambda_alpha * facs[ii],
-          " and lambda_beta = ", max_lambda_beta * facs[ii], "being tested.", fill=TRUE)
+      cat("lambda_alpha = ", max_prob_lambda * facs[ii],
+          " and lambda_beta = ", max_mean_lambda * facs[ii], "being tested.", fill=TRUE)
     }
     res = flowmix_once(ylist = ylist,
                        countslist = countslist,
                        X = X,
                        numclust = numclust,
-                       prob_lambda = max_lambda_alpha * facs[ii],
-                       mean_lambda = max_lambda_beta * facs[ii],
+                       prob_lambda = max_prob_lambda * facs[ii],
+                       mean_lambda = max_mean_lambda * facs[ii],
                        verbose = verbose,
                        zero_stabilize = TRUE,
                        ...)
@@ -83,8 +83,8 @@ calc_max_lambda <- function(ylist, countslist = NULL, X, numclust,
       ## If there are *any* nonzero values at the first iter, prompt a restart
       ## with higher initial lambda values.
       if(ii==1){
-        stop(paste0("Max lambdas: ", max_lambda_beta, " and ",
-                    max_lambda_alpha,
+        stop(paste0("Max lambdas: ", max_mean_lambda, " and ",
+                    max_prob_lambda,
                     " were too small as maximum reg. values. Go up and try again!!"))
 
       ## If there are *any* nonzero values, return the immediately preceding
@@ -96,8 +96,8 @@ calc_max_lambda <- function(ylist, countslist = NULL, X, numclust,
                            countslist = countslist,
                            X = X,
                            numclust = numclust,
-                           prob_lambda = max_lambda_alpha * facs[ii],
-                           mean_lambda = max_lambda_beta * facs[ii],
+                           prob_lambda = max_prob_lambda * facs[ii],
+                           mean_lambda = max_mean_lambda * facs[ii],
                            verbose = TRUE,
                            zero_stabilize = FALSE,
                            ...)
@@ -107,8 +107,8 @@ calc_max_lambda <- function(ylist, countslist = NULL, X, numclust,
 
         ## If there are *any* nonzero values, do one of the following
         if(sum_nonzero_alpha + sum_nonzero_beta != 0){
-          return(list(beta = max_lambda_beta * facs[ii-1],
-                      alpha = max_lambda_alpha *facs[ii-1]))
+          return(list(beta = max_mean_lambda * facs[ii-1],
+                      alpha = max_prob_lambda *facs[ii-1]))
         }
         ## Otherwise, just proceed to the next iteration.
       }
@@ -131,8 +131,8 @@ get_max_lambda <- function(destin, maxres_file = "maxres.Rdata",
                            X,
                            numclust,
                            maxdev,
-                           max_lambda_alpha,
-                           max_lambda_beta,
+                           max_prob_lambda,
+                           max_mean_lambda,
                            ...){
 
   maxres_file = "maxres.Rdata"
@@ -144,15 +144,15 @@ get_max_lambda <- function(destin, maxres_file = "maxres.Rdata",
     print(Sys.time())
     cat("Maximum regularization values being calculated.", fill=TRUE)
     print("with initial lambdas values (alpha and beta):")
-    print(c(max_lambda_alpha, max_lambda_beta));
+    print(c(max_prob_lambda, max_mean_lambda));
     maxres = calc_max_lambda(ylist = ylist,
                              countslist = countslist,
                              X = X,
                              numclust = numclust,
                              maxdev = maxdev,
                              ## This function's settings
-                             max_lambda_alpha = max_lambda_alpha,
-                             max_lambda_beta = max_lambda_beta,
+                             max_prob_lambda = max_prob_lambda,
+                             max_mean_lambda = max_mean_lambda,
                              ...)
     save(maxres, file=file.path(destin, maxres_file))
     cat("maximum regularization value calculation done.", fill=TRUE)

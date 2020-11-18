@@ -1,10 +1,15 @@
 ##' Helper to make grid. Takes 3-lengthed list of ranges (2 length vectors
 ##' containing min and max) and returns a 3-lengthed list of grid points.
+##'
 ##' @export
 make_grid <- function(ylist, gridsize=5, grid.ind=FALSE){
 
+
+  ## Getting ranges over ylist
+  ylist_ranges = lapply(ylist, function(mat)apply(mat, 2, range))
+
   ## Get overall range.
-  ylist_collapsed = do.call(rbind, ylist)
+  ylist_collapsed = do.call(rbind, ylist_ranges)
   dimdat = ncol(ylist_collapsed)
   ranges = lapply(1:dimdat, function(ii) range(ylist_collapsed[,ii]))
 
@@ -22,11 +27,13 @@ make_grid <- function(ylist, gridsize=5, grid.ind=FALSE){
 
 
 ##' Main function for binning a cytogram (y). Only works for y whose dimension is 3.
+##'
 ##' @param y nt by dimdat matrix.
 ##' @param manual.grid grid, produced using \code{make_grid()}.
 ##' @param qc QC value, but in the original scale, NOT in the log scale.
 ##'
 ##' @return List containing *trimmed* ybin (a x 3) and counts (a).
+##'
 ##' @export
 bin_one_cytogram <- function(y, manual.grid, qc=NULL){
 
@@ -252,7 +259,7 @@ make_counts <- function(y, grid, qc=NULL){
   identify_box <- function(grid, yrow){
     dimdat = length(yrow)
     sapply(1:dimdat, function(idim){
-      max(which(yrow[idim] >= grid[[idim]]))
+      max(which(unlist(yrow[idim]) >= grid[[idim]]))
     })
   }
 

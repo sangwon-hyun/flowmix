@@ -8,10 +8,13 @@
 ##' @param local_adapt TRUE if locally adaptive ADMM (LA-ADMM) is to be used. If
 ##'   so, \code{niter} becomes the inner number of iterations, and
 ##'   \code{local_adapt_niter} becomes the number of outer iterations.
-##' ##' @param local_adapt_niter Number of outer iterations for LA-ADMM.
+##' @param local_adapt_niter Number of outer iterations for LA-ADMM.
 ##'
 ##' @return Result of M step; a |numclust| length list of (p+1)x(d) matrices,
 ##'   each containing the estimated coefficients for the mean estimation.
+##'
+##' @export
+##'
 Mstep_beta_admm_old <- function(resp,
                             ylist,
                             X,

@@ -7,8 +7,9 @@ Authors@R:
            role = c("aut", "cre"),
            email = "robohyun66@gmail.com")
 Depends:
-	mclust,
 Imports: 
+    assertthat,
+    glmnet,
     CVXR,
     mvtnorm,
     data.table,

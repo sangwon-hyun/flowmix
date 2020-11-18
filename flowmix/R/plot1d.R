@@ -1,4 +1,5 @@
 ##' Plot 1 dimensional model results.
+##'
 ##' @param ylist Data.
 ##' @param countslist Multiplicity.
 ##' @param res Optionally, |covarem| object of fitted model.
@@ -8,24 +9,33 @@
 ##'
 ##' @return NULL.
 ##' @export
-plot_1d <- function(ylist, countslist, res = NULL, scale = TRUE, main = "",
-                    date_axis = TRUE, no_axis = FALSE, mn.scale = 5,
+plot_1d <- function(ylist,
+                    countslist,
+                    res = NULL,
+                    scale = TRUE,
+                    main = "",
+                    date_axis = TRUE,
+                    no_axis = FALSE,
+                    mn.scale = 5,
                     cex_clust_label = 1.5,
                     omit_band = FALSE,
                     omit_label = FALSE,
                     reorder_clusters = TRUE,
-                    cex_data=15){
+                    cex_data=15,
+                    ylim = NULL){
 
   ## Plot ylist only
   stopifnot(ncol(ylist[[1]]) == 1)
   stopifnot(ncol(countslist[[1]]) == 1)
-  plot_ylist(ylist, countslist, scale = scale, main = main, cex=cex_data)
+  plot_ylist(ylist, countslist, scale = scale, main = main, cex=cex_data, ylim = ylim)
 
   ## Plot model if applicable.
   if(!is.null(res)){
     stopifnot(res$dimdat==1)
-    cols = RColorBrewer::brewer.pal(max(3,res$numclust), "Set2")
-    if(res$numclust>8){
+
+    if(res$numclust <= 8){
+      cols = RColorBrewer::brewer.pal(max(3,res$numclust), "Set2")
+    } else {
       cols = RColorBrewer::brewer.pal(max(3,res$numclust), "Paired")
     }
 
@@ -52,7 +62,7 @@ plot_1d <- function(ylist, countslist, res = NULL, scale = TRUE, main = "",
     add_cluster_label(res, cex_clust_label)
     }
   }
-  return(cols)
+  ## return(cols)
 }
 
 ##' (incomplete)
@@ -69,16 +79,21 @@ plot_X <- function(res){
                                   bg="white",  ncol=2)
 }
 
-##' Make 1d data plot.
-plot_ylist <- function(ylist, countslist, res = NULL, scale = TRUE, main = "",
-                       cex = 1){
+##' Make 1d data plot. No axes are added.
+plot_ylist <- function(ylist, countslist, res = NULL, scale = TRU, main = "",
+                       cex = 1, ylim = NULL){
   stopifnot(ncol(ylist[[1]]) == 1)
   TT = length(ylist)
-  matplot(NA, type='l', lty=1, lwd=.1,
-          ylim = range(unlist(ylist)),
+  if(is.null(ylim)) ylim = range(unlist(ylist))
+  matplot(NA,
+          type = 'l',
+          lty = 1,
+          lwd = .1,
+          ylim = ylim,
           xlim = c(1, TT),
-          ylab="", xlab="",
-          axes=FALSE)
+          ylab = "",
+          xlab = "",
+          axes = FALSE)
 
   ## Add title
   title(main = main)
@@ -209,7 +224,7 @@ reorder_clust <- function(res){
 
   ## ord = res$prob %>% colSums %>% order(decreasing=TRUE)
   ## ord = res$mn %>% colSums %>% order(decreasing=TRUE)
-  ord = res$mn[,1,] %>% colSums %>% order(decreasing=TRUE)
+  ord = res$mn[,1,] %>% colSums() %>% order(decreasing=TRUE)
 
   ## Reorder mean
   res$mn = res$mn[,,ord, drop=FALSE]

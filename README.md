@@ -15,7 +15,7 @@ This R package can be installed using the following commands.
 
 ```{r}
 library(devtools)
-install_github("robohyun66/flowcy", subdir = "flowcy")
+install_github("robohyun66/flowmix", subdir = "flowmix")
 ```
 
 ## Demo

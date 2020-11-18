@@ -69,6 +69,7 @@ solve_multinom <- function(y, X, lambda, lambda_max = 10){
 ##' @param N Total number of particles in all cytograms i.e. \deqn{N=\sum_t n_t}.
 ##'
 ##' @return (p x K) coefficient matrix.
+##'
 cvxr_multinom <- function(y, X, lambda,
                           exclude.from.penalty=NULL, thresh = 1E-8,
                           N){
@@ -86,6 +87,8 @@ cvxr_multinom <- function(y, X, lambda,
 
   ## First component
   obj1 = CVXR::sum_entries(CVXR::mul_elemwise(y, (X %*% alphamat))) ## Using version 99.7 or before
+  obj1 = CVXR::sum_entries(y * (X %*% alphamat)) ## Using version 99.7 or before
+  ## TODO: CVXR equivalent of crossprod.
   ## obj1 = CVXR::sum_entries(CVXR::multiply(y, (X %*% alphamat))) ## Using version 1.0 or above; this needs some work, since the
   ##                                                               ## \code{solve} gives an S4 related error that is so far unresolved.
 

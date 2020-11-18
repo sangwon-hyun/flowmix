@@ -48,7 +48,7 @@ plot3d.covarem <- function(obj,
   if(is.null(obj)){ m = m[1:2,] } ## Handling for missing obj; only the
                                   ## cytograms are to be plotted.
   layout(m)
-  par(oma=c(3,1,2,1)) ## setting outer margin
+  par(oma = c(3, 1, 2, 1)) ## setting outer margin
 
   ## Setup
   TT = length(ylist)
@@ -472,71 +472,6 @@ get_range_from_ylist <- function(ylist){
 }
 
 
-##' Making *heatmap* for two dimensions of the original three (those in |ind|).
-one_dim_heatmap <- function(ylist, obj, tt, countslist = NULL, dims = c(1,2)){
-
-  ## Extract data
-  y = ylist[[tt]][,dims]
-  labs = colnames(ylist[[1]])
-  maxcount = max(unlist(countslist))
-  if(!is.null(obj)){
-    mns = obj$mn
-    TT = obj$TT
-    numclust = obj$numclust
-  }
-
-  ## Get plot ranges
-  ranges = get_range_from_ylist(ylist)
-  ylim = ranges[,dims[2]]
-  xlim = ranges[,dims[1]]##range(all.y[,dims[1]])
-  ylab = labs[dims[2]]
-  xlab = labs[dims[1]]
-
-  ## Making the background color different
-  allcounts = (sapply(countslist, sum))
-  prop = allcounts[[tt]] / max(allcounts)
-  yrange = ylim[2] - ylim[1]
-  ylim_other = ylim[1]
-  ylim[1] = ylim[1] - 1/5 * yrange
-
-  ## Create empty plot
-  main0 = ""
-  plot(NA, ylim = ylim, xlim = xlim, cex = 3,
-       ylab = ylab, xlab = xlab,
-       cex.lab = 2,
-       cex.axis = 2)
-  title(main = main0, cex.main = 3)
-
-  ## Add heatplot, using the *sparse* (full d^3) counts
-  ymat = y_to_ymat(y, grid, dims)
-  drawmat_precise2(ymat)
-
-  make_ymat <- function(y, counts, grid, dims){
-
-    ## Extract only the two columns of interest
-    y = y[,dims]
-
-    ## Then, collapse the data
-    y = ybin_list[[100]]
-    z = y[,1:2]
-    dim(z)
-    dim(unique(z))
-
-    ## Make into a sparse grid.
-
-
-
-
-    ## Then, collapse
-
-  }
-
-  ##  Input: a d x d matrix
-
-  ## 1. Collapse the ylist.
-
-  ylist[]
-}
 
 ##' Making data plot for two dimensions of the original three (those in |ind|).
 ##'
@@ -683,6 +618,7 @@ scatterplot_2d_addmodel <- function(obj, tt, dims,
   ## Add fitted means
   probs = lapply(1:numclust, function(iclust){ obj$prob[,iclust] })
   probs.right.now = sapply(1:numclust, function(iclust){probs[[iclust]][[tt]]})
+  ### TODO: probs.right.now = sqrt(probs.right.now)
   mn.cex = probs.right.now/max(probs.right.now) * mn_cex_fac
 
   ## Make the minimum size not so small
@@ -805,5 +741,63 @@ one_3d_plot <- function(ylist, obj=NULL, tt, countslist=NULL, phi = 40,
                     cex = mn.cex,## * 0.5,
                     type = 'h',
                     lwd = 3)##, type="h", pch=16)
+  }
+}
+
+
+
+
+##' A simple function for plotting 3-dimensional data.
+##'
+plot3d_simple <- function(obj,
+                          ## Understandably, data (ylist) might not be in the object.
+                          ylist, countslist = NULL,
+                          ## The time point of interest, out of 1:TT
+                          tt,
+                          ## Other options.
+                          ## 2d scatterplot options
+                          cex.fac.2d = 1,
+                          pt_col = rgb(0 ,0, 1, 0.1),
+                          ## 3d scatterplot options
+                          cex.fac.3d = 1
+                          ){
+
+  ## Define layout
+  par(mfrow = c(1,3))
+  par(oma = c(3, 1, 2, 1)) ## setting outer margin
+
+  ## Setup
+  TT = length(ylist)
+  assert_that(tt %in% 1:TT)
+  all.y = do.call(rbind, ylist)
+  only_plot_cytograms = (is.null(obj))
+  if(!only_plot_cytograms){
+    obj = reorder_clust(obj)
+    mns = obj$mn
+    numclust = obj$numclust
+    p = ncol(obj$X)
+  }
+
+  ## Scale the biomass (|countslist|) by the total biomass in that cytogram.
+  counts_sum = sapply(countslist, sum)
+  fac = median(counts_sum)
+  countslist = lapply(countslist, function(counts)counts/sum(counts) * fac)
+
+
+  ###############################
+  ## Make the three data plots ##
+  ###############################
+  ## par(mar=c(1,1,3,1))
+  par(mar = c(5.1, 5.1, 4.1, 2.1))
+  dimslist = list(1:2, 2:3, c(3,1))
+  for(dims in dimslist){
+    scatterplot_2d(ylist = ylist,
+                   countslist = countslist,
+                   obj = obj,
+                   tt = tt,
+                   dims = dims, cex_fac=cex.fac.2d,
+                   pt_col = rgb(0 ,0, 1, 0.1),
+                   xlab = dimnames[dims[1]],
+                   ylab = dimnames[dims[2]])
   }
 }
