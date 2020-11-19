@@ -258,6 +258,7 @@ Mstep_sigma_covar <- function(resp, ylist, mn, numclust){
       resp.thisclust = lapply(resp, function(myresp) myresp[,iclust, drop = TRUE])
       resp.long = do.call(c, resp.thisclust)
       mnlong = mn[irows,,iclust]
+      if(is.vector(mnlong)) mnlong = mnlong %>% cbind()
       vars[[iclust]] = estepC(ylong, mnlong, sqrt(resp.long), sum(resp.long))
   }
 

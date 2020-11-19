@@ -96,7 +96,7 @@ flowmix_once <- function(ylist, X,
   ## assertthat::assert_that(prob_lambda > 0)
   if(ridge) assertthat::assert_that(!admm) ## temporary
   assertthat::assert_that(numclust > 1)
-  assertthat::assert_that(all(sapply(ylist, nrow) == sapply(countslist, length)))
+  ## assertthat::assert_that(all(sapply(ylist, nrow) == sapply(countslist, length)))
 
   ## Setup
   TT = length(ylist)
@@ -185,7 +185,6 @@ flowmix_once <- function(ylist, X,
     ## Check if the number of zeros in the alphas and betas have stabilized.
     zero.betas[[iter]] = lapply(beta, function(mybeta) which(mybeta==0))
     zero.alphas[[iter]] = which(alpha == 0)
-    sym_diff <- function(a,b) unique(c(setdiff(a,b), setdiff(b,a)))
     if(zero_stabilize & iter >= 30){ ## If 5 is to low, try 10 instead of 5.
       if(check_zero_stabilize(zero.betas, zero.alphas, iter)) break
     }
@@ -411,9 +410,15 @@ make_denslist_eigen <- function(ylist, mu,
         ## return(dmvnorm_fast(ylist[[tt]],
         ##                     mu[tt,,iclust],
         ##                     sigma_eig=mysigma_eig))
+        mn = mu[tt,,iclust]
+        sgm = mysigma_eig$sigma
+        if(dimdat == 1){
+          mn = as.matrix(mn)
+          sgm = sgm %>% as.matrix()
+        }
         return(dmvnorm_arma_fast(ylist[[tt]],
-                                 mu[tt,,iclust],
-                                 mysigma_eig$sigma))
+                                 mn,
+                                 sgm))
     })
   })
 }

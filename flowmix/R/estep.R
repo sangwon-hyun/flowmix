@@ -26,11 +26,16 @@ Estep <- function(mn, sigma, prob, ylist = NULL,
   TT = length(ylist)
   ntlist = sapply(ylist, nrow)
   resp = list() ## Next up: try to /not/ do this.
+  dimdat = dim(mn)[2]
 
   calculate_dens <- function(iclust, tt, y, mn, sigma, denslist_by_clust, first_iter){
     mu <- mn[tt,,iclust] ## No problem with memory leak here.
     if(first_iter){
-      dens = dmvnorm_arma_fast(y, mu, sigma[iclust,,], FALSE)
+      if(dimdat==1){
+        dens = dnorm(y, mu, sigma[iclust,,])
+      } else {
+        dens = dmvnorm_arma_fast(y, mu, sigma[iclust,,], FALSE)
+      }
     } else {
       dens = unlist(denslist_by_clust[[iclust]][[tt]])
     }
