@@ -139,7 +139,14 @@ blockcv_make_folds <- function(ylist, nfold, verbose=FALSE){
 }
 
 ##' Define the folds for 1-hr-split CVs. (roughly, 1 hour = block size of 20).
-blockcv_hourlong_make_folds <- function(ylist, nfold, verbose=FALSE, blocksize=20){
+##'
+##' @param blocksize Size (number of time indices) of one block.
+##'
+##' @return List of fold indices.
+##'
+##' @export
+##'
+make_cv_folds <- function(ylist, nfold, verbose = FALSE, blocksize = 20){
 
   if(verbose) print("Hour-long time blocks used for CV (block type 2)")
 
@@ -148,8 +155,9 @@ blockcv_hourlong_make_folds <- function(ylist, nfold, verbose=FALSE, blocksize=2
   endpoints = round(seq(from = 0, to = TT + blocksize,
                         by = blocksize))
   inds = Map(function(a,b){
-    if(a>=TT) return(NULL)
-    (a+1):pmin(b,TT)
+    if(a >= TT) return(NULL)
+    ## (a+1):pmin(b,TT))
+    return(seq(a+1):pmin(b,TT))
   },
              endpoints[-length(endpoints)],
              endpoints[-1])

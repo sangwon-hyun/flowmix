@@ -98,7 +98,7 @@ Mstep_beta_admm <- function(resp,
     ## crossprod(wt.ylong, wt.ylong)
 
     ## Store the third term
-    term3list[[iclust]] = 1 / N * sigmainv %*% yXcentered
+    term3list[[iclust]] =  1 / N * sigmainv %*% yXcentered
     ybarlist[[iclust]] = obj$ybar
 
     ycentered_list[[iclust]] = ycentered
@@ -380,10 +380,11 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
   for(iter in 1:niter){
     ## print(iter)
 
+
     ## Update ytilde based on new beta
     syl_C = prepare_sylC_const3(U, Xaug, rho, Z, X, W,
                                 term3,
-                                sigma[iclust,,], Xinv)
+                                sigma[iclust,,] %>% as.matrix(), Xinv)
     F = (-1) * tUA %*% syl_C %*% UB;
     beta = UA %*% matrix_function_solve_triangular_sylvester_barebones(TA, TB, F) %*% tUB
     beta = t(beta)
@@ -392,12 +393,11 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
     Xbeta = X %*% beta
     ## print(summary(Xbeta))
     ## Z = Z_update(X %*% beta, U[zrows,], maxdev, rho)
-    Z <- Z_updateC(Xbeta, U[zrows,], maxdev, rho, dimdat, TT)
-    W = W_update(beta, U[wrows,], lambda, rho)
+    Z <- Z_updateC(Xbeta, U[zrows,, drop=FALSE], maxdev, rho, dimdat, TT)
+    W = W_update(beta, U[wrows,, drop=FALSE], lambda, rho)
+    if(is.vector(W)) W = cbind(W) ## make it so that it handles vectors
     U = U_update(U, rho, Xaug, beta, Z, W)
     ## print(summary(X%*%beta))
-
-
 
     ## Check convergence
     if( iter > 1  & iter %% 5 == 0){## & !local_adapt){
@@ -495,7 +495,7 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
 
 ##' Update U in the new ADMM
 U_update <- function(U, rho, Xaug, beta, Z, W){
-  U + rho * (Xaug %*% beta - rbind(Z, W))
+  (U + rho * (Xaug %*% beta - rbind(Z, W)) )
 }
 
 ##' Update U in the new ADMM
@@ -592,6 +592,7 @@ weight_ylist <- function(iclust, resp, resp.sum, ylist){
 ##' @return List.
 myschur <- function(mat){
   stopifnot(nrow(mat) == ncol(mat))
+  if(is.numeric(mat) & length(mat)==1) mat = mat %>% as.matrix()
   obj = Matrix::Schur(mat)
   obj$tQ = t(obj$Q)
   obj$orig = mat
