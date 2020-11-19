@@ -157,7 +157,7 @@ make_cv_folds <- function(ylist, nfold, verbose = FALSE, blocksize = 20){
   inds = Map(function(a,b){
     if(a >= TT) return(NULL)
     ## (a+1):pmin(b,TT))
-    return(seq(a+1):pmin(b,TT))
+    return(seq(a+1, pmin(b,TT)))
   },
              endpoints[-length(endpoints)],
              endpoints[-1])
@@ -203,7 +203,6 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
                     mean_lambdas, prob_lambdas,
                     ## The rest that is needed explicitly for flowmix()
                     ylist, countslist,
-                    sim=FALSE, isim,## Temporary
                     X, ...){
 
   ## Get the train/test data
@@ -216,7 +215,7 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
   train.X = X[-test.inds,]
 
   ## Check whether this job has been done already.
-  filename = make_cvscore_filename(ialpha, ibeta, ifold, irep, sim, isim)
+  filename = make_cvscore_filename(ialpha, ibeta, ifold, irep)##, sim, isim)
   if(file.exists(file.path(destin, filename))){
     cat(filename, "already done", fill=TRUE)
     return(NULL)
@@ -248,11 +247,11 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
 
     ## Assign mn and prob
     pred = predict.flowmix(res.train, newx = test.X)
-    stopifnot(all(pred$newprob >= 0))
+    stopifnot(all(pred$prob >= 0))
 
     ## Evaluate on test data, by calculating objective (penalized likelihood)
-    cvscore = objective(mu = pred$newmn,
-                        prob = pred$newprob,
+    cvscore = objective(mu = pred$mn,
+                        prob = pred$prob,
                         sigma = pred$sigma,
                         ylist = test.dat,
                         countslist = test.count,
@@ -261,9 +260,12 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
                         alpha = res.train$alpha,
                         beta = res.train$beta)
 
+    ## Store (temporarily) the run times
     time_per_iter = res.train$time_per_iter
     final_iter = res.train$final.iter
     total_time = res.train$total_time
+
+    ## Store the results.
     beta = res.train$beta
     alpha = res.train$alpha
     objectives = res.train$objectives
@@ -305,7 +307,7 @@ one_job_refit <- function(ialpha, ibeta, destin,
                           mean_lambdas, prob_lambdas,
                           ## The rest that is needed explicitly for flowmix_once()
                           ylist, countslist, X,
-                          sim = FALSE, isim=1,
+                          ## sim = FALSE, isim=1,
                           ...){
 
   args = list(...)
@@ -313,7 +315,7 @@ one_job_refit <- function(ialpha, ibeta, destin,
   for(irep in 1:nrep){
 
     ## Writing file
-    filename = make_refit_filename(ialpha, ibeta, irep, sim, isim)
+    filename = make_refit_filename(ialpha, ibeta, irep)##, sim, isim)
     if(file.exists(file.path(destin, filename))){
       cat(filename, "already done", fill=TRUE)
       return(NULL)
@@ -343,6 +345,7 @@ one_job_refit <- function(ialpha, ibeta, destin,
 }
 
 ##' Indices for the cross validation jobs.
+##'
 ##' The resulting iimat looks like this:
 ##' (#, ialpha, ibeta, ifold)
 ##' 1, 1, 1, 1
@@ -354,8 +357,9 @@ one_job_refit <- function(ialpha, ibeta, destin,
 ##' @param cv_gridsize CV grid size.
 ##' @param nfold Number of of CV folds.
 ##'
-##' @return Numeric matrix.
+##' @return Integer matrix.
 ##'
+##' @export
 make_iimat <- function(cv_gridsize, nfold, nrep){
   iimat = expand.grid(ialpha = 1:cv_gridsize,
                       ibeta = 1:cv_gridsize,
@@ -366,6 +370,7 @@ make_iimat <- function(cv_gridsize, nfold, nrep){
 }
 
 ##' 2d indices for the cross validation jobs.
+##'
 ##' The resulting iimat looks like this:
 ##' (#, ialpha, ibeta)
 ##' 1, 1, 1
@@ -375,6 +380,10 @@ make_iimat <- function(cv_gridsize, nfold, nrep){
 ##' 225, 15, 15
 ##'
 ##' @param cv_gridsize CV grid size.
+##'
+##' @return Integer matrix.
+##'
+##' @export
 make_iimat_small <- function(cv_gridsize){
   iimat = expand.grid(ialpha = 1:cv_gridsize,
                       ibeta = 1:cv_gridsize)
@@ -383,14 +392,14 @@ make_iimat_small <- function(cv_gridsize){
 }
 
 
-make_cvscore_filename <- function(ialpha, ibeta, ifold, irep, sim, isim){
+make_cvscore_filename <- function(ialpha, ibeta, ifold, irep){##, sim, isim){
   filename = paste0(ialpha, "-", ibeta, "-", ifold, "-", irep, "-cvscore.Rdata")
-  if(sim){filename = paste0(isim, "-", filename)} ## Temporary
+  ## if(sim){filename = paste0(isim, "-", filename)} ## Temporary
   return(filename)
 }
 
-make_refit_filename <- function(ialpha, ibeta, irep, sim, isim){
+make_refit_filename <- function(ialpha, ibeta, irep){##, sim, isim){
   filename = paste0(ialpha, "-", ibeta, "-", irep, "-fit.Rdata")
-  if(sim){filename = paste0(isim, "-", filename)} ## Temporary
+  ## if(sim){filename = paste0(isim, "-", filename)} ## Temporary
   return(filename)
 }
