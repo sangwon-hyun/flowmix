@@ -67,9 +67,15 @@ remove_topcoded <- function(opp){
 }
 
 
-##' Helper function to logarithmically space out R.  |length| values linear on
-##' the log scale from |to| down to |from|.  TODO: Write this in:
-##' "lambda.min.ratio=ifelse(nobs<nvars,1e-2,1e-4)".
+##' Helper function to logarithmically space out R.  \code{length} values linear
+##' on the log scale from \code{max} down to \code{min}.
+##'
+##' @param max Maximum value.
+##' @param min Minimum value.
+##' @param length Length of the output string.
+##' @param min.ratio Factor to multiply to \code{max}.
+##'
+##' @export
 logspace <- function(max, min=NULL, length, min.ratio = 1E-4){
   if(is.null(min)) min = max * min.ratio
   return(10^seq(log10(min), log10(max), length = length))
