@@ -54,11 +54,11 @@ calc_max_lambda <- function(ylist, countslist = NULL, X, numclust,
   print("running the models once")
   for(ii in 1:iimax){
     if(verbose){
-      cat("============================================================", fill=TRUE)
-      printprogress(ii, iimax, fill=TRUE)
-      cat("============================================================", fill=TRUE)
-      cat("lambda_alpha = ", max_prob_lambda * facs[ii],
-          " and lambda_beta = ", max_mean_lambda * facs[ii], "being tested.", fill=TRUE)
+      ## printprogress(ii, iimax, "regularization values", fill = TRUE)
+      cat("###############################################################", fill=TRUE)
+      cat("#### lambda_alpha = ", max_prob_lambda * facs[ii],
+          " and lambda_beta = ", max_mean_lambda * facs[ii], "being tested.  ", fill=TRUE)
+      cat("###############################################################", fill=TRUE)
     }
     res = flowmix_once(ylist = ylist,
                        countslist = countslist,

@@ -92,6 +92,19 @@ lagpad <- function(x, k) {
   }
 }
 
+##' Symmetric difference.
+##'
+##' @param a One vector.
+##' @param b Another vector.
+##'
+##' @return Symmetric difference of discrete set \param{a} and \param{b}.
+##'
+##' @export
+##'
+sym_diff <- function(a, b){
+  unique(c(setdiff(a,b), setdiff(b,a)))
+}
+
 
 ##' Check if zero pattern in coefficients, across EM iterations, has stabilized.
 ##'
