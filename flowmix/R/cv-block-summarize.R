@@ -32,7 +32,7 @@ cv_summary <- function(destin,
   min.inds = a$min.inds
 
   ## Also get the #nonzero coefficients (not used now)
-  dfmat = cv_aggregate_df(gridsize = cv_gridsize, nrep = nrep, destin = destin)$mat
+  dfmat = cv_aggregate_df(cv_gridsize = cv_gridsize, nrep = nrep, destin = destin)$mat
 
   ## Get the refit flowmix results
   bestreslist = cv_aggregate_res(cv_gridsize = cv_gridsize, nrep = nrep, destin = destin)
