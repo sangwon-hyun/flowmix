@@ -80,7 +80,7 @@ plot_X <- function(res){
 }
 
 ##' Make 1d data plot. No axes are added.
-plot_ylist <- function(ylist, countslist, res = NULL, scale = TRU, main = "",
+plot_ylist <- function(ylist, countslist, res = NULL, scale = TRUE, main = "",
                        cex = 1, ylim = NULL){
   stopifnot(ncol(ylist[[1]]) == 1)
   TT = length(ylist)
@@ -161,13 +161,15 @@ fill_both_sides <- function(TT){
           border=FALSE)
 }
 
-##' Make ticks from rownames of res$X. TODO: make it handle dates. (only for 1d
-##' data).
+##' Make ticks from rownames of \code{res$X}.
 ##'
-##' @param res Object of class |covarem|. The row names of res$X are used.
+##' @param res Object of class |flowmix|. The row names of \code{res$X} need to
+##'   be dates.
 ##' @param ... Rest of arguments to both axes via \code{axis()}.
 ##'
 ##' @return No return.
+##'
+##' @export
 add_date_ticks <- function(res, ...){
   add_date_ticks_from_dates(rownames(res$X), ...)
   ## dates = sapply(as.Date(rownames(res$X)) %>% format("%B %d"), toString) ## OR manually bring in,
@@ -186,19 +188,26 @@ add_date_ticks <- function(res, ...){
 
 ##' Add date ticks from string of dates.
 ##'
-##' @param dates Vector of strings of the form "2017-05-29T00:00:00".
+##' @param dates Vector of strings of the form "2017-05-29T00:00:00", or
+##'   otherwise recognizeable using \code{lubridate::as_datetime()}.
 ##' @param ... Rest of arguments to both axes via \code{axis()}.
 ##'
 ##' @return No return.
+##' @export
 add_date_ticks_from_dates <- function(dates, ...){
-  dates = sapply(as.Date(dates) %>% format("%B %d"), toString) ## OR manually bring in,
-                                                       ## using an argument to
-                                                       ## the function.
+  ## dates = sapply(as.Date(dates) %>% format("%B %d"), toString)
+
+  ## Get dates and X coordinates
+  dates = sapply(lubridate::as_datetime(dates) %>% format("%B %d"), toString)
   nums = as.numeric(as.factor(dates))
+
+  ## Form the tick locations.
   left_ticks = sapply(sort(unique(nums)),function(ii){min(which(nums==ii))})
   left_ticks = c(left_ticks, length(dates))##res$TT)
   mid_ticks = sapply(sort(unique(nums)),function(ii){mean(which(nums==ii))})
   dates_mid_ticks = dates[round(mid_ticks)]
+
+  ## Place those ticks
   axis(1, at=left_ticks, labels=FALSE)
   axis(1, at=mid_ticks, labels = dates_mid_ticks, tick=FALSE, las=2, ...)
   axis(2, ...)
@@ -208,22 +217,15 @@ add_date_ticks_from_dates <- function(dates, ...){
 
 ##' Reorder the results so that cluster 1 through numclust is in decreasing
 ##' order of the total probability, over all time points.
+##'
+##' @param res flowmix object
+##'
+##' @return Same object, but with clusters reordered.
+##'
+##' @export
 reorder_clust <- function(res){
 
-  ## Create an order
-
-  ## Here's a suggestion for the 1d plots... since the coloring (and
-  ## likewise numbering) of the clusters is arbitrary, what if we come up
-  ## with some standard rule for labeling/coloring.  For example, it could
-  ## simply be from largest diameter (averaged across all time) to smallest
-  ## diameter.  Another natural choice for the ordering would be to order
-  ## them from largest to smallest pi values (again averaged over all time).
-  ## This way, your 1d-all-models.pdf will have (for the most part)
-  ## consistent coloring/labeling in all the tiny plots.  Actually, the
-  ## "largest pi" approach would work for the 3d plots as well.
-
-  ## ord = res$prob %>% colSums %>% order(decreasing=TRUE)
-  ## ord = res$mn %>% colSums %>% order(decreasing=TRUE)
+  ## Find an order by sums (averages)
   ord = res$mn[,1,] %>% colSums() %>% order(decreasing=TRUE)
 
   ## Reorder mean

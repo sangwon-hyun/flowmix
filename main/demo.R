@@ -14,7 +14,7 @@ numclust = 4
 set.seed(0)
 res = flowmix_once(ylist, X, numclust = numclust, niter = 5,
               mean_lambda = 0.01,
-              pie_lambda = 10,
+              prob_lambda = 10,
               verbose = TRUE,
               maxdev = 0.5)
 print(res)
@@ -31,7 +31,7 @@ maxres = get_max_lambda(destin = destin,
                         countslist = NULL,
                         X = X, numclust = numclust, verbose = TRUE,
                         max_lambda_alpha = 2, max_lambda_beta = 2, maxdev = 0.5)
-pie_lambdas = seq(from  =  0, to = maxres$alpha, length = gridsize)
+prob_lambdas = seq(from  =  0, to = maxres$alpha, length = gridsize)
 mean_lambdas = seq(from = 0, to = maxres$beta, length = gridsize)
 
 
@@ -40,7 +40,7 @@ mean_lambdas = seq(from = 0, to = maxres$beta, length = gridsize)
 
 ## ## Run the parallel CV. Define cl, multicore.cv, etc.
 ## cv.flowmix(ylist = ylist, X = X, numclust = numclust,
-##                     pie_lambdas = pie_lambdas,
+##                     prob_lambdas = prob_lambdas,
 ##                     mean_lambdas = mean_lambdas,
 ##                     maxdev = 0.5,
 ##                     ## Options for parallelizing
@@ -65,7 +65,7 @@ mean_lambdas = seq(from = 0, to = maxres$beta, length = gridsize)
 ## ranges = lapply(1:dimdat, function(ii) range(ylist_collapsed[,ii])) ## Get overall range.
 ## dat.grid = make_grid(ranges, gridsize = dat.gridsize)
 ## flowmix_once(ylist, X, numclust=4, verbose = TRUE,
-##              pie_lambda = .1,
+##              prob_lambda = .1,
 ##              mean_lambda = .1,
 ##              manual.bin = TRUE,
 ##              manual.grid = dat.grid)

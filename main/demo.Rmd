@@ -8,7 +8,7 @@ knitr::opts_chunk$set(fig.width=14, fig.height=5, echo=TRUE, warning=FALSE,
                       message=FALSE, eval=TRUE, cache=TRUE)
 library(tidyverse)
 outputdir = "~/Desktop"
-load_all("~/repos/flowcy/flowcy")  
+library(flowmix)
 ```
 
 Running and visualizing without regularization
@@ -37,7 +37,7 @@ maxres = get_max_lambda(ylist, X, numclust)
 la()
 cvres = cv.flowmix(ylist=ylist, X=X, numclust=numclust,
                    max_mean_lambda=maxres$beta,
-                   max_pie_lambda=maxres$alpha,
+                   max_prob_lambda=maxres$alpha,
                    gridsize=10,
                    niter=500,
                    verbose=TRUE)

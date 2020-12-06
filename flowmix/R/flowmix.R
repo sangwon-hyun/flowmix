@@ -110,7 +110,7 @@ flowmix_once <- function(ylist, X,
   prob = calc_prob(TT, numclust) ## Let's just say it is all 1/K for now.
   denslist_by_clust <- NULL
   objectives = c(+1E20, rep(NA, niter-1))
-  sigma = init_sigma(ylist, numclust, TT, fac=sigma_fac) ## (T x numclust x dimdat x dimdat)
+  sigma = init_sigma(ylist, numclust, TT, fac = sigma_fac) ## (T x numclust x dimdat x dimdat)
   sigma_eig_by_clust = NULL
   zero.betas = zero.alphas = list()
   admm_niters = list()
