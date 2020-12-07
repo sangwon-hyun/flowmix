@@ -13,7 +13,7 @@
 ##'   each pair of lambda values. If \code{isTRUE{save}}, nothing is returned.
 ##'
 ##' @export
-cv_summary <- function(destin,
+cv_summary <- function(destin = ".",
                        cv_gridsize = 10,
                        nrep = 10,
                        nfold = 5,
@@ -446,6 +446,7 @@ cv_aggregate_df <- function(cv_gridsize, nrep, destin){
       obj = rep(NA, nrep)
       df = df.alpha = df.beta = rep(NA, nrep)
       for(irep in 1:nrep){
+        catf(ialpha, ibeta, irep)
 
         tryCatch({
           ## Load fitted result
@@ -475,7 +476,8 @@ cv_aggregate_df <- function(cv_gridsize, nrep, destin){
       ## Calculate the df of the best model
       if(!all(is.na(obj))){
         ## df.mat[ialpha, ibeta] = df[which.max(obj, na.rm=TRUE)]
-        df.mat[ialpha, ibeta] = df[which(obj == min(obj, na.rm = TRUE))]
+        min.df = df[which(obj == min(obj, na.rm = TRUE))]
+        df.mat[ialpha, ibeta] = min.df[1] ## RARELY there are duplicates.. (especially when bootstrap is done)
       }
     }
   }
