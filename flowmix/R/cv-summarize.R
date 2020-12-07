@@ -446,7 +446,6 @@ cv_aggregate_df <- function(cv_gridsize, nrep, destin){
       obj = rep(NA, nrep)
       df = df.alpha = df.beta = rep(NA, nrep)
       for(irep in 1:nrep){
-        catf(ialpha, ibeta, irep)
 
         tryCatch({
           ## Load fitted result
