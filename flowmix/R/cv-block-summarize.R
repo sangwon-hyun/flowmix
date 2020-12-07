@@ -10,7 +10,7 @@
 ##'   best model chosen from the cross-validation; \code{cvscoremat} containing
 ##'   a 2d matrix of CV scores from all pairs of lambdas; \code{bestreslist}
 ##'   contains all the best models (out of \code{nrep} EM replications} from the
-##'   each pair of lambda values.
+##'   each pair of lambda values. If \code{isTRUE{save}}, nothing is returned.
 ##'
 ##' @export
 cv_summary <- function(destin,
@@ -91,7 +91,7 @@ cv_summary <- function(destin,
              bestreslist = bestreslist,
              destin = destin)
 
-  if(save){ saveRDS(out, file=file.path("destin", "summary.RDS")) }
+  if(save){ saveRDS(out, file=file.path(destin, "summary.RDS")); return(NULL) }
   return(out)
 }
 
