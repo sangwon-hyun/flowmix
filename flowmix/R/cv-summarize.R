@@ -4,6 +4,7 @@
 ##' @param cv_gridsize Grid size for cross validation.
 ##' @param nfold Number of folds.
 ##' @param nrep Number of repetitions.
+##' @param filename File name to save to.
 ##'
 ##' @return List containing various outcomes from the cross-validation, such as
 ##'   \code{bestres} which is the \code{flowmix} class object of the overall
@@ -17,7 +18,9 @@ cv_summary <- function(destin = ".",
                        cv_gridsize = 10,
                        nrep = 10,
                        nfold = 5,
-                       save = FALSE){
+                       save = FALSE,
+                       filename = "summary.RDS"
+                       ){
 
   ####################
   ## Load data #######
@@ -91,7 +94,7 @@ cv_summary <- function(destin = ".",
              bestreslist = bestreslist,
              destin = destin)
 
-  if(save){ saveRDS(out, file=file.path(destin, "summary.RDS")); return(NULL) }
+  if(save){ saveRDS(out, file=file.path(destin, filename)); return(NULL) }
   return(out)
 }
 
