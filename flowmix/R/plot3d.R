@@ -778,6 +778,9 @@ plot3d_simple <- function(obj,
     p = ncol(obj$X)
   }
 
+  ## Temporary
+  dimnames = colnames(ylist[[1]])
+
   ## Scale the biomass (|countslist|) by the total biomass in that cytogram.
   counts_sum = sapply(countslist, sum)
   fac = median(counts_sum)

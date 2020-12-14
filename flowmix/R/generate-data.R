@@ -9,7 +9,8 @@
 ##'
 ##' @return list containing ylist, X
 generate_data_generic <- function(p = 5, TT = 50, fac = 1, nt = 1000, dimdat = 2,
-                                  seed = NULL){
+                                  seed = NULL,
+                                  prob1 = 3/4){
 
   if(!is.null(seed)) set.seed(seed)
   ## dimdat = match.arg(dimdat)
@@ -57,9 +58,9 @@ generate_data_generic <- function(p = 5, TT = 50, fac = 1, nt = 1000, dimdat = 2
   mnlist = list(mn1, mn2, mn3, mn4)
 
   ## Define mixture components
-  pi1 = rep(3/4, TT)
-  pi2 = rep(1/8, TT)
-  pi3 = rep(1/8, TT)
+  pi1 = rep(prob1, TT) ## defaults to 3/4
+  pi2 = rep((1-prob1)/2, TT)
+  pi3 = rep((1-prob1)/2, TT)
   pi4 = c(rep(0, TT/2), rep(1/8, TT/2))
   pilist =  list(pi1, pi2, pi3, pi4)
 

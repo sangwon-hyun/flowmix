@@ -17,6 +17,7 @@
 ##'   probabilities of the latent variable $Z$ (memberships to each cluster)
 ##'   given the parameter estimate. T-length list of (nt x dimdat)
 ##'
+##' @export
 Estep <- function(mn, sigma, prob, ylist = NULL,
                   numclust,
                   denslist_by_clust = NULL,

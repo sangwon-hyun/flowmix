@@ -79,7 +79,7 @@ reformat_coef <- function(alpha, beta,
 
 ##' Helper function to lag a vector
 ##' @param x Numeric vector.
-##' @param k Number of lags
+##' @param k Number of lags.
 ##'
 ##' @return Lag-padded numeric vector.
 ##'
@@ -97,7 +97,7 @@ lagpad <- function(x, k) {
 ##' @param a One vector.
 ##' @param b Another vector.
 ##'
-##' @return Symmetric difference of discrete set \param{a} and \param{b}.
+##' @return Symmetric difference of discrete set \code{a} and \code{b}.
 ##'
 ##' @export
 ##'
@@ -108,7 +108,7 @@ sym_diff <- function(a, b){
 
 ##' Check if zero pattern in coefficients, across EM iterations, has stabilized.
 ##'
-##' @param zero.betas List of patterns in beta, over EM interations
+##' @param zero.betas List of patterns in beta, over EM interations.
 ##' @param zero.alphas List of zero patterns in alpha, over EM iterations.
 ##' @param iter Iteration number.
 ##'

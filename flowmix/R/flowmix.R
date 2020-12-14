@@ -96,6 +96,10 @@ flowmix_once <- function(ylist, X,
   ## assertthat::assert_that(prob_lambda > 0)
   if(ridge) assertthat::assert_that(!admm) ## temporary
   assertthat::assert_that(numclust > 1)
+  assertthat::assert_that(hasArg(prob_lambda))
+  assertthat::assert_that(hasArg(mean_lambda))
+  assertthat::assert_that(niter > 1)
+
   ## assertthat::assert_that(all(sapply(ylist, nrow) == sapply(countslist, length)))
 
   ## Setup

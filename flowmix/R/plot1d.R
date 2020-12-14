@@ -80,6 +80,8 @@ plot_X <- function(res){
 }
 
 ##' Make 1d data plot. No axes are added.
+##'
+##' @export
 plot_ylist <- function(ylist, countslist, res = NULL, scale = TRUE, main = "",
                        cex = 1, ylim = NULL){
   stopifnot(ncol(ylist[[1]]) == 1)
