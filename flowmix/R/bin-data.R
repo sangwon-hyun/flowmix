@@ -6,7 +6,7 @@ make_grid <- function(ylist, gridsize=5, grid.ind=FALSE){
 
 
   ## Getting ranges over ylist
-  ylist_ranges = lapply(ylist, function(mat)apply(mat, 2, range))
+  ylist_ranges = lapply(ylist, function(mat) apply(mat, 2, range))
 
   ## Get overall range.
   ylist_collapsed = do.call(rbind, ylist_ranges)

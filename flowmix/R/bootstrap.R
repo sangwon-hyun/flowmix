@@ -1,7 +1,8 @@
 ##' Bootstrapping residuals using a coin-flip assignment of cytogram particles.
 ##'
-##' @param ylist_orig Original data, containing the actual particles
+##' @param ylist_orig Original data, containing the actual particles.
 ##' @param res A \code{flowmix} class object.
+##' @param countslist Counts.
 ##'
 ##' @return \code{ylist_bootstrapped} is a dataset that is exactly the same size
 ##'   as \code{ylist_orig}, but with the particles created by bootstrapping
@@ -32,8 +33,10 @@
 ##'
 ##' @importFrom magrittr %>%
 ##' @importFrom magrittr %<>%
+##'
 ##' @export
-bootstrap <- function(ylist, res){
+##'
+bootstrap <- function(ylist, res, countslist = NULL, verbose=FALSE){
 
   ## Setup
   numclust = res$numclust
@@ -41,15 +44,12 @@ bootstrap <- function(ylist, res){
   dimdat = ncol(ylist %>% .[[1]])
 
   ## Conduct the E-step once to calculate responsibilities
-  resp <- Estep(res$mn,
-                res$sigma,
-                res$prob,
-                ylist = ylist,
-                numclust = res$numclust,
-                first_iter = TRUE)
+  resp <- Estep(res$mn, res$sigma, res$prob, ylist = ylist,
+                numclust = res$numclust, first_iter = TRUE)
 
   ## Do a coin-flip draw of membership
   drawslist = draw_membership(resp)
+  rm(resp)
 
   ## Draw residuals
   residuals = get_residuals(ylist, res, drawslist)
@@ -59,25 +59,83 @@ bootstrap <- function(ylist, res){
     do.call(rbind, lapply(1:TT, function(tt) residuals[[tt]][[iclust]]))
   })
 
+  ## NEW: Obtain and pool all the biomasses (UGHH)
+  if(!is.null(countslist)){
+
+    ## Equivalent  get_residuals()
+    index_by_clust <- get_index_by_clust(drawslist)
+
+    counts_pooled = lapply(1:res$numclust, function(iclust){
+      do.call(c, lapply(1:TT, function(tt){
+        counts = countslist[[tt]]
+        index = index_by_clust[[tt]][[iclust]]
+        return(counts[index])
+      }))
+    })
+
+    ## Make sure the number of pooled counts are the same as the number of
+    ## pooled residuals
+    assertthat::assert_that(all(sapply(counts_pooled, length) == sapply(residuals_pooled, nrow)))
+  }
+
+
   ## Get the number of coin-flipped particles for each cluster
   ntklist = sapply(residuals, function(resids) resids %>% sapply(., nrow)) %>% t()
 
-
   ## Draw the new particles.
-  new_ylist <- lapply(1:TT, function(tt){
+
+  ## Continue here!!! I think it's correct but out of memory... I should just separate out..
+  new_y_and_counts_list = list()
+  ## <- lapply(1:TT, function(tt){
+  for(tt in 1:TT){
+    if(verbose) printprogress(tt, TT, fill = TRUE)
     new_y_by_clust <- lapply(1:numclust, function(iclust){
+      if(verbose) printprogress(iclust, numclust, fill = TRUE)
+
+      ## How many particles in this cluster to pick?
       ntk = ntklist[tt, iclust]
       if(ntk == 0) return(rep(NA,dimdat) %>% rbind() %>% .[-1,])
+
+      ## Draw the new y's and multiplicities (counts)
       bootrows = sample(1:sum(ntklist[,iclust]), ntk, replace = TRUE)
       resampled_resids <- residuals_pooled[[iclust]][bootrows,,drop=FALSE]
       new_y <- resampled_resids %>% sweep(., 2, res$mn[tt,,iclust], "+")
-      return(new_y)
+
+      ## If there are counts, include
+      if(!is.null(countslist)){
+        resampled_counts <- counts_pooled[[iclust]][bootrows] ## DO SOMETHING ABOUT THIS
+        assertthat::assert_that(length(resampled_counts) == nrow(new_y))
+        return(cbind(new_y, counts = resampled_counts))
+      } else {
+        return(new_y)
+      }
     })
-    return(new_y_by_clust)
-  })
-  new_ylist %<>% lapply(., function(a) do.call(rbind, a))
+    ## return(new_y_by_clust)
+    new_y_and_counts_list[[tt]] = new_y_by_clust
+  }
+
+  ## Return ylist and countslist separately
+  if(!is.null(countslist)){
+    new_ylist <- new_y_and_counts_list %>% lapply(., function(a){
+      X = do.call(rbind, a) %>% as_tibble()
+      return(X %>% select(-counts) %>% as.matrix())
+    })
+    new_counts <- new_y_and_counts_list %>%
+      lapply(., function(a){ do.call(rbind, a)[,"counts", drop=TRUE] %>% unname() })
+  } else {
+    new_ylist <- new_y_and_counts_list %>% lapply(., function(a){ do.call(rbind, a)})
+  }
+
+
+  ## saveRDS(list(ylist = new_ylist,
+  ##              X = res$X,
+  ##              ntklist = ntklist,
+  ##              drawslist = drawslist,
+  ##              residuals = residuals),
+  ##         file = file.path("~/Desktop/bootstrap.RDS"))
 
   return(list(ylist = new_ylist,
+              countlist = new_counts,
               X = res$X,
               ntklist = ntklist,
               drawslist = drawslist,
@@ -88,11 +146,17 @@ bootstrap <- function(ylist, res){
 
 ##' Drawing memberships by coinflip using the responsibilities.
 ##'
+##'
+##' @param resp Responsibilities, from \code{Estep()}.
+##'
 ##' @importFrom magrittr %>%
+##'
 ##' @export
 draw_membership <- function(resp){
   TT = length(resp)
+  start.time=Sys.time()
   drawslist = lapply(1:TT, function(tt){
+    printprogress(tt, TT, start.time=start.time)
     draws = resp[[tt]] %>% apply(., 1, function(p){
      rmultinom(1, 1, p)}) %>% t()
   })
@@ -120,44 +184,84 @@ draw_membership_popular_vote <-function(resp){
 ##' Obtain residuals of particles in \code{ylist} from the mean using model
 ##' \code{res}, using randomly drawn memberships stored in \code{drawslist}.
 ##'
-##' @inheritParams ylist
-##' @inheritParams res
+##' @param ylist Data.
+##' @param res Model; \code{flowmix} class object.
+##' @param drawslist Draws, from \code{draw_membership()}.
+##' @param mc.cores Number of cores, to be used by \code{parallel::mclapply()}.
 ##'
 ##' @export
-get_residuals <- function(ylist, res, drawslist){
+get_residuals <- function(ylist, res, drawslist, mc.cores = 1){
   numclust = res$numclust
   mn = res$mn
   TT = length(ylist)
-  residuals_by_cluster = lapply(1:TT, function(tt){
+
+  ## Obtain index from the draws
+  index_by_clust <- get_index_by_clust(drawslist)
+
+  ## Obtain all the residuals of the drawn particles.
+  residuals_by_cluster = parallel::mclapply(1:TT, function(tt){
     y = ylist[[tt]]
     draws = drawslist[[tt]]
     resid_by_clust = lapply(1:numclust, function(iclust){
-      this_clust_y = y[which(draws[,iclust]==1),,drop=FALSE]
+      ind = index_by_clust[[tt]][[iclust]]
+      this_clust_y = y[ind,, drop=FALSE]
+      ## this_clust_y = y[which(draws[,iclust]==1),,drop=FALSE]
       this_clust_residuals = sweep(this_clust_y, 2, mn[tt,,iclust])
     })
-    names(resid_by_clust) = paste0("Clust", 1:res$numclust)
+    names(resid_by_clust) = paste0("Clust", 1:numclust)
     return(resid_by_clust)
-  })
+  }, mc.cores = mc.cores)
   return(residuals_by_cluster)
+}
+
+##' Obtain the row numbers of each (binned) cytogram for bootstrap.
+##'
+##' @inheritParams get_residuals
+##'
+##' @export
+get_index_by_clust <- function(drawslist){
+  numclust = ncol(drawslist[[1]])
+  TT = length(drawslist)
+  index_by_cluster = lapply(1:TT, function(tt){
+    draws = drawslist[[tt]]
+    ind_by_clust = lapply(1:numclust, function(iclust){
+      inds = which(draws[,iclust] == 1)
+    })
+    names(ind_by_clust) = paste0("Clust", 1:numclust)
+    return(ind_by_clust)
+  })
+  return(index_by_cluster)
 }
 
 
 ##' Checks whether the dataset and \code{flowmix}-class object are
-##' compatible. (Under construction! Can you think of anything else?)
-##' @inheritParams ylist
-##' @param res \code{flowmix} class object.
+##' compatible. (Under construction! Can you think of anything else?). Used in
+##' unit tests.
+##'
+##' @param ylist Data.
+##'
+##' @param res Model; \code{flowmix} class object.
+##'
 ##' @importFrom assertthat assert_that
+##'
 check_compatible <- function(ylist, res){
   assertthat::assert_that(res$TT == length(ylist))
   assertthat::assert_that(res$dimdat == ncol(ylist[[1]]))
 }
 
-##' Checks whether two datasets of \code{flowmix} class are exactly the same
+##' Checks whether two objects of \code{flowmix} class are exactly the same
 ##' size.
+##'
 ##' @param ylist1 One \code{flowmix} class object.
+##'
 ##' @param ylist2 Another \code{flowmix} class object.
+##'
 ##' @importFrom assertthat assert_that
+##'
 check_if_same_size <- function(ylist1, ylist2){
+
   assertthat::assert_that(length(ylist1) == length(ylist2))
-  assertthat::assert_that(all(ylist1$ntlist == ylist2$ntlist))
+  assertthat::assert_that(all(sapply(ylist1, nrow) == sapply(ylist2, nrow)))
+  assertthat::assert_that(all(sapply(ylist1, ncol) == sapply(ylist2, ncol)))
+
 }

@@ -24,10 +24,14 @@ Estep <- function(mn, sigma, prob, ylist = NULL,
                   first_iter = FALSE,
                   countslist = NULL){
 
+  ## Setup
   TT = length(ylist)
   ntlist = sapply(ylist, nrow)
   resp = list() ## Next up: try to /not/ do this.
   dimdat = dim(mn)[2]
+
+  ## Basic checks
+  assertthat::assert_that(dim(mn)[1] == length(ylist))
 
   calculate_dens <- function(iclust, tt, y, mn, sigma, denslist_by_clust, first_iter){
     mu <- mn[tt,,iclust] ## No problem with memory leak here.
