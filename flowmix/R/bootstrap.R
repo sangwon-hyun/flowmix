@@ -82,7 +82,12 @@ bootstrap <- function(ylist, res, countslist = NULL, verbose=FALSE){
   ## Get the number of coin-flipped particles for each cluster
   ntklist = sapply(residuals, function(resids) resids %>% sapply(., nrow)) %>% t()
 
-  ## Draw the new particles.
+  ## Different number of clusters
+  ## ntlist = ntklist %>% apply(., 1, sum)
+  ## ((1/ntlist) * ntklist ) %>% matplot(type='l')
+  ## (ntklist ) %>% matplot(type='l')
+  ## plot(ntlist, type='l')
+  ## ntlist2 = ylist %>% sapply(., nrow)
 
   ## Continue here!!! I think it's correct but out of memory... I should just separate out..
   new_y_and_counts_list = list()
@@ -90,6 +95,7 @@ bootstrap <- function(ylist, res, countslist = NULL, verbose=FALSE){
   for(tt in 1:TT){
     if(verbose) printprogress(tt, TT, fill = TRUE)
     new_y_by_clust <- lapply(1:numclust, function(iclust){
+      tt=1
       if(verbose) printprogress(iclust, numclust, fill = TRUE)
 
       ## How many particles in this cluster to pick?
@@ -135,7 +141,7 @@ bootstrap <- function(ylist, res, countslist = NULL, verbose=FALSE){
   ##         file = file.path("~/Desktop/bootstrap.RDS"))
 
   return(list(ylist = new_ylist,
-              countlist = new_counts,
+              countslist = new_counts,
               X = res$X,
               ntklist = ntklist,
               drawslist = drawslist,
@@ -154,9 +160,9 @@ bootstrap <- function(ylist, res, countslist = NULL, verbose=FALSE){
 ##' @export
 draw_membership <- function(resp){
   TT = length(resp)
-  start.time=Sys.time()
+  ## start.time=Sys.time()
   drawslist = lapply(1:TT, function(tt){
-    printprogress(tt, TT, start.time=start.time)
+    ## printprogress(tt, TT, start.time=start.time)
     draws = resp[[tt]] %>% apply(., 1, function(p){
      rmultinom(1, 1, p)}) %>% t()
   })
