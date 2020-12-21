@@ -130,6 +130,7 @@ bootstrap <- function(ylist, res, countslist = NULL, verbose=FALSE){
       lapply(., function(a){ do.call(rbind, a)[,"counts", drop=TRUE] %>% unname() })
   } else {
     new_ylist <- new_y_and_counts_list %>% lapply(., function(a){ do.call(rbind, a)})
+    new_counts = NULL
   }
 
 
