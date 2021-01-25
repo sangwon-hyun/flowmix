@@ -103,14 +103,16 @@ loglikelihood_tt_precalculate <- function(ylist, tt, denslist_by_clust, prob, co
 ##'
 loglikelihood_tt <- function(ylist, tt, mu, sigma, prob, countslist = NULL, numclust,
                              sep=FALSE){
-  ### STUPID MISTAKE!!!!!!!!!!!!!! Although it's hard to see why this would affect things at iter>1
 
   ## One particle's log likelihood (weighted density)
   weighted.densities = sapply(1:numclust, function(iclust){
-    return(prob[tt,iclust] * mvnfast::dmvn(ylist[[tt]],
-                                          mu = mu[tt,,iclust],
-                                          sigma = as.matrix(sigma[iclust,,]),
-                                          log = FALSE))
+    ## dens = mvnfast::dmvn( ## This is unreliable.
+    dens = mvtnorm::dmvnorm(ylist[[tt]],
+                            mean = mu[tt,,iclust],
+                            sigma = as.matrix(sigma[iclust,,]),
+                            log = FALSE)
+    ## print(dens)
+    return(prob[tt,iclust] * dens)
   })
   nt = nrow(ylist[[tt]])
   counts = (if(!is.null(countslist)) countslist[[tt]] else rep(1, nt))

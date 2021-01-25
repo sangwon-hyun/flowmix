@@ -220,7 +220,7 @@ la_admm_oneclust <- function(K,
 
   ## This initialization can come from the previous *EM* iteration.
   if(args$first_iter){
-    beta = matrix(0, nrow=p+1, ncol=dimdat)
+    beta = matrix(0, nrow = p + 1, ncol = dimdat)
     Z = matrix(0, nrow = TT, ncol = dimdat)
     W = matrix(0, nrow = p, ncol = dimdat)
     U = matrix(0, nrow = TT + p, ncol = dimdat)
@@ -257,7 +257,6 @@ la_admm_oneclust <- function(K,
     call <- as.call(c(list(as.name("admm_oneclust")), argn))
     res = eval(call, args)
 
-
     ## ## Temporary (uncomment for plotting objectives)
     ## fits = as.numeric(na.omit(res$fits))
     ## all_fits = c(all_fits, fits)
@@ -268,9 +267,13 @@ la_admm_oneclust <- function(K,
     ## }
     ## ## End temporary
 
+    objectives = c(objectives, res$fit)
+
+    ## Handling the scenario where the objectives are all zero
+    padding = 1E-12
+    objectives = objectives + padding
 
     ## See if outer iterations should terminate
-    objectives = c(objectives, res$fit)
     if(outer_converge(na.omit(objectives)) | res$converge){
       break
     }
@@ -304,6 +307,8 @@ outer_converge <- function(objectives){
   } else {
     mytail = utils::tail(objectives, consec)
     rel_diffs = mytail[1:(consec-1)]/mytail[2:consec]
+
+
     return(all(abs(rel_diffs) - 1 < 1E-3))
   }
 }

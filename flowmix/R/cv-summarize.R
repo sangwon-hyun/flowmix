@@ -15,9 +15,9 @@
 ##'
 ##' @export
 cv_summary <- function(destin = ".",
-                       cv_gridsize = 10,
-                       nrep = 10,
-                       nfold = 5,
+                       cv_gridsize,
+                       nrep,
+                       nfold,
                        save = FALSE,
                        filename = "summary.RDS"
                        ){
