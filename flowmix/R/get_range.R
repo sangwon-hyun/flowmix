@@ -53,13 +53,13 @@ calc_max_lambda <- function(ylist, countslist = NULL, X, numclust,
   facs = sapply(1:iimax, function(ii) 2^(-ii+1)) ## DECREASING order
   print("running the models once")
   for(ii in 1:iimax){
-    if(verbose){
-      ## printprogress(ii, iimax, "regularization values", fill = TRUE)
-      cat("###############################################################", fill=TRUE)
-      cat("#### lambda_alpha = ", max_prob_lambda * facs[ii],
-          " and lambda_beta = ", max_mean_lambda * facs[ii], "being tested.  ", fill=TRUE)
-      cat("###############################################################", fill=TRUE)
-    }
+
+    ## printprogress(ii, iimax, "regularization values", fill = TRUE)
+    cat("###############################################################", fill=TRUE)
+    cat("#### lambda_alpha = ", max_prob_lambda * facs[ii],
+        " and lambda_beta = ", max_mean_lambda * facs[ii], "being tested.  ", fill=TRUE)
+    cat("###############################################################", fill=TRUE)
+
     res = flowmix_once(ylist = ylist,
                        countslist = countslist,
                        X = X,
@@ -98,7 +98,6 @@ calc_max_lambda <- function(ylist, countslist = NULL, X, numclust,
                            numclust = numclust,
                            prob_lambda = max_prob_lambda * facs[ii],
                            mean_lambda = max_mean_lambda * facs[ii],
-                           verbose = TRUE,
                            zero_stabilize = FALSE,
                            ...)
         toler = 0
@@ -113,6 +112,7 @@ calc_max_lambda <- function(ylist, countslist = NULL, X, numclust,
         ## Otherwise, just proceed to the next iteration.
       }
     }
+    cat(fill=TRUE)
   }
 }
 

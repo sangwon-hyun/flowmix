@@ -27,7 +27,6 @@ Estep <- function(mn, sigma, prob, ylist = NULL,
   ## Setup
   TT = length(ylist)
   ntlist = sapply(ylist, nrow)
-  resp = list() ## Next up: try to /not/ do this.
   dimdat = dim(mn)[2]
 
   ## Basic checks
@@ -49,7 +48,7 @@ Estep <- function(mn, sigma, prob, ylist = NULL,
 
   ## Calculate the responsibilities at each time point, separately
   ncol.prob = ncol(prob)
-  for(tt in 1:TT){
+  resp <- lapply(1:TT, function(tt){
     ylist_tt = ylist[[tt]]
 
     ## Calculate the densities of data with respect to cluster centers
@@ -63,14 +62,15 @@ Estep <- function(mn, sigma, prob, ylist = NULL,
     wt.densmat <- matrix(prob[tt,], nrow = ntlist[tt], ncol = ncol.prob, byrow = TRUE) * densmat
     wt.densmat = wt.densmat + 1E-10 ## Add some small number to prevent ALL zeros.
     wt.densmat <- wt.densmat / rowSums(wt.densmat)
-    resp[[tt]] <- wt.densmat
-  }
 
-  ## If |countslist| is provided, reweight the responsibilities.
-  if(!is.null(countslist)){
-    resp <- Map(function(myresp, mycount){ myresp * mycount },
-                resp, countslist)
-  }
+    ## If |countslist| is provided, reweight the responsibilities.
+    if(!is.null(countslist)){
+      wt.densmat = wt.densmat * countslist[[tt]]
+    }
+    return(wt.densmat)
+  })
 
   return(resp)
 }
+
+

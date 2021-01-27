@@ -75,3 +75,41 @@ make_data75 <- function(){
 
 
 
+
+
+##' Adding noise to covariates.
+##'
+##' @param Xorig Original covariate matrix
+##' @param sigmalist Numeric vector of Gaussian noise standard deviations.
+##' @param noise_ii Index of \code{sigmalist} to use.
+##'
+##' @return A noisy version of \code{Xorig}.
+##'
+##' @export
+add_noise <- function(Xorig, sigmalist, noise_ii){
+
+  X = Xorig
+
+  if(noise_ii > 0){
+    ## Add noise to the sunlight covariate
+    X[,"par"] = Xorig[,"par"] + rnorm(TT, 0, sigmalist[noise_ii])
+
+    ## Add noise to the spurious covariates by the same amount as well.
+    for(icol in 3:ncol(X)){
+      X[,icol] = Xorig[,icol] + rnorm(TT, 0, sigmalist[noise_ii])
+    }
+  }
+  return(X)
+}
+
+
+##' Creates a directory \code{destin}, if it doesn't already exist.
+##' @export
+create_destin <- function(destin){
+  if(!dir.exists(destin)){
+    dir.create(destin, recursive = TRUE)
+    cat("Creating destin: ", destin, fill=TRUE)
+  } else {
+    cat("All output goes out to destin: ", destin, fill = TRUE)
+  }
+}

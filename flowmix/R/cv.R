@@ -4,9 +4,7 @@
 ##' @return List of fold indices.
 ##' @export
 ##'
-make_cv_folds <- function(ylist, nfold, verbose = FALSE, blocksize = 20){
-
-  if(verbose) print("Hour-long time blocks used for CV (block type 2)")
+make_cv_folds <- function(ylist, nfold, blocksize = 20){
 
   ## Make hour-long index list
   TT = length(ylist)
@@ -16,9 +14,7 @@ make_cv_folds <- function(ylist, nfold, verbose = FALSE, blocksize = 20){
     if(a >= TT) return(NULL)
     ## (a+1):pmin(b,TT))
     return(seq(a+1, pmin(b,TT)))
-  },
-             endpoints[-length(endpoints)],
-             endpoints[-1])
+  }, endpoints[-length(endpoints)],  endpoints[-1])
   null.elt = sapply(inds, is.null)
   if(any(null.elt)){
     inds = inds[-which(null.elt)]
@@ -26,7 +22,7 @@ make_cv_folds <- function(ylist, nfold, verbose = FALSE, blocksize = 20){
 
   ## Further make these into five blocks of test indices.
   test.ii.list = lapply(1:nfold, function(ifold){
-    which.test.inds = seq(from=ifold, to=length(inds), by=5)
+    which.test.inds = seq(from = ifold, to = length(inds), by = nfold)
     test.ii = unlist(inds[which.test.inds])
     return(test.ii)
   })
@@ -51,14 +47,22 @@ make_cv_folds <- function(ylist, nfold, verbose = FALSE, blocksize = 20){
 ##' @param ylist Data.
 ##' @param countslist Counts or biomass.
 ##' @param X Covariates.
+##' @param sim Set to \code{TRUE} if this is a simulation; the file name
+##'   containing results for, say `isim=3`, has "3-" appended to the beginning.
+##' @param isim Simulation number.
 ##' @param ... Rest of arguments for \code{flowmix_once()}.
 ##'
 ##' @return Nothing is returned. Instead, a file named "1-1-1-1-cvscore.Rdata"
 ##'   is saved in \code{destin}. (The indices here are ialpha-ibeta-ifold-irep).
 ##'
+##' If this is a simulation, the file name containing results for, say `isim=3`,
+##'   has "3-" appended to the beginning.
+##'
 ##' @export
 one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
                     mean_lambdas, prob_lambdas,
+                    ## For simulations
+                    sim = FALSE, isim = 1,
                     ## The rest that is needed explicitly for flowmix()
                     ylist, countslist,
                     X, ...){
@@ -73,7 +77,7 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
   train.X = X[-test.inds,]
 
   ## Check whether this job has been done already.
-  filename = make_cvscore_filename(ialpha, ibeta, ifold, irep)##, sim, isim)
+  filename = make_cvscore_filename(ialpha, ibeta, ifold, irep, sim, isim)
   if(file.exists(file.path(destin, filename))){
     cat(filename, "already done", fill=TRUE)
     return(NULL)
@@ -92,7 +96,6 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
   if("nrep" %in% names(args)){
     args = args[-which(names(args) %in% "nrep")] ## remove |nrep| prior to feeding to flowmix_once().
   }
-
 
   tryCatch({
 
@@ -159,13 +162,14 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
 
 
 ##' Refit one job.
+##' @inheritParams one_job
 ##'
 ##' @export
 one_job_refit <- function(ialpha, ibeta, destin,
                           mean_lambdas, prob_lambdas,
                           ## The rest that is needed explicitly for flowmix_once()
                           ylist, countslist, X,
-                          ## sim = FALSE, isim=1,
+                          sim = FALSE, isim = 1,
                           ...){
 
   args = list(...)
@@ -173,7 +177,7 @@ one_job_refit <- function(ialpha, ibeta, destin,
   for(irep in 1:nrep){
 
     ## Writing file
-    filename = make_refit_filename(ialpha, ibeta, irep)##, sim, isim)
+    filename = make_refit_filename(ialpha, ibeta, irep, sim, isim)
     if(file.exists(file.path(destin, filename))){
       cat(filename, "already done", fill=TRUE)
       return(NULL)
@@ -250,15 +254,23 @@ make_iimat_small <- function(cv_gridsize){
 }
 
 
-make_cvscore_filename <- function(ialpha, ibeta, ifold, irep){##, sim, isim){
+##' Create file name (a string) for cross-validation results.
+make_cvscore_filename <- function(ialpha, ibeta, ifold, irep,
+                                  ## If simulations, then additional file names
+                                  sim = FALSE, isim = 1){
   filename = paste0(ialpha, "-", ibeta, "-", ifold, "-", irep, "-cvscore.Rdata")
-  ## if(sim){filename = paste0(isim, "-", filename)} ## Temporary
+  if(sim){filename = paste0(isim, "-", filename)} ## Temporary
   return(filename)
 }
 
-make_refit_filename <- function(ialpha, ibeta, irep){##, sim, isim){
+
+##' Create file name (a string) for re-estimated models for the lambda values
+##' indexed by \code{ialpha} \ibeta{ibeta}.
+make_refit_filename <- function(ialpha, ibeta, irep,
+                                  ## If simulations, then additional file names
+                                sim = FALSE, isim = 1){
   filename = paste0(ialpha, "-", ibeta, "-", irep, "-fit.Rdata")
-  ## if(sim){filename = paste0(isim, "-", filename)} ## Temporary
+  if(sim){filename = paste0(isim, "-", filename)} ## Temporary
   return(filename)
 }
 

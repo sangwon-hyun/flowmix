@@ -41,7 +41,7 @@ bootstrap <- function(ylist, res, countslist = NULL, verbose=FALSE){
   ## Setup
   numclust = res$numclust
   TT = length(ylist)
-  dimdat = ncol(ylist %>% .[[1]])
+  dimdat = ylist %>% .[[1]] %>% ncol()
 
   ## Conduct the E-step once to calculate responsibilities
   resp <- Estep(res$mn, res$sigma, res$prob, ylist = ylist,
@@ -95,7 +95,6 @@ bootstrap <- function(ylist, res, countslist = NULL, verbose=FALSE){
   for(tt in 1:TT){
     if(verbose) printprogress(tt, TT, fill = TRUE)
     new_y_by_clust <- lapply(1:numclust, function(iclust){
-      tt=1
       if(verbose) printprogress(iclust, numclust, fill = TRUE)
 
       ## How many particles in this cluster to pick?
