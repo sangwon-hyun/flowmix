@@ -182,3 +182,15 @@ parallel::mclapply(iilist, function(ii){
   }
   return(NULL)
 }, mc.cores = mc.cores)
+
+
+load(file=file.path(destin, "meta.Rdata"), verbose = TRUE)
+obj = profvis({
+  set.seed(0)
+  res = flowmix(numclust = 5, maxdev = 0.5,
+                verbose = TRUE, ylist = ylist, countslist = countslist,
+                X = X, mean_lambda = 1E-3,
+                prob_lambda = 1E-2, ## Try 1E-2, 1E-4, 1E-6, 1E-7
+                niter = 20, nrep = 1)
+})
+print(obj)

@@ -54,8 +54,8 @@ estimated model providing the best data fit.
 numclust = 4
 set.seed(0)
 res = flowmix(ylist = ylist, X = X, numclust = numclust,
-              niter = 300, mean_lambda = 0.01, prob_lambda = 0.001,
-              nrep = 1)
+              mean_lambda = 0.01, prob_lambda = 0.001,
+              nrep = 5)
 print(res)
 ```
 
