@@ -302,6 +302,7 @@ cv.flowmix <- function(
                        maxdev,
                        numclust,
                        cv_gridsize,
+                       cv_blocksize = 5,
                        nfold,
                        nrep,
                        verbose = FALSE,
@@ -319,7 +320,8 @@ cv.flowmix <- function(
   if(refit) iimat = make_iimat_small(cv_gridsize)
 
   ## Define the CV folds (e.g. 5 big consecutive time blocks)
-  folds = blockcv_make_folds(ylist = ylist, nfold = 5)
+  ## folds = blockcv_make_folds(ylist = ylist, nfold = 5)
+  folds = make_cv_folds(ylist = ylist, nfold = nfold, blocksize = cv_blocksize)
 
   ## Run the EM algorithm many times, for each value of (ialpha, ibeta, ifold, irep)
   start.time = Sys.time()
