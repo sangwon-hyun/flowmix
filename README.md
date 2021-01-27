@@ -25,4 +25,4 @@ longer vignette is in the works.
 	
 ## Authors & Contributors
 
-The contributors are (Sangwon Hyun)[http://sangwon-hyun.org/], Mattias Rolf Cape, Francois Ribalet, and Jacob Bien.
+The contributors are [Sangwon Hyun](http://sangwon-hyun.org/), Mattias Rolf Cape, Francois Ribalet, and Jacob Bien.
