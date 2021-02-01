@@ -101,16 +101,26 @@ plot_ylist <- function(ylist, countslist, res = NULL, scale = TRUE, main = "",
   title(main = main)
 
   ## Handle when countslist is NULL
-  if(is.null(countslist)) countslist = sapply(ylist, function(y)rep(1,nrow(y)))
+  if(!is.null(countslist)){
+    if(!scale) mx = 10 else mx = max(unlist(countslist))
+    cols = lapply(countslist, function(counts){
+      ct = counts / mx
+      return(rgb(0, 0, 0, ct))
+    })
+    pch = 15
+  } else {
+    countslist = sapply(ylist, function(y)rep(1,nrow(y)))
+    cols = lapply(1:TT, function(a)rgb(0,0,0,0.1))
+    pch = 16
+  }
 
   ## Visualize the data
-  if(!scale) mx = 10 else mx = max(unlist(countslist))
   for(tt in 1:TT){
     y = ylist[[tt]]
-    ct = countslist[[tt]] / mx
+    col = cols[[tt]]
     points(x = rep(tt, length(y)),
-           y = y, col = rgb(0, 0, 0, ct),
-           pch = 15, cex = cex)
+           y = y, col = col,
+           pch = pch, cex = cex)
   }
 }
 

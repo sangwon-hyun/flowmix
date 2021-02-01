@@ -1,9 +1,6 @@
 ##' Main function for summarizing the cross-validation results.
 ##'
-##' @param destin Destination folder for output.
-##' @param cv_gridsize Grid size for cross validation.
-##' @param nfold Number of folds.
-##' @param nrep Number of repetitions.
+##' @inheritParams cv.flowmix
 ##' @param filename File name to save to.
 ##'
 ##' @return List containing various outcomes from the cross-validation, such as
@@ -43,6 +40,10 @@ cv_summary <- function(destin = ".",
   if(is.null(bestres)){
     stop(paste0("The model with lambda indices (",
                 min.inds[1], ",", min.inds[2], ") is not available."))
+  }
+
+  if(is.null(colnames(bestres$X))){
+    colnames(bestres$X) = 1:ncol(bestres$X)
   }
 
   ########################
@@ -100,13 +101,11 @@ cv_summary <- function(destin = ".",
 
 ##' Aggregate CV scores from the results, saved in \code{destin}.
 ##'
-##' @inheritParams destin
-##' @inheritParams cv_gridsize
-##' @inheritParams nfold
-##' @inheritParams nrep
+##' @inheritParams cv.flowmix
 ##'
 ##' @export
-cv_aggregate <- function(destin, cv_gridsize, nfold, nrep){
+cv_aggregate <- function(destin, cv_gridsize, nfold, nrep,
+                         sim = FALSE, isim = 1){
 
   ## ## Read the meta data (for |nfold|, |cv_gridsize|, |nrep|)
   load(file = file.path(destin, 'meta.Rdata'))
@@ -123,7 +122,7 @@ cv_aggregate <- function(destin, cv_gridsize, nfold, nrep){
       obj = matrix(NA, nrow=nfold, ncol=nrep)
       for(ifold in 1:nfold){
         for(irep in 1:nrep){
-          filename = make_cvscore_filename(ialpha, ibeta, ifold, irep)##, sim, isim)
+          filename = make_cvscore_filename(ialpha, ibeta, ifold, irep, sim, isim)
           tryCatch({
             load(file.path(destin, filename), verbose = FALSE)
 

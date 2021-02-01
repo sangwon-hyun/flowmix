@@ -36,7 +36,6 @@ objective <- function(mu, prob, sigma,
   ## Calculate the log likelihood
   loglik = sapply(1:TT, function(tt){
     if(is.null(denslist_by_clust)){
-      print('here')
       return(loglikelihood_tt(ylist, tt, mu, sigma, prob, countslist, numclust))
     } else {
       return(loglikelihood_tt_precalculate(ylist, tt, denslist_by_clust, prob, countslist, numclust))
@@ -107,7 +106,7 @@ loglikelihood_tt <- function(ylist, tt, mu, sigma, prob, countslist = NULL, numc
 
   ## One particle's log likelihood (weighted density)
   weighted.densities = sapply(1:numclust, function(iclust){
-    return(prob[tt,iclust] * dmvnorm_arma_fast(ylsit[[tt]], mu[tt,iclust], as.matrix(sigma[iclust,,]), FALSE))
+    return(prob[tt,iclust] * dmvnorm_arma_fast(ylist[[tt]], mu[tt,,iclust], as.matrix(sigma[iclust,,]), FALSE))
   })
   nt = nrow(ylist[[tt]])
   counts = (if(!is.null(countslist)) countslist[[tt]] else rep(1, nt))

@@ -13,7 +13,6 @@ mc.cores = 1
 ## Other setup
 maxdev = 0.5
 blocksize = 20 ## Size for hourlong blocks (block type 2).
-fitonly = FALSE ## Only do refitting?
 test = FALSE
 sigma_fac = 1
 
@@ -37,6 +36,7 @@ source("gradients2.R")
 
 
 ## Figure 7: 1d data 5-cluster analysis
+## (Figure 7, 12, 13, and Table 2 are from here).
 experiment_type = 2
 sim = FALSE
 nsim = 1
@@ -44,6 +44,7 @@ numclust = 5
 cv_gridsize = 7
 nrep = 10
 nfold = 5
+maxdev = 0.115525
 destin = file.path(outputdir, "1d-5clust")
 flowmix::create_destin(destin)
 ## maxres = list(alpha= 0.5, beta = 1.5)

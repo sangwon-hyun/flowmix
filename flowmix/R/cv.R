@@ -199,7 +199,6 @@ one_job_refit <- function(ialpha, ibeta, destin,
       res = eval(call, args)
 
       ## Save the results
-      print(res)
       cat("Saving file here:", file.path(destin, filename), fill=TRUE)
       save(res, args, objective, file=file.path(destin, filename))
     }
@@ -282,7 +281,12 @@ make_refit_filename <- function(ialpha, ibeta, irep,
 ##' @param countslist multiplicity
 ##' @param destin Where to save the output.
 ##' @param max_mean_lambda Maximum value of regularization
-##' @param nfold Number of CV folds. Defaults to 5.
+##' @param nfold Number of cross-validation folds. Defaults to 5.
+##' @param cv_gridsize Grid size for cross validation.
+##' @param cv_fold_blocksize Number of time blocks to be used for cross-validation folds.
+##' @param nrep Number of repetitions.
+
+
 ##' @param ... Additional arguments to flowmix().
 ##'
 ##' @return No return.
@@ -301,8 +305,7 @@ cv.flowmix <- function(
                        ## Other settings
                        maxdev,
                        numclust,
-                       cv_gridsize,
-                       cv_blocksize = 5,
+                       cv_fold_blocksize,
                        nfold,
                        nrep,
                        verbose = FALSE,
@@ -314,14 +317,31 @@ cv.flowmix <- function(
   stopifnot(length(prob_lambdas) == length(mean_lambdas))
   cv_gridsize = length(mean_lambdas)
 
+  ## There's an option to input one's own iimat matrix.
+  if(!is.null(iimat)){
 
-  ## Make an index of all jobs
-  if(!refit) iimat = make_iimat(cv_gridsize, nfold, nrep)
-  if(refit) iimat = make_iimat_small(cv_gridsize)
+    ## Make an index of all jobs
+    if(!refit) iimat = make_iimat(cv_gridsize, nfold, nrep)
+    if(refit) iimat = make_iimat_small(cv_gridsize)
+  }
 
   ## Define the CV folds (e.g. 5 big consecutive time blocks)
   ## folds = blockcv_make_folds(ylist = ylist, nfold = 5)
-  folds = make_cv_folds(ylist = ylist, nfold = nfold, blocksize = cv_blocksize)
+  folds = make_cv_folds(ylist = ylist, nfold = nfold, blocksize = cv_fold_blocksize)
+
+  ## Save meta information, once.
+  if(!refit){
+    save(folds,
+         nfold,
+         nrep, ## Added recently
+         cv_gridsize,
+         mean_lambdas,
+         prob_lambdas,
+         ylist, countslist, X,
+         ## Save the file
+         file = file.path(destin, 'meta.Rdata'))
+    print(paste0("wrote meta data to ", file.path(destin, 'meta.Rdata')))
+  }
 
   ## Run the EM algorithm many times, for each value of (ialpha, ibeta, ifold, irep)
   start.time = Sys.time()

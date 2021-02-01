@@ -1,0 +1,190 @@
+---
+title: 1D 5-cluster data example in the paper
+code_folding: fold
+header-includes:
+- \usepackage{bbm}
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+author: Sangwon Hyun, Mattias Rolf Cape, Francois Ribalet, Jacob Bien
+---
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.width=14, fig.height=8, echo=TRUE, warning=FALSE,
+                      message=FALSE, eval=TRUE, cache=TRUE)
+library(gridExtra)
+library(tidyverse)
+library(dplyr)
+library(flowmix)
+
+## This is where the output should go
+figdir = "~/repos/flowmix/paper-code/figures"
+
+## This is where the parent directory of the output
+outputdir = "/home/sangwonh/Dropbox/research/usc/hpc-output"
+
+## This is specific directory of the output
+destin = file.path(outputdir, "blockcv-2-76-5")
+```
+
+
+This script contains code to produce the plots for the 1d data 5-cluster
+analysis in the paper (Figure 7, 12, 13, and Table 2).
+
+First, run the simulations from `gradients2-run.R`, into a destination directory
+`destin`. Then, use this code to summarize the results.
+
+```{r, eval=FALSE, echo=FALSE}
+cv_summary(destin = destin, nfold = 5, nrep = 10,
+           save = TRUE, filename = "summary.RDS")##, subfolder="orig")
+```
+
+The summarized results are in `file.path(destin, "summary.RDS")`.
+
+(In the next code block, I've replaced destin with the `./paper-code`)
+
+```{r}
+## Load the summary
+cvres = readRDS(file = file.path(destin, "summary.RDS"))
+
+## For back-compatibility; prob was called pie
+cvres$bestres$prob = cvres$bestres$pie 
+```
+
+None of the `flowmix` objects contain the data (by design) so we need to load
+the data separately.
+
+The most accurate way is to load from `file.path(destin, "Meta.Rdata")`.
+
+In this script, we'll load from the directory `../paper-data`.
+
+```{r}
+## load(file.path(cvres$destin, "meta.Rdata")) ## This is one way to load the data
+dat = readRDS(file = file.path("../paper-data", "MGL1704-hourly-paper-1d-diam.RDS"))
+countslist = dat$countslist
+ylist = dat$ylist
+```
+
+
+Figure 12 is produced using this code:
+
+```{r}
+## Plot CV scores
+pdf(file = file.path(figdir, "1d-cvscores.pdf"), width=12, height=5)
+plot_cvscore(cvres$cvscore.mat)
+graphics.off()
+```
+
+Figure 7 is produced using this code:
+
+```{r}
+## Plot fitted mean.
+pdf(file = file.path(figdir, "1d-means.pdf"), width=12, height=5)
+plot_1d(ylist = ylist, countslist = countslist,
+        res = cvres$bestres,
+        cex_data = 1)
+mtext("Diameter", side = 2, line = 2.5, cex = 1.5)
+graphics.off()
+```
+
+Table 2 can be produced using this:
+
+```{r, eval=FALSE}
+cvres$bestres$alpha %>% t() %>% signif(3) %>% as.matrix() ##%>%  xtable::xtable(digits=digits)
+cvres$bestres$beta %>% t() %>% signif(3) %>% as.matrix() ##%>%  xtable::xtable(digits=digits)
+```
+
+(Not in paper) Covariates can be plotted like this:
+
+```{r, eval=FALSE}
+mats = list(alpha = cvres$bestres$alpha, beta = cvres$bestres$beta)
+
+## Some investigations
+cvres$bestres$X %>% as_data_frame %>%
+  select(p1, p2, p3, contains("phosphate"), contains("density"), contains("ugos")) %>%
+  cbind(ind =1:nrow(cvres$bestres$X)) -> Xsmall
+reshape2::melt(Xsmall, id = "ind") -> Xsmall.long
+ggplot2::qplot(x=ind, y=value, color=variable, data=Xsmall.long, geom="line")
+
+## Plot covariates
+allnames = unique(c(rownames(mats$alphamat), rownames(mats$betamat)))
+Xsmall = cvres$bestres$X %>% as_tibble %>% select(one_of(allnames)) %>% select(sort(names(.)))
+inds = round(seq(from = 1, to = ncol(Xsmall), length=5))
+
+pdf(file = file.path(figdir, "1d-covariates.pdf"), width=20, height=15)
+par(mfrow=c(2,2))
+for(ii in 1:4){
+  ind = (inds[ii]+1):inds[ii+1]
+  cols = RColorBrewer::brewer.pal(length(ind), "Set2")
+  matplot(Xsmall, axes=FALSE, col='grey', type='l', lwd=.5, lty=1, ylab="",xlab="")
+  add_date_ticks(cvres$bestres)
+  matlines(Xsmall[,ind], col=cols, lwd=3, lty=1)
+  legend("topright", col=cols, lwd=3, lty=1, legend = colnames(Xsmall)[ind])
+}
+graphics.off()
+```
+
+
+Figure 13 is produced using the second block (starting with `# A 5 x 5 version of this`):
+
+```{r, eval=FALSE}
+load(file.path(cvres$destin, "meta.Rdata")) ## load ylist
+png(file=file.path(figdir, "1d-all-models.png"), width=5000, height=4000)
+cv_gridsize = 10
+par(mfrow = c(cv_gridsize, cv_gridsize))
+for(ialpha in 1:cv_gridsize){
+  for(ibeta in 1:cv_gridsize){
+    res = cvres$bestreslist[[paste0(ialpha, "-", ibeta)]]
+    res$prob = res$pie ## For back-compatibility; prob was called pie
+    plot_1d(ylist = ylist, countslist = countslist, res = res,
+            cex_data = 1)
+    title(main = c(paste0("in-sample: ", round(min(res$objective),3)), "   ",
+                   paste0("CV score : ", round(cvres$cvscore.mat[ialpha,ibeta],3))),
+          cex.main=3)
+    if(all(c(ialpha, ibeta) == cvres$min.ind)) box(lwd=10,col='blue')
+  }
+}
+graphics.off()
+
+
+## A 5 x 5 version of this.
+load(file.path(cvres$destin, "meta.Rdata")) ## load ylist
+png(file=file.path(figdir, "1d-all-models-reduced.png"), width=5000/2, height=3000/2)
+cv_gridsize = 10
+par(mfrow = c(cv_gridsize/2, cv_gridsize/2 ))
+par(mar=c(0,0,5,0))
+for(ialpha in c(1,3,5,7,10)){
+  for(ibeta in c(1,4,6,8,10)){
+    print(c(ialpha, ibeta))
+    res = cvres$bestreslist[[paste0(ialpha, "-", ibeta)]]
+    res$prob = res$pie ## For back-compatibility; prob was called pie
+    plot_1d(ylist = ylist, countslist = countslist, res = res,
+            no_axis=TRUE, cex_clust_label=NULL, omit_label=TRUE,
+            omit_band=TRUE,
+            cex_data = 1.7)
+    title(main = c(paste0("In-sample: ", round(min(res$objective),3)), "   ",
+                   paste0("CV score : ", round(cvres$cvscore.mat[ialpha,ibeta],3))),
+          cex.main=4)##3.5)
+    if(all(c(ialpha, ibeta) == cvres$min.ind)) box(lwd=10,col='blue')
+  }
+}
+graphics.off()
+```
+
+
+<!-- # Analysis -->
+
+<!-- * **Cluster 5** The usual culprits are all there -- lagged sunlight ("par") and -->
+<!--   sea surface temperature and salinity all affect multiple clusters. In -->
+<!--   particular, the lagged sunlight ("p1/p2/p3/p4") plays a large role in cluster -->
+<!--   5, which is visually apparent, and neat that our model captures this. -->
+<!-- * **Cluster 4** Biochemical factors like PP (Net primary productivity of Carbon -->
+<!--   per unit volume), nitrate, and $O_2$, as well as wind/current like -->
+<!--   "ugos/vgos/ftle" seems to play a large role in cluster 4. -->
+<!-- * **Cluster 2** Chlorophyll (and Phosphate) plays a large role in cluster 2's -->
+<!--   means and probabilities -- this is clear if you look at CHL (and to a lesser -->
+<!--   extent, "phosphate_WOA_clim") over time, it is high on June 1-4, and -->
+<!--   fluctuates similarly to the prevalence of the cluster during that dates.. -->
+<!-- * **Cluster 1** wind/current like "ugos/vgos/northword_wind/sla" seems to play a -->
+<!--   large role in cluster 1. -->

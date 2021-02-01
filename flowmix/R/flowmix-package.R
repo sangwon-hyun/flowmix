@@ -12,10 +12,10 @@
 ##' @useDynLib flowmix, .registration = TRUE
 ##' @import methods
 ##' @import Rcpp
-##' @import rstantools
 ##' @import glmnet
 ##' @import CVXR
 ##' @import dplyr
+##' @import magrittr
 ##' @import Rcpp
 ##' @import RcppArmadillo
 ##' @import RcppEigen

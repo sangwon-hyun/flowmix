@@ -223,7 +223,8 @@ computers or servers for the full cross-validation.)
 `cv.flowmix` conducts cross-validation by wrapping most of the above into a
 single function.
 
-(This code takes long, so it's recommended that you run it separately):
+(This code takes long, so it's recommended that you run it separately in a
+script; use `mc.cores` option to run the jobs on multiple cores):
 
 ```{r, eval=FALSE}
 cvres = cv.flowmix(ylist = ylist,
@@ -233,10 +234,10 @@ cvres = cv.flowmix(ylist = ylist,
                    numclust = 4,
                    prob_lambdas = prob_lambdas,
                    mean_lambdas = mean_lambdas,
-                   ## nrep = 5,
-                   ## nfold = 5,
-                   nrep = 1,
-                   nfold = 2,
+                   nrep = 5,
+                   nfold = 5,
+                   ## nrep = 1,
+                   ## nfold = 2,
                    ## verbose = TRUE,
                    destin = "~/Desktop",
                    mc.cores = 8)
@@ -246,7 +247,7 @@ Then, the results are saved into separate files whose names follow these rules:
 - "1-1-1-1.Rdata" for `ialpha`-`ibeta`-`irep`-`ifold`.Rdata, having run the CV.
 - "1-1-1-cvres.Rdata" for having estimated the model in the full data
 
-Then, the results are summarized, and optionally saved to a file `summary.RDS`:
+Then, the results are summarized, and optionally saved to a file `summary.RDS`, if `save=TRUE`:
 
 ```{r}
 cvres = cv_summary(destin = ".",
@@ -270,18 +271,27 @@ instead deal with binned counts.
 
 The new object `countslist` can be *additionally* input to `flowmix()`.
 
-Here is an example:
+Here is an example. `make_grid(ylist, gridsize=30)` makes an equally sized grid
+of size 30 from the data range, in each dimension. Then, `bin_many_cytograms()`
+places the particles in `ylist` in each of these bins. The resulting object is a
+list which contains the grid centers `ybin_list` and the counts in each
+`counts_list`.
+
+(Not used here, but optionally, you can upweight each particle, e.g. using the
+biomass of each particle, for instance.)
 
 ```{r, eval=FALSE}
 ## Bin this data
 grid = make_grid(ylist, gridsize = 30, grid.ind=FALSE)
-obj = bin_many_cytograms(ylist,grid, mc.cores = 8, verbose=FALSE)  
+obj = bin_many_cytograms(ylist, grid, mc.cores = 8, verbose=FALSE)  
 ylist = obj$ybin_list
 countslist = obj$counts_list
 
 ## Run the algorithm on binned data
-res = flowmix(ylist, X, numclust = numclust,
+res = flowmix(ylist = ylist,
+              X = X,
               countslist = countslist,
+              numclust = numclust,
               mean_lambda = 0.01,
               prob_lambda = 0.01,
               verbose = FALSE,
