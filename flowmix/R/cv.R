@@ -327,6 +327,7 @@ cv.flowmix <- function(
 
   ## Define the CV folds (e.g. 5 big consecutive time blocks)
   ## folds = blockcv_make_folds(ylist = ylist, nfold = 5)
+<<<<<<< HEAD
   folds = make_cv_folds(ylist = ylist, nfold = nfold, blocksize = cv_fold_blocksize)
 
   ## Save meta information, once.
@@ -342,6 +343,9 @@ cv.flowmix <- function(
          file = file.path(destin, 'meta.Rdata'))
     print(paste0("wrote meta data to ", file.path(destin, 'meta.Rdata')))
   }
+=======
+  folds = make_cv_folds(ylist = ylist, nfold = nfold, blocksize = cv_blocksize)
+>>>>>>> af9a07409eadf94053142ec6605ca97e2811d8b0
 
   ## Run the EM algorithm many times, for each value of (ialpha, ibeta, ifold, irep)
   start.time = Sys.time()
