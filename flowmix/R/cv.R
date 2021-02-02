@@ -302,6 +302,7 @@ cv.flowmix <- function(
                        ## Regularization parameter values
                        mean_lambdas,
                        prob_lambdas,
+                       iimat = NULL,
                        ## Other settings
                        maxdev,
                        numclust,
