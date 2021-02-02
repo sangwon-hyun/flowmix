@@ -318,8 +318,7 @@ cv.flowmix <- function(
   cv_gridsize = length(mean_lambdas)
 
   ## There's an option to input one's own iimat matrix.
-  if(!is.null(iimat)){
-
+  if(is.null(iimat)){
     ## Make an index of all jobs
     if(!refit) iimat = make_iimat(cv_gridsize, nfold, nrep)
     if(refit) iimat = make_iimat_small(cv_gridsize)
