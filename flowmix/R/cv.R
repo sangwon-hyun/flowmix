@@ -306,7 +306,6 @@ cv.flowmix <- function(
                        ## Other settings
                        maxdev,
                        numclust,
-                       cv_fold_blocksize,
                        nfold,
                        nrep,
                        verbose = FALSE,
@@ -328,7 +327,7 @@ cv.flowmix <- function(
 
   ## Define the CV folds (e.g. 5 big consecutive time blocks)
   ## folds = blockcv_make_folds(ylist = ylist, nfold = 5)
-  folds = make_cv_folds(ylist = ylist, nfold = nfold, blocksize = cv_fold_blocksize)
+  folds = make_cv_folds(ylist = ylist, nfold = nfold, blocksize = 1)
 
   ## Save meta information, once.
   if(!refit){
