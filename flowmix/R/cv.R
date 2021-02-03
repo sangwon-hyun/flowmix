@@ -208,13 +208,14 @@ one_job_refit <- function(ialpha, ibeta, destin,
 ##' Indices for the cross validation jobs.
 ##'
 ##' The resulting iimat looks like this:
-##' (#, ialpha, ibeta, ifold)
-##' 1, 1, 1, 1
-##' 2, 1, 1, 2
-##' 3, 1, 1, 3
-##' ...
-##' 1125, 15, 15, 5
 ##'
+##' ind ialpha ibeta ifold irep
+##'  55      6     1     2    1
+##'  56      7     1     2    1
+##'  57      1     2     2    1
+##'  58      2     2     2    1
+##'  59      3     2     2    1
+##'  60      4     2     2    1
 ##' @param cv_gridsize CV grid size.
 ##' @param nfold Number of of CV folds.
 ##'
@@ -310,6 +311,7 @@ cv.flowmix <- function(
                        nrep,
                        verbose = FALSE,
                        refit = FALSE,
+                       save_meta = FALSE,
                        mc.cores = 1,
                        ...){
 
@@ -329,17 +331,19 @@ cv.flowmix <- function(
   folds = make_cv_folds(ylist = ylist, nfold = nfold, blocksize = 1)
 
   ## Save meta information, once.
-  if(!refit){
-    save(folds,
-         nfold,
-         nrep, ## Added recently
-         cv_gridsize,
-         mean_lambdas,
-         prob_lambdas,
-         ylist, countslist, X,
-         ## Save the file
-         file = file.path(destin, 'meta.Rdata'))
-    print(paste0("wrote meta data to ", file.path(destin, 'meta.Rdata')))
+  if(save_meta){
+    if(!refit){
+      save(folds,
+           nfold,
+           nrep, ## Added recently
+           cv_gridsize,
+           mean_lambdas,
+           prob_lambdas,
+           ylist, countslist, X,
+           ## Save the file
+           file = file.path(destin, 'meta.Rdata'))
+      print(paste0("wrote meta data to ", file.path(destin, 'meta.Rdata')))
+    }
   }
 
   ## Run the EM algorithm many times, for each value of (ialpha, ibeta, ifold, irep)
