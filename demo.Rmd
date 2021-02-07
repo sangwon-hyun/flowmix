@@ -6,7 +6,7 @@ code_folding: fold
 ---
 ```{r global_options, include=FALSE}
 knitr::opts_chunk$set(fig.width=14, fig.height=5, echo=TRUE, warning=FALSE,
-                      message=FALSE, eval=TRUE)##, cache=TRUE)
+                      message=FALSE, eval=TRUE, cache=TRUE)
 library(tidyverse)
 library(flowmix)
 outputdir = "."
@@ -105,13 +105,13 @@ for(tt in c(1,50,200)){
 
 Showing the model across time, in an animation:
 
-```{r animation, animation.hook='ffmpeg', dev='jpeg', interval=0.2, ffmpeg.format="gif", fig.width=20, fig.height=4}
+```{r animation, animation.hook='ffmpeg', dev='jpeg', interval=0.2, ffmpeg.format="gif", fig.width=15, fig.height=5}
 par(mfrow = c(1,3), oma = c(2,2,2,2))
 ylim = c(-3,8)
 xlim = c(-5,8)
 for(tt in 1:res$TT){
   for(dims in list(c(1,2), c(2,3), c(3,1))){
-    scatterplot_2d(ylist, res, 100, dims = dims, cex_fac=1, ylim=ylim, xlim=xlim)
+    scatterplot_2d(ylist, res, tt, dims = dims, cex_fac=1, ylim=ylim, xlim=xlim)
   }
   mtext(outer = TRUE,
         text = paste0("t=", tt, " out of ", res$TT),
@@ -249,7 +249,7 @@ Then, the results are saved into separate files whose names follow these rules:
 
 Then, the results are summarized, and optionally saved to a file `summary.RDS`, if `save=TRUE`:
 
-```{r}
+```{r, eval=FALSE}
 cvres = cv_summary(destin = ".",
                    cv_gridsize = 5,
                    nrep = 5,
@@ -258,9 +258,9 @@ cvres = cv_summary(destin = ".",
                    filename = "summary.RDS")
 ```
 
-The model chosen by cross-validation is:
+The model chosen by cross-validation is this:
 
-```{r}
+```{r, eval=FALSE}
 cvres$bestres %>% print()
 ```
 
@@ -346,20 +346,4 @@ for(dims in list(c(1,2), c(2,3), c(3,1))){
                  xlab = dimnames[dims[1]],
                  ylab = dimnames[dims[2]])
 }
-```
-
-Also, not run in this script, but here is how to obtain the maximum
-regularization parameters to use for the 2-dimensional cross-validation. (This
-saves to a file called "maxres.Rdata" into the directory specified in `destin`.
-
-```{r get-max-lambda, eval=FALSE}
-destin = "."
-maxres = get_max_lambda(destin, "maxres.Rdata",
-                        ylist = ylist,
-                        countslist = countslist,
-                        X = X %>% as.matrix(),
-                        numclust = 10,
-                        maxdev = 0.5,
-                        max_prob_lambda = 1,
-                        max_mean_lambda = 3)
 ```
