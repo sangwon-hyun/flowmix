@@ -33,7 +33,7 @@ cytogram) and $n_t$ columns. The number of columns $n_t$ of each element in
 `X` is a $T \times d$ matrix, whose $t$'th rows contain the relevant
 (environmental) factors of the $t$'th cytogram.
 
-```{r viz-one-cytogram, eval=TRUE, fig.width=5, fig.height=5}
+```{r viz-one-cytogram, eval=TRUE, fig.width=5, fig.height=6}
 plot(ylist[[1]][,1:2], ylab="", xlab="", pch=16, col=rgb(0,0,1,0.2), cex=.5)
 ```
 
@@ -54,8 +54,8 @@ estimated model providing the best data fit.
 numclust = 4
 set.seed(0)
 res = flowmix(ylist = ylist, X = X, numclust = numclust,
-              mean_lambda = 0.01, prob_lambda = 0.001,
-              nrep = 5)
+              mean_lambda = 0.001, prob_lambda = 0.001,
+              nrep = 1)
 print(res)
 ```
 
@@ -66,46 +66,9 @@ The cluster probabilities look like this:
 plot_prob(res)
 ```
 
-
-The estimated cluster means along the three dimensions look like this:
-
-```{r summarize-model, eval=TRUE, fig.width=15, fig.height=5}
-par(mfrow = c(1,3), cex = 1.2)
-for(idim in 1:3){
-  res$mn[,idim,] %>% matplot(type = 'l',
-                             lty = 1, ylab = paste0("Mean, dim=", idim))
-}
-```
-
-The estimated cluster means, drawn on scatterplots of the data two dimensions at
-a time, look like this:
-
-```{r summarize-model-2, eval=TRUE, fig.width=15, fig.height=5}
-par(mfrow = c(1,3))
-ylim = c(-3,8)
-xlim = c(-5,8)
-for(dims in list(c(1,2), c(2,3), c(3,1))){
-  scatterplot_2d(ylist, res, 100, dims = dims, cex_fac=1, ylim=ylim, xlim=xlim)
-}
-```
-
-Next, the first two dimensions only, shown at three different time points:
-
-```{r summarize-model-3, eval=TRUE, fig.width=15, fig.height=5}
-par(mfrow = c(1,3))
-for(tt in c(1,50,200)){
-  scatterplot_2d(ylist, res, tt,
-                 dims = c(1,2),
-                 cex_fac = 1,
-                 ylim = ylim,
-                 xlim = xlim)
-  title(main = paste0("t=", tt, " out of ", res$TT))
-}
-```
-
 Showing the model across time, in an animation:
 
-```{r animation, animation.hook='ffmpeg', dev='jpeg', interval=0.2, ffmpeg.format="gif", fig.width=15, fig.height=5}
+```{r, animation.hook='ffmpeg', dev='jpeg', interval=0.2, ffmpeg.format="gif", fig.width=15, fig.height=6}
 par(mfrow = c(1,3), oma = c(2,2,2,2))
 ylim = c(-3,8)
 xlim = c(-5,8)
@@ -211,7 +174,6 @@ one_job_refit(ialpha = ialpha,
               X = X,
               numclust = 4,
               maxdev = 0.5,
-              ## verbose = TRUE
               )
 ```
 
@@ -236,9 +198,6 @@ cvres = cv.flowmix(ylist = ylist,
                    mean_lambdas = mean_lambdas,
                    nrep = 5,
                    nfold = 5,
-                   ## nrep = 1,
-                   ## nfold = 2,
-                   ## verbose = TRUE,
                    destin = "~/Desktop",
                    mc.cores = 8)
 ```
@@ -292,8 +251,8 @@ res = flowmix(ylist = ylist,
               X = X,
               countslist = countslist,
               numclust = numclust,
-              mean_lambda = 0.01,
-              prob_lambda = 0.01,
+              mean_lambda = 0.001,
+              prob_lambda = 0.001,
               verbose = FALSE,
               maxdev = 0.5)
 ```
@@ -311,20 +270,20 @@ ylist = ybin_list
 countslist = biomass_list
 
 ## Estimate model
-la('flowmix')
 set.seed(1)
 res = flowmix(ylist, X, numclust = 10,
               countslist = countslist,
               mean_lambda = 0.001,
-              prob_lambda = 0.01,
+              prob_lambda = 0.001,
               maxdev = 0.5,
               nrep = 1,
-              verbose = TRUE)
+              verbose = FALSE)
 ```
 
 Now visualizing the results as before.
 
-```{r real-data-plot, eval=TRUE}
+
+```{r, animation.hook='ffmpeg', dev='jpeg', interval=0.2, ffmpeg.format="gif", fig.width=15, fig.height=6}
 ## Default print
 print(res)
 
@@ -336,14 +295,20 @@ par(mfrow = c(1,3))
 ylim = c(-3,8)
 xlim = c(-5,8)
 dimnames = c("diam", "red", "orange")
-for(dims in list(c(1,2), c(2,3), c(3,1))){
-  scatterplot_2d(ylist = ylist,
-                 countslist = countslist,
-                 obj = res,
-                 300,
-                 dims = dims, cex_fac=8,
-                 pt_col = rgb(0 ,0, 1, 0.1),
-                 xlab = dimnames[dims[1]],
-                 ylab = dimnames[dims[2]])
+par(mfrow = c(1,3), oma = c(2,2,2,2))
+for(tt in 1:50){
+  for(dims in list(c(1,2), c(2,3), c(3,1))){
+    scatterplot_2d(ylist = ylist,
+                   countslist = countslist,
+                   obj = res,
+                   tt,
+                   dims = dims, cex_fac=8,
+                   pt_col = rgb(0 ,0, 1, 0.1),
+                   xlab = dimnames[dims[1]],
+                   ylab = dimnames[dims[2]])
+  }
+  mtext(outer = TRUE,
+        text = paste0("t=", tt, " out of ", res$TT),
+        cex = 2)
 }
 ```
