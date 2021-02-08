@@ -1,43 +1,23 @@
-#' Plots only the cytogram (\code{ylist} with masses \code{countlist}) and not
-##' the model.
-##'
-##' @param ylist List of covariates.
-##' @param countslist List of counts. Defaults to null.
-##' @param tt Time point.
-##' @param ... Other arguments to plot3d.covarem().
-##'
-plot3d_cytogram <- function(ylist, X, countslist=NULL, tt, ...){
-  plot3d.covarem(NULL, ylist, X, countslist, tt, show.xb.constraint = FALSE, ...)
-}
-
 ##' Main 3d plotting function. It's possible to call this function without an
 ##' object |obj|. IN that case, it is a pure data plotting function.
 ##'
-##' *Don't* do this.  !
+##' *Don't* do this.
 ##'
-##' @param obj |covarem| object.
+##' @param obj flowmix object.
 ##' @param ylist List of covariates.
 ##' @param countslist List of counts. Defaults to null.
 ##' @param tt time point of interest.
 ##' @param show.xb.constraint If TRUE, show the ball constraint boundaries.
 ##'
 ##' @export
-plot3d.covarem <- function(obj,
-                           ## Understandably, data (ylist) might not be in the object.
-                           ylist, countslist = NULL,
-                           ## The time point of interest, out of 1:TT
-                           tt,
-                           ## Other options.
-                           ## 2d scatterplot options
-                           show.xb.constraint = FALSE,
-                           cex.fac.2d = 1,
-                           par_cex_2d = 1,
-                           pt_col = rgb(0 ,0, 1, 0.1),
-                           ## 3d scatterplot options
-                           cex.fac.3d = 1,
-                           ## 3d scatterplot options
-                           destin = NULL
-                           ){
+plot_3d <- function(obj, ## Understandably, data (ylist) might not be in the object.
+                    ylist, countslist = NULL, ## The time point of interest, out of 1:TT
+                    tt, ## Other options.
+                    ## 2d scatterplot options
+                    show.xb.constraint = FALSE, cex.fac.2d = 1, par_cex_2d = 1,
+                    pt_col = rgb(0 ,0, 1, 0.1), ## 3d scatterplot options
+                    cex.fac.3d = 1, ## 3d scatterplot options
+                    destin = NULL){
 
   ## Define layout
   m = matrix(c(1, 1, 2, 2, 3, 3, 4, 4, 5, 5,

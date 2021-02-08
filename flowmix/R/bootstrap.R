@@ -153,19 +153,21 @@ bootstrap <- function(ylist, res, countslist = NULL, verbose=FALSE){
 ##' Drawing memberships by coinflip using the responsibilities.
 ##'
 ##'
-##' @param resp Responsibilities, from \code{Estep()}.
+##' @param resp Posteerior cluster probabilities, or responsibilities, from
+##'   \code{Estep()}.
 ##'
 ##' @importFrom magrittr %>%
 ##'
 ##' @export
 draw_membership <- function(resp){
+
   TT = length(resp)
-  ## start.time=Sys.time()
+
   drawslist = lapply(1:TT, function(tt){
-    ## printprogress(tt, TT, start.time=start.time)
     draws = resp[[tt]] %>% apply(., 1, function(p){
      rmultinom(1, 1, p)}) %>% t()
   })
+
   return(drawslist)
 }
 

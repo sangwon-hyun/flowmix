@@ -5,7 +5,9 @@
 ##' @param res Optionally, |covarem| object of fitted model.
 ##' @param scale Defaults to TRUE. If TRUE, scale the data colors, relative to
 ##'   the largest count in |countslist|.
-##' @param main Plot title
+##' @param main Plot title.
+##' @param time Vector of date strings.
+##' @param date_axis Add date axis.
 ##'
 ##' @return NULL.
 ##' @export
@@ -14,20 +16,21 @@ plot_1d <- function(ylist,
                     res = NULL,
                     scale = TRUE,
                     main = "",
-                    date_axis = TRUE,
-                    no_axis = FALSE,
+                    time_axis = FALSE,
+                    time = NULL,
                     mn.scale = 5,
                     cex_clust_label = 1.5,
                     omit_band = FALSE,
                     omit_label = FALSE,
                     reorder_clusters = TRUE,
-                    cex_data=15,
+                    cex_data = 1,##15
                     ylim = NULL){
 
   ## Plot ylist only
   stopifnot(ncol(ylist[[1]]) == 1)
   stopifnot(ncol(countslist[[1]]) == 1)
   plot_ylist(ylist, countslist, scale = scale, main = main, cex=cex_data, ylim = ylim)
+  if(!is.null(res)) assertthat::assert_that(is(res, "flowmix"))
 
   ## Plot model if applicable.
   if(!is.null(res)){
@@ -50,33 +53,33 @@ plot_1d <- function(ylist,
 
     ## Make the remaining region outside of TT white, to prevent spillover of
     ## the cluster means' cex=17 points
-    fill_both_sides(res$TT)
+    fill_both_sides(length(ylist))
 
     ## Make the X ticks dates.
-    if(!no_axis){
-      if(date_axis){ add_date_ticks(res) } else { axis(1) }
+    if(time_axis){
+
+      ## Find time.
+      if(!is.null(time)){
+        assertthat::assert_that(check_if_date(time))
+      } else {
+        if(!is.null(res)){
+          check_if_date(rownames(res$X))
+          assertthat::assert_that(check_if_date(rownames(res$X)))
+          time = res$X %>% rownames() %>% lubridate::as_datetime()
+        }
+      }
+      add_date_ticks_from_dates(time)
+    } else {
+      axis(1)
+      axis(2)
     }
 
     ## Add Cluster labeling
     if(!omit_label){
-    add_cluster_label(res, cex_clust_label)
+      add_cluster_label(res, cex_clust_label)
     }
   }
   ## return(cols)
-}
-
-##' (incomplete)
-plot_X <- function(res){
-
-  ## 3. Plot the covariates
-  matplot(X, type='l', lty=1, ylab="", xlab="Time", lwd=1, col="grey50", axes=FALSE)
-  cols = RColorBrewer::brewer.pal(max(3,ncol(X)), "Set3")
-  axis(1); axis(2);
-
-  title(main="Covariates", cex.main=2)
-  ## colnames(X)[1:3] = c("b1", "b2", "b2")## temporary
-  if(!is.null(colnames(X)))legend("bottomright", lwd=1, col=cols, legend=colnames(X), cex=1.3,
-                                  bg="white",  ncol=2)
 }
 
 ##' Make 1d data plot. No axes are added.
@@ -173,29 +176,19 @@ fill_both_sides <- function(TT){
           border=FALSE)
 }
 
-##' Make ticks from rownames of \code{res$X}.
+
+##' Check if time is TRUE.
 ##'
-##' @param res Object of class |flowmix|. The row names of \code{res$X} need to
-##'   be dates.
-##' @param ... Rest of arguments to both axes via \code{axis()}.
+##' @param date String vector containing date strings
+##'   e.g. "2017-06-13T11:00:00".
 ##'
-##' @return No return.
-##'
-##' @export
-add_date_ticks <- function(res, ...){
-  add_date_ticks_from_dates(rownames(res$X), ...)
-  ## dates = sapply(as.Date(rownames(res$X)) %>% format("%B %d"), toString) ## OR manually bring in,
-  ##                                                      ## using an argument to
-  ##                                                      ## the function.
-  ## nums = as.numeric(as.factor(dates))
-  ## left_ticks = sapply(sort(unique(nums)),function(ii){min(which(nums==ii))})
-  ## left_ticks = c(left_ticks, res$TT)
-  ## mid_ticks = sapply(sort(unique(nums)),function(ii){mean(which(nums==ii))})
-  ## dates_mid_ticks = dates[round(mid_ticks)]
-  ## axis(1, at=left_ticks, labels=FALSE)
-  ## axis(1, at=mid_ticks, labels = dates_mid_ticks, tick=FALSE, las=2, ...)
-  ## axis(2, ...)
+##' @return TRUE only all are dates..
+check_if_date <- function(date){
+  date = date %>% lubridate::as_datetime()
+  if(length(date) == 0) return(FALSE)
+  return(all(sapply(date, lubridate::is.POSIXt)))
 }
+
 
 
 ##' Add date ticks from string of dates.

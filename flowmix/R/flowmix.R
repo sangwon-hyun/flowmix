@@ -379,7 +379,8 @@ predict.flowmix <- function(res, newx = NULL){
               sigma = res$sigma,
               TT = res$TT,
               N = res$N,
-              numclust = res$numclust))
+              numclust = res$numclust,
+              X = newx))
 }
 
 

@@ -1,23 +1,34 @@
+##' For 2-dimensional data, make a single scatterplot for one time points' worth
+##' of data.
+##'
 ##' CAN'T handle the binned case (with \code{countslist}) yet.
+##'
+##' @param ylist Data.
+##' @param tt Time point.
+##' @param res flowmix object.
+##' @param drawslist A list containing the randomly generated memberships using
+##'   the posterior cluster probabilities, which can be generated using \code{draw_membership()}.
+##' @param
 ##'
 ##' @importFrom magrittr %>%
 ##'
 ##' @export
 ##'
-plot2d <- function(ylist, res, tt, drawslist = NULL, resp = NULL, iclust = NULL, cols = NULL){
+plot_2d <- function(ylist, tt, res = NULL, drawslist = NULL, resp = NULL, iclust = NULL, cols = NULL){
 
   ## Setup
   stopifnot(ylist %>% .[[1]] %>% ncol() == 2)
   rngs = do.call(rbind, ylist) %>% apply(., 2, range)
   numclust = res$numclust
   if(is.null(iclust)){ numclusts = 1:numclust } else {numclusts = iclust}
-  if(is.null(cols)) cols = RColorBrewer::brewer.pal(numclust, "Set3")
+  if(is.null(cols)) cols = RColorBrewer::brewer.pal(numclust, "Set3")[1:numclust]
   if(!is.null(cols)) assertthat::assert_that(length(cols) == numclust)
+  if(!is.null(res)) assertthat::assert_that(is(res, "flowmix"))
 
 
   cartoon_points <- function(y, x, cex, col, pch = 16, ...){
-    points(y=y, x=x, cex=cex*10+2, pch = pch, col="black",...)
-    points(y=y, x=x, cex=cex*10+1, pch = pch, col = col)
+    points(y = y, x = x, cex = cex * 10 + 2, pch = pch, col = "black", ...)
+    points(y = y, x = x, cex = cex * 10 + 1, pch = pch, col = col)
   }
 
 
