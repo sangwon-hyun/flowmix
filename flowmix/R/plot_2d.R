@@ -7,8 +7,12 @@
 ##' @param tt Time point.
 ##' @param res flowmix object.
 ##' @param drawslist A list containing the randomly generated memberships using
-##'   the posterior cluster probabilities, which can be generated using \code{draw_membership()}.
-##' @param
+##'   the posterior cluster probabilities, which can be generated using
+##'   \code{draw_membership()}. Defaults to NULL.
+##' @param resp Posterior probabilities of cluster memberships
+##'   (responsibilities). Defaults to NULL.
+##' @param iclust Cluster number(s). Defaults to NULL.
+##' @param cols Colors for each cluster. Defaults to NULL.
 ##'
 ##' @importFrom magrittr %>%
 ##'

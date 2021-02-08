@@ -280,14 +280,13 @@ cv_summary_sim <- function(nsim = 100,
     cv_info_list = mclapply(1:nsim, function(isim){
       tryCatch({
         printprogress(isim, nsim, start.time=start.time)
-        obj = cv_aggregate(destin, cv_gridsize = cv_gridsize, nfold = nfold, nrep = nrep, sim = TRUE, isim = isim, save=FALSE)
+        obj = cv_aggregate(destin, cv_gridsize = cv_gridsize, nfold = nfold, nrep = nrep, sim = TRUE, isim = isim)##, save=FALSE)
         ialpha = obj$min.inds[1]
         ibeta = obj$min.inds[2]
         cvscore = obj$cvscore.mat[ialpha, ibeta]
         return(c(isim = isim, ialpha = ialpha, ibeta = ibeta, cvscore = cvscore))
       }, error=function(e){ return(NULL)  })
     }, mc.cores = mc.cores)
-    print(cv_info_list)
     save(cv_info_list, file=file.path(destin, "summary",  "cv_info_list.Rdata"))
     cv_info_mat = do.call(rbind, cv_info_list)
     save(cv_info_mat, file=file.path(destin, "summary",  "cv_info_mat.Rdata"))

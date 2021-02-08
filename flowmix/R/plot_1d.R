@@ -7,7 +7,6 @@
 ##'   the largest count in |countslist|.
 ##' @param main Plot title.
 ##' @param time Vector of date strings.
-##' @param date_axis Add date axis.
 ##'
 ##' @return NULL.
 ##' @export

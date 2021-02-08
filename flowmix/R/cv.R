@@ -161,7 +161,12 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
 }
 
 
-##' Refit one job.
+##' Refit model for one pair of regularization parameter values. Saves to
+##' \code{nrep} files named like "1-4-3-fit.Rdata", for
+##' "(ialpha)-(ibeta)-(irep)-fit.Rdata".
+##'
+##' (Note, \code{nrep} is not an input to this function.)
+##'
 ##' @inheritParams one_job
 ##'
 ##' @export
@@ -180,7 +185,7 @@ one_job_refit <- function(ialpha, ibeta, destin,
     filename = make_refit_filename(ialpha, ibeta, irep, sim, isim)
     if(file.exists(file.path(destin, filename))){
       cat(filename, "already done", fill=TRUE)
-      return(NULL)
+      next
     } else {
 
       ## Get the fitted results on the entire data
