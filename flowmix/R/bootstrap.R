@@ -164,6 +164,7 @@ draw_membership <- function(resp){
   TT = length(resp)
 
   drawslist = lapply(1:TT, function(tt){
+    printprogress(tt, TT)
     draws = resp[[tt]] %>% apply(., 1, function(p){
      rmultinom(1, 1, p)}) %>% t()
   })
@@ -273,3 +274,50 @@ check_if_same_size <- function(ylist1, ylist2){
   assertthat::assert_that(all(sapply(ylist1, ncol) == sapply(ylist2, ncol)))
 
 }
+
+
+
+
+
+
+## match_clusters <- function(newres, oldres){
+
+##   ## Match oldres and newres
+##   oldres$mn - newres$mn
+
+##   ## Get best model
+##   cvres = cv_summary(destin = file.path("~/Dropbox/research/usc/hpc-output/blockcv-2-76-5"))
+##   res = cvres$bestres
+##   res$prob = res$pie ## for back-compatibility
+
+##   ## Load original dataset
+##   dat = readRDS("~/repos/cruisedat/export/MGL1704-hourly-paper-1d-diam-not-binned.RDS")
+##   orig_ylist = dat$ylist
+
+##   ## Conduct the E-step once to calculate responsibilities
+##   resp <- Estep(res$mn, res$sigma, res$prob, ylist = orig_ylist,
+##                 numclust = res$numclust, first_iter = TRUE)
+##   la('flowmix')
+##   mem = draw_membership(resp)
+##   mem %>% length()
+##   mem %>% .[[1]] %>% dim()
+
+##   orig_ylist[[1]]
+##   myfun = function(a){which(a==1)}
+##   ## for(iclust in 1:numclust){
+##   TT = length(dat$ylist)
+##   memlist = lapply(1:TT, function(tt){
+##     onemem = lapply(1:numclust, function(iclust){
+##       mem %>% .[[tt]] %>% .[,iclust] %>% myfun()
+##     })
+##   })
+##   tt = 1
+##   iclust = 1
+##   orig_ylist[[tt]][Mems[[iclust]], ]
+
+##   drawslist = draw_membership(resp)
+##   draw_membership
+
+##   ## Calculate the maximum of the problem.
+
+## }

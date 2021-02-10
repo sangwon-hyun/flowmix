@@ -23,7 +23,8 @@ plot_1d <- function(ylist,
                     omit_label = FALSE,
                     reorder_clusters = TRUE,
                     cex_data = 1,##15
-                    ylim = NULL){
+                    ylim = NULL,
+                    cols = NULL){
 
   ## Plot ylist only
   stopifnot(ncol(ylist[[1]]) == 1)
@@ -31,14 +32,37 @@ plot_1d <- function(ylist,
   plot_ylist(ylist, countslist, scale = scale, main = main, cex=cex_data, ylim = ylim)
   if(!is.null(res)) assertthat::assert_that(is(res, "flowmix"))
 
+  ## Make the X ticks dates.
+  if(time_axis){
+
+    ## Find time.
+    if(!is.null(time)){
+      assertthat::assert_that(check_if_date(time))
+    } else {
+      if(!is.null(res)){
+        check_if_date(rownames(res$X))
+        assertthat::assert_that(check_if_date(rownames(res$X)))
+        time = res$X %>% rownames() %>% lubridate::as_datetime()
+      }
+    }
+    add_date_ticks_from_dates(time)
+  } else {
+    axis(1)
+    axis(2)
+  }
+
+
+
   ## Plot model if applicable.
   if(!is.null(res)){
     stopifnot(res$dimdat==1)
 
+    if(is.null(cols)){
     if(res$numclust <= 8){
       cols = RColorBrewer::brewer.pal(max(3,res$numclust), "Set2")
     } else {
       cols = RColorBrewer::brewer.pal(max(3,res$numclust), "Paired")
+    }
     }
 
     ## Reorder clusters, according to total prob.
@@ -54,31 +78,12 @@ plot_1d <- function(ylist,
     ## the cluster means' cex=17 points
     fill_both_sides(length(ylist))
 
-    ## Make the X ticks dates.
-    if(time_axis){
-
-      ## Find time.
-      if(!is.null(time)){
-        assertthat::assert_that(check_if_date(time))
-      } else {
-        if(!is.null(res)){
-          check_if_date(rownames(res$X))
-          assertthat::assert_that(check_if_date(rownames(res$X)))
-          time = res$X %>% rownames() %>% lubridate::as_datetime()
-        }
-      }
-      add_date_ticks_from_dates(time)
-    } else {
-      axis(1)
-      axis(2)
-    }
-
     ## Add Cluster labeling
     if(!omit_label){
       add_cluster_label(res, cex_clust_label)
     }
   }
-  ## return(cols)
+  return(cols)
 }
 
 ##' Make 1d data plot. No axes are added.
@@ -223,14 +228,16 @@ add_date_ticks_from_dates <- function(dates, ...){
 ##' order of the total probability, over all time points.
 ##'
 ##' @param res flowmix object
+##' @param ord Defaults to NULL. Use if you have an ordering in mind.
 ##'
 ##' @return Same object, but with clusters reordered.
 ##'
 ##' @export
-reorder_clust <- function(res){
+reorder_clust <- function(res, ord = NULL){
 
   ## Find an order by sums (averages)
-  ord = res$mn[,1,] %>% colSums() %>% order(decreasing=TRUE)
+  if(is.null(ord)) ord = res$mn[,1,] %>% colSums() %>% order(decreasing=TRUE)
+  if(!is.null(ord)) all(sort(ord) == 1:res$numclust)
 
   ## Reorder mean
   res$mn = res$mn[,,ord, drop=FALSE]

@@ -158,6 +158,8 @@ get_mixture_at_timepoint <- function(tt, nt, mnlist, pilist, sigma=NULL, sigmali
 ##'
 ##' @return List containing data: {ylist, X, countslist}, and true underlying
 ##'   coefficients and mean/probs {mnmat, prob, alpha, beta}.
+##'
+##' @export
 generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos/cruisedat/export",
                                         nt = 1000,
                                         beta_par = 0.5,
@@ -416,4 +418,95 @@ add_transition <- function(X, lat){
   X = cbind(bases, X)
   colnames(X)[1:ncol(bases)] = paste0("b", 1:ncol(bases))
   return(X)
+}
+
+
+
+
+##' Function to create 1d simulated data.
+generate_1d_data <- function(TT){
+
+  ## Generate covariates.
+  stopifnot(TT %% 2 == 0)
+  p = 2
+  X = matrix(stats::rnorm(TT*p), ncol = p, nrow = TT)
+  X[,1] = sin((1:TT)/TT * 4 * pi)
+  X[,2] = c(rep(0, TT/2), rep(1, TT/2))
+  Xa = cbind(rep(1,TT), X)
+  ## matplot(X, type='l', lwd=2, lty=1)
+
+  ## Generate coefficients. ## this should be (dimdat x p) = (2d x 2)
+  offset =  3
+  beta1 = c(offset + 0,1,0)
+  beta2 = c(offset + 3,0,0)
+
+  betalist = list(beta1, beta2)
+
+  ## Generate the four response /components/.
+  ## sigma = diag(rep(fac, 2))
+  mn1 = Xa %*% beta1
+  mn2 = Xa %*% beta2
+  mnlist = list(mn1, mn2)
+
+  ## Define mixture components
+  prob1 = 3/4
+  pi1 = c(rep(prob1, TT/2), rep(1E-8, TT/2))
+  pi2 = c(rep((1-prob1), TT/2), rep(1-1E-9, TT/2))
+  pilist =  list(pi1, pi2)
+
+  ## make a mixture component matrix
+  pimat = do.call(cbind, pilist)
+  pimat = pimat/rowSums(pimat)
+
+  ## Also define alphas
+  alpha1 = c(log(3/4), 0, -8+log(3/4)) ##+10
+  alpha2 = c(log(1/4), 0, -log(1/4)) ## +10
+  pimat2 = cbind(exp(Xa %*% cbind(alpha1)), (exp(Xa %*% cbind(alpha2))))
+  ## matplot(pimat2)
+  ## matplot(pimat2 / rowSums(pimat2))
+  ## apply(pimat2, 1, sum)
+
+  ## Note, the alpha coefficients are only identifiable up to a constant; in
+  ## other words, you can plug in (alpha1 + c) and (alpha2 + c) and the
+  ## resulting pi (pimat/rowSums(pimat) is the same.
+
+  ## Define the number of points total
+  nt = 10
+  ## ntlist = c(rep(nt, TT/2), rep(nt*9/8, TT/2))
+  ## ntlist = apply(ntlist * cbind(pi1,pi2), 1, sum)
+  ntlist = c(rep(nt + (nt * 3), TT/2), rep(nt, TT/2)) %>% round()
+  ## ntlist[1:(TT/2)] = ntlist[1:(TT/2)] + rep(nt/3, TT/2)
+
+  ## Define the covariances
+  sigma1 = .1
+  sigma2 = .1
+  sigmalist = list(sigma1, sigma2)
+  ## sigmalist = lapply(sigmalist, function(a) a / 3 * fac)
+  dimdat = 1
+
+  ## Then, the resulting |y| is a probabistic mixture of the /components/
+  datapoints = sapply(1:TT, function(tt){
+    dat = get_mixture_at_timepoint(tt, ntlist[[tt]], mnlist, pilist,
+                                   sigmalist = sigmalist)
+  })
+
+  ## Reformat
+  ylist = lapply(datapoints, cbind)
+  classlist = lapply(ylist, function(a)a[,"membership"])
+  ylist = lapply(ylist, function(a){
+    a[,which(colnames(a) %ni% "membership")]
+  })
+  ylist = lapply(ylist, function(a) cbind(a))
+  ## plot_1d(ylist, countslist=NULL, cex_data = 1, col=rgb(0,0,0,0.1))
+  ## plot_ylist
+
+  ## Return the results
+  return(list(ylist = ylist,
+              classlist = classlist,
+              X = X,
+              Xa = Xa,
+              sigmalist = sigmalist,
+              betalist = betalist,
+              ntlist = ntlist))
+
 }

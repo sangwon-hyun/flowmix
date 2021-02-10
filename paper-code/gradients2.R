@@ -80,6 +80,90 @@ prob_lambdas =  logspace(min = 0.0001, max=maxres$alpha, length=cv_gridsize)
 mean_lambdas = logspace(min = 0.0001, max=maxres$beta, length=cv_gridsize)
 
 
+## ## Temporary: time the code for small prob_lambda values
+## library(profvis)
+## library(magrittr)
+## library(stringr)
+## library(tidyverse)
+## la('flowmix')
+
+## mstep_beta_time = total_time = fortran_time = matrix(0, nrow=cv_gridsize, ncol=cv_gridsize)
+## for(ialpha in 1:cv_gridsize){
+##   for(ibeta in 1:cv_gridsize){
+##     outfile = file.path(destin, paste0("profvis-", ialpha, "-", ibeta, ".out"))
+##     ## if(!file.exists(outfile)){
+##       obj = profvis::profvis({
+##         flowmix(ylist=ylist, countslist=countslist,
+##                 X = X,
+##                 numclust = 5,
+##                 prob_lambda = prob_lambdas[ialpha],
+##                 mean_lambda = mean_lambdas[ibeta],
+##                 niter = 20,
+##                 nrep = 1,
+##                 verbose = FALSE)
+##       }, prof_output = outfile)
+##     ## }
+##     times <- outfile %>% summaryRprof() %$% by.total %>% select(total.time)
+##     total_time[ialpha, ibeta] <- times %>% rownames_to_column("type") %>% filter(str_detect(type, 'profvis')) %>% select(total.time) %>% unlist()
+##     fortran_time[ialpha, ibeta] <- times %>% rownames_to_column("type") %>% filter(str_detect(type, '.Fortran')) %>% select(total.time) %>% unlist()
+##     mstep_beta_time[ialpha, ibeta] <- times %>% .['\"admm_oneclust\"',] %>% unlist()
+##     la_admm_time[ialpha, ibeta] <- times %>% .['\"la_admm_oneclust\"',] %>% unlist()
+##   }
+## }
+
+## rownames(fortran_time) = rownames(total_time) = rownames(mstep_beta_time) = prob_lambdas %>% signif(3)
+## colnames(fortran_time) = colnames(total_time) = rownames(mstep_beta_time) = prob_lambdas %>% signif(3)
+
+## #### Total time spent ###########################################################################################
+## total_time %>% drawmat_precise(xlab = expression(lambda[beta]),
+##                                ylab = expression(lambda[alpha]),
+##                                main="Total time of for flowmix()")
+## par(mfrow=c(2,1), mar=c(4,5,1,3))
+## matplot(x=prob_lambdas, y=total_time, type='l', lwd=.5, col='red', lty=1, ylab="Total time of flowmix()",
+##         pch=16, cex=.5, xlab = expression(lambda[alpha]))
+## abline(v=prob_lambdas, col=rgb(0,0,0,0.5), lwd=0.3)
+## matplot(x=prob_lambdas, y=total_time, type='l', lwd=.5, col='red', lty=1, ylab="Total time of flowmix()",
+##         log = "x", pch=16, cex=.5, xlab = expression(lambda[alpha]))
+## abline(v=prob_lambdas, col=rgb(0,0,0,0.5), lwd=0.3)
+
+## #### Time spent by Fortran #####################################################################################
+## fortran_time %>% drawmat_precise(xlab = expression(lambda[beta]),
+##                                  ylab = expression(lambda[alpha]),
+##                                  main="Total time spent by \n .Fortran()")
+## (fortran_time / total_time) %>% drawmat_precise(xlab = expression(lambda[beta]),
+##                                                 ylab = expression(lambda[alpha]),
+##                                                 main="Proportion of time spent by\n .Fortran()")
+## par(mfrow=c(3,1), mar=c(4,5,1,3))
+## fortran_time %>% matplot(x=prob_lambdas, y=., type='l', lwd=.5, col='red', lty=1, ylab="Total time spent by .Fortran()",
+##                          pch=16, cex=.5, xlab = expression(lambda[alpha]))
+## abline(v=prob_lambdas, col=rgb(0,0,0,0.5), lwd=0.3)
+## fortran_time %>% matplot(x=prob_lambdas, y=., type='l', lwd=.5, col='red', lty=1, ylab="Total time spent by .Fortran()",
+##         log = "x", pch=16, cex=.5, xlab = expression(lambda[alpha]))
+## abline(v=prob_lambdas, col=rgb(0,0,0,0.5), lwd=0.3)
+## (fortran_time/total_time) %>% matplot(x=prob_lambdas, y=., type='l', lwd=.5, col='red', lty=1, ylab="Proportion of time spent by .Fortran()",
+##         log = "x", pch=16, cex=.5, xlab = expression(lambda[alpha]), ylim=c(0,1))
+## abline(v=prob_lambdas, col=rgb(0,0,0,0.5), lwd=0.3)
+
+## #### Total time spent by beta M step ############################################################################
+## mstep_beta_time %>% drawmat_precise(xlab = expression(lambda[beta]),
+##                                     ylab = expression(lambda[alpha]),
+##                                     main="Total time of beta M step")
+## (mstep_beta_time/total_time) %>% drawmat_precise(xlab = expression(lambda[beta]),
+##                                     ylab = expression(lambda[alpha]),
+##                                     main="Proportion of time of beta M step")
+
+## par(mfrow=c(2,1), mar=c(4,5,1,3))
+## t(mstep_beta_time) %>% matplot(x=prob_lambdas, y=., type='l', lwd=.5, col='red', lty=1, ylab="Total time spent by \n Beta M step",
+##                                          pch=16, cex=.5, xlab = expression(lambda[beta]), log="x",
+##                                          main="total time of beta M step")
+## abline(v=prob_lambdas, col=rgb(0,0,0,0.5), lwd=0.3)
+## t(mstep_beta_time/total_time) %>% matplot(x=mean_lambdas, y=., type='l', lwd=.5, col='red', lty=1, ylab="Proportion of time spent by \n Beta M step",
+##                                          pch=16, cex=.5, xlab = expression(lambda[beta]), log="x",
+##                                          main="Proportion of time of beta M step",
+##                                          ylim = c(0,1))
+## abline(v=prob_lambdas, col=rgb(0,0,0,0.5), lwd=0.3)
+
+
 ######################
 ## Create CV folds ###
 ######################
@@ -93,7 +177,7 @@ save(folds,
      nrep, ## Added recently
      cv_gridsize,
      mean_lambdas,
-     pie_lambdas,
+     prob_lambdas,
      ylist, countslist, X,
      ## Save the file
      file = file.path(destin, 'meta.Rdata'))
