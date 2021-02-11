@@ -354,7 +354,7 @@ cv.flowmix <- function(
   ## Run the EM algorithm many times, for each value of (ialpha, ibeta, ifold, irep)
   start.time = Sys.time()
   parallel::mclapply(1:nrow(iimat), function(ii){
-    printprogress(ii, nrow(iimat), "EM replicates", start.time = start.time)
+    printprogress(ii, nrow(iimat), "jobs (EM replicates), assigned on this computer", start.time = start.time)
 
     if(!refit){
       ialpha = iimat[ii,"ialpha"]

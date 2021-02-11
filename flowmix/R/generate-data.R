@@ -164,15 +164,17 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
                                         nt = 1000,
                                         beta_par = 0.5,
                                         p = 3, ## Number of total covariates
-                                        dat.gridsize = 30){
+                                        dat.gridsize = 30,
+                                        noise_type = c("gaussian", "heavytail", "skewed"),
+                                        df = NULL){
 
   ## Setup
   stopifnot(nt%%5 ==0)
   TT = 100
   ntlist = c(rep(0.8*nt, TT/2), rep(nt, TT/2))
-  ## p = 3
   numclust = 2
   stopifnot(p >= 3)
+  noise_type = match.arg(noise_type)
 
   ## Generate covariate
   ## datadir = "~/repos/cruisedat/export"
@@ -216,14 +218,22 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
   ## Data is a probabilistic mixture from these two means, over time.
   ylist = lapply(1:TT,
                  function(tt){
-                   ## print(round(prob[[tt]],3))
                    draws = sample(1:numclust,
                                   size = ntlist[tt], replace = TRUE,
                                   ## prob = c(prob[[tt]], 1-prob[[tt]]))
                                   prob = c(prob[tt,1], prob[tt,2]))
                    mns = mnmat[tt,]
                    means = mns[draws]
-                   datapoints = means + stats::rnorm(ntlist[tt], 0, 1)
+
+                   ## Add noise to obtain data points.
+                   if(noise_type == "gaussian"){
+                     datapoints = means + stats::rnorm(ntlist[tt], 0, 1)
+                   } else if (noise_type == "heavytail"){
+                     assertthat::assert_that(!is.null(df))
+                     datapoints = means + stats::rt(ntlist[tt], df = df)
+                   } else {
+                     stop("not written yet")
+                   }
                    cbind(datapoints)
                  })
 
@@ -234,11 +244,11 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
     ## stop("Binning doesn't work yet! make_grid and bin_many_cytograms aren't written for 1d data yet.")
 
     ## 1. Make grid
-    dat.grid = flowcy::make_grid(ylist, gridsize = dat.gridsize)
+    dat.grid = flowmix::make_grid(ylist, gridsize = dat.gridsize)
 
     ## 2. Bin with just counts
     mc.cores = 4
-    obj = flowcy::bin_many_cytograms(ylist, dat.grid, mc.cores = mc.cores, verbose = TRUE)
+    obj = flowmix::bin_many_cytograms(ylist, dat.grid, mc.cores = mc.cores, verbose = TRUE)
     ybin_list = obj$ybin_list
     counts_list = obj$counts_list
     sparsecounts_list = obj$sparsecounts_list ## new
@@ -283,7 +293,10 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
 generate_data_1d_pseudoreal_from_cv <- function(datadir, seed = NULL,
                                                 nt = 100,
                                                 ## Optionally binning the data
-                                                bin = FALSE, dat.gridsize = 30){
+                                                bin = FALSE, dat.gridsize = 30,
+                                                noise_type = c("gaussian", "heavytail", "skewed")){
+
+  noise_type = match.arg(noise_type)
 
   ## Load best 1d CV result
   ## cvres = blockcv_summary(2, 76, 5, 10, nrep = 5, datadir = datadir)##, subfolder="orig")
@@ -334,7 +347,19 @@ generate_data_1d_pseudoreal_from_cv <- function(datadir, seed = NULL,
                                   prob = c(prob[tt,]))
                    mns = mnmat[tt,]
                    means = mns[draws]
-                   noises = sapply(draws, function(iclust){ stats::rnorm(1, 0, sigmas[iclust])})
+                   if(noise_type == "gaussian") noises = sapply(draws, function(iclust){ stats::rnorm(1, 0, sigmas[iclust])})
+                   if(noise_type == "heavytail") noises = sapply(draws, function(iclust){ stats::rnorm(1, 0, sigmas[iclust])})
+
+                   par(mfrow=c(3,4))
+                   for(df in c(3,5,10,20,50,100,200,300,500,800,1000,3000)){
+                     rt(10000, df) %>% hist(breaks=20)##, xlim = c(-5,5))
+                   }
+
+                   ## Visualized
+                   rt(100000, 10) %>% density() %>% plot(lwd=2) ##breaks=20)##, xlim = c(-5,5))
+                   rt(100000, 100) %>% density() %>% lines(lwd=2, col='blue') ##breaks=20)##, xlim = c(-5,5))
+
+                   if(noise_type == "skewed") noises = sapply(draws, function(iclust){ stats::rnorm(1, 0, sigmas[iclust])})
                    datapoints = means + noises
                    cbind(datapoints)
                  })
@@ -342,8 +367,8 @@ generate_data_1d_pseudoreal_from_cv <- function(datadir, seed = NULL,
 
   ## Make into countslist
   if(bin){
-    dat.grid = flowcy::make_grid(ylist, gridsize = dat.gridsize) ## Having this to be common among all things is important
-    obj = flowcy::bin_many_cytograms(ylist, dat.grid, mc.cores = 8, verbose = TRUE) ## This code needs to be made into 1d data
+    dat.grid = flowmix::make_grid(ylist, gridsize = dat.gridsize) ## Having this to be common among all things is important
+    obj = flowmix::bin_many_cytograms(ylist, dat.grid, mc.cores = 8, verbose = TRUE) ## This code needs to be made into 1d data
     ylist = lapply(obj$ybin_list, cbind)
     countslist = obj$counts_list
   } else {
