@@ -270,7 +270,7 @@ make_cvscore_filename <- function(ialpha, ibeta, ifold, irep,
 
 
 ##' Create file name (a string) for re-estimated models for the lambda values
-##' indexed by \code{ialpha} \ibeta{ibeta}.
+##' indexed by \code{ialpha} and \code{ibeta}.
 make_refit_filename <- function(ialpha, ibeta, irep,
                                   ## If simulations, then additional file names
                                 sim = FALSE, isim = 1){

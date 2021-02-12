@@ -155,6 +155,12 @@ get_mixture_at_timepoint <- function(tt, nt, mnlist, pilist, sigma=NULL, sigmali
 ##'
 ##' @param bin If \code{TRUE}, transform into binned biomass.
 ##' @param nt Number of points in the first cluster.
+##' @param alpha Skewness parameter in Azzalini (1985).
+##' @param df Degrees of freedom in t distribution.
+##' @param noisetype Noise type. Default is Gaussian.
+##' @param dat.gridsize Grid size for binning.
+##' @param datadir Directory that contains the data.
+##' @param beta_par Parameter.
 ##'
 ##' @return List containing data: {ylist, X, countslist}, and true underlying
 ##'   coefficients and mean/probs {mnmat, prob, alpha, beta}.
@@ -166,7 +172,8 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
                                         p = 3, ## Number of total covariates
                                         dat.gridsize = 30,
                                         noisetype = c("gaussian", "heavytail", "skewed"),
-                                        df = NULL){
+                                        df = NULL,
+                                        alpha = NULL){
 
   ## Setup and basic checks
   assertthat::assert_that(nt %% 5 ==0)
@@ -175,9 +182,9 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
   numclust = 2
   stopifnot(p >= 3)
   noisetype = match.arg(noisetype)
-  if (noisetype == "heavytail"){
-    assertthat::assert_that(!is.null(df))
-  }
+  if (noisetype == "heavytail"){ assertthat::assert_that(!is.null(df))  }
+  if (noisetype == "skewed"){ assertthat::assert_that(!is.null(alpha))  }
+
 
   ## Generate covariate
   ## datadir = "~/repos/cruisedat/export"
@@ -233,6 +240,8 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
                      noise = stats::rnorm(ntlist[tt], 0, 1)
                    } else if (noisetype == "heavytail"){
                      noise = stats::rt(ntlist[tt], df = df)
+                   } else if (noisetype == "skewed"){
+                     noise = sn::rsn(ntlist[tt], xi = 0, omega = 1, alpha = alpha)
                    } else {
                      stop("not written yet")
                    }
