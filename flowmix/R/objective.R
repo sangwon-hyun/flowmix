@@ -86,7 +86,11 @@ loglikelihood_tt_precalculate <- function(ylist, tt, denslist_by_clust, prob, co
   })
   nt = nrow(ylist[[tt]])
   counts = (if(!is.null(countslist)) countslist[[tt]] else rep(1, nt))
-  return(sum(log(Reduce("+", weighted.densities)) * counts))
+
+  sum_wt_dens = Reduce("+", weighted.densities)
+  sum_wt_dens = sum_wt_dens %>% pmax(1E-100)
+  ## if(sum(log(sum_wt_dens) * counts) < -1E10) browser()
+  return(sum(log(sum_wt_dens) * counts))
 }
 
 ##' Second helper function: Calculates one particle's log likelihood *without*
@@ -110,8 +114,14 @@ loglikelihood_tt <- function(ylist, tt, mu, sigma, prob, countslist = NULL, numc
   })
   nt = nrow(ylist[[tt]])
   counts = (if(!is.null(countslist)) countslist[[tt]] else rep(1, nt))
-  if(sep)return(unname(log(rowSums(weighted.densities)) * counts)) ## temporary
-  if(!sep) return(sum(log(rowSums(weighted.densities)) * counts))
+
+  sum_wt_dens = rowSums(weighted.densities)
+  sum_wt_dens = sum_wt_dens %>% pmax(1E-100)
+
+  ## if(sep)return(unname(log(rowSums(weighted.densities)) * counts))
+  ## if(!sep) return(sum(log(rowSums(weighted.densities)) * counts))
+  if(sep) return(unname(log(sum_wt_dens) * counts)) ## temporary
+  if(!sep) return(sum(log(sum_wt_dens) * counts))
 }
 
 ##' A wrapper, to get objective value at a particular time or vector of times
