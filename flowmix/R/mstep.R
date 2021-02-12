@@ -3,6 +3,9 @@
 ##'
 ##' @param resp Responsibilities; an (T x nt x K) array.
 ##' @param X Covariate matrix (T x dimdat).
+##' @param lambda Regularization parameter.
+##' @param zerothresh Values below \code{zerothresh} are set to zero.
+##' @param numclust Number of clusters.
 ##'
 ##' @return The multinomial logit model coefficients. A matrix of dimension (K x
 ##'   (p+1)).
@@ -303,10 +306,19 @@ mtsqrt_inv <- function(a){
 ##' @param sel_coef Sparsity pattern. Only active when refit=TRUE. List
 ##'   containing boolean matrices named "alpha" and "beta".
 ##' @param sigma (numclust x dimdat x dimdat) matrix.
+##' @param sigma_eig_by_clust Eigendecomposition of Sigma.
+##' @param cvxr_ecos_thresh CVXR convergence threshold for ECOS solver.
+##' @param cvxr_scs_thresh CVXR convergence threshold for SCS solver.
+##' @param ridge Not used for now.
+##' @param ridge_lambda Not used for now
+##' @param ridge_prob Not used for now.
+##' @inheritParams flowmix
 ##'
 ##' @return Result of M step; a |numclust| length list of (p+1)x(d) matrices,
 ##'   each containing the estimated coefficients for the mean estimation.
-Mstep_beta <- function(resp, ylist, X, mean_lambda = 0, sigma,
+Mstep_beta <- function(resp, ylist, X,
+                       mean_lambda = 0,
+                       sigma,
                        refit = FALSE,
                        sel_coef = NULL,
                        maxdev = NULL,
@@ -451,6 +463,8 @@ manip <- function(ylist, X, resp, sigma, numclust,
 ##' Helper to "manipulate" X and y, to get Xtilde and Ytilde and yvec for a more
 ##' efficient beta M step (each are |numclust|-length lists, calculated
 ##' separately for each cluster).
+##'
+##' @inheritParams Mstep_beta
 ##'
 ##' @return 3 (or dimdat) |numclust|-length lists.
 manip_ridge <- function(ylist, X, resp, sigma, numclust,

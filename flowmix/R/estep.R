@@ -9,7 +9,6 @@
 ##' @param numclust Number of clusters.
 ##' @param first_iter \code{TRUE} if this is the first EM iteration, which is
 ##'   handled separately.
-##' @param counts The number of counts per grid box. A vector of length $|I|$.
 ##' @param denslist_by_clust Pre-calculated densities.
 ##' @param countslist Counts or biomass.
 ##'
@@ -36,7 +35,7 @@ Estep <- function(mn, sigma, prob, ylist = NULL,
     mu <- mn[tt,,iclust] ## No problem with memory leak here.
     if(first_iter){
       if(dimdat==1){
-        dens = dnorm(y, mu, sigma[iclust,,])
+        dens = stats::dnorm(y, mu, sigma[iclust,,])
       } else {
         dens = dmvnorm_arma_fast(y, mu, sigma[iclust,,], FALSE)
       }

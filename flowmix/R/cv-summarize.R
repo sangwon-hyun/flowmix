@@ -7,8 +7,8 @@
 ##'   \code{bestres} which is the \code{flowmix} class object of the overall
 ##'   best model chosen from the cross-validation; \code{cvscoremat} containing
 ##'   a 2d matrix of CV scores from all pairs of lambdas; \code{bestreslist}
-##'   contains all the best models (out of \code{nrep} EM replications} from the
-##'   each pair of lambda values. If \code{isTRUE{save}}, nothing is returned.
+##'   contains all the best models (out of \code{nrep} EM replications)q from the
+##'   each pair of lambda values. If \code{isTRUE(save)}, nothing is returned.
 ##'
 ##' @export
 cv_summary <- function(destin = ".",
@@ -182,10 +182,10 @@ cv_aggregate <- function(destin, cv_gridsize, nfold, nrep,
 ##' @return List containing, for every (ialpha, ibeta), the "best" estimated
 ##'   model out of the |nrep| replicates (best in the sense that it had the best
 ##'   likelihood value out of the |nrep| replicates.)
-cv_aggregate_res <- function(cv_gridsize, nrep, destin
+cv_aggregate_res <- function(cv_gridsize, nrep, destin,
                              ## Is this a simulation or not? (soon to be outdated)
-                             ## sim = FALSE,
-                             ## isim = NULL
+                             sim = FALSE,
+                             isim = NULL
                              ){
 
   ## df.mat = matrix(NA, ncol=cv_gridsize, nrow=cv_gridsize)
@@ -199,7 +199,7 @@ cv_aggregate_res <- function(cv_gridsize, nrep, destin
       res.list.inner = list()
       for(irep in 1:nrep){
         ## filename = paste0(ialpha, "-", ibeta, "-", irep, "-fit.Rdata")
-        filename = make_refit_filename(ialpha, ibeta, irep)##, sim, isim)
+        filename = make_refit_filename(ialpha, ibeta, irep, sim, isim)
         tryCatch({
           ## Load fitted result
           load(file.path(destin, filename))
@@ -271,8 +271,6 @@ cv_summary_sim <- function(nsim = 100,
     save(reslists, file=file.path(destin, "summary",  "reslists.Rdata"))
     cat(fill=TRUE)
     print('Saved results to reslist.Rdata')
-
-
 
     ## Get the |min.inds|.
     print("Getting all best CV results, from nsim simulations.")

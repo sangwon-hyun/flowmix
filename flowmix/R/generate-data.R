@@ -173,7 +173,7 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
                                         dat.gridsize = 30,
                                         noisetype = c("gaussian", "heavytail", "skewed"),
                                         df = NULL,
-                                        alpha = NULL){
+                                        skew_alpha = NULL){
 
   ## Setup and basic checks
   assertthat::assert_that(nt %% 5 ==0)
@@ -241,7 +241,7 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
                    } else if (noisetype == "heavytail"){
                      noise = stats::rt(ntlist[tt], df = df)
                    } else if (noisetype == "skewed"){
-                     noise = sn::rsn(ntlist[tt], xi = 0, omega = 1, alpha = alpha)
+                     noise = sn::rsn(ntlist[tt], xi = 0, omega = 1, alpha = skew_alpha)
                    } else {
                      stop("not written yet")
                    }

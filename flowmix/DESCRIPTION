@@ -16,7 +16,8 @@ Imports:
     dplyr,
     Rcpp,
     RcppArmadillo,
-    RcppEigen
+    RcppEigen,
+    magrittr,
 LinkingTo: Rcpp, RcppArmadillo, RcppEigen
 Suggests:
      testthat 

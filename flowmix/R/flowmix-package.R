@@ -10,7 +10,6 @@
 ##' @docType package
 ##' @name flowmix
 ##' @useDynLib flowmix, .registration = TRUE
-##' @import methods
 ##' @import Rcpp
 ##' @import glmnet
 ##' @import CVXR
