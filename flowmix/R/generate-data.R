@@ -183,7 +183,7 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
   stopifnot(p >= 3)
   noisetype = match.arg(noisetype)
   if (noisetype == "heavytail"){ assertthat::assert_that(!is.null(df))  }
-  if (noisetype == "skewed"){ assertthat::assert_that(!is.null(alpha))  }
+  if (noisetype == "skewed"){ assertthat::assert_that(!is.null(skew_alpha))  }
 
 
   ## Generate covariate
@@ -241,7 +241,8 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
                    } else if (noisetype == "heavytail"){
                      noise = stats::rt(ntlist[tt], df = df)
                    } else if (noisetype == "skewed"){
-                     noise = sn::rsn(ntlist[tt], xi = 0, omega = 1, alpha = skew_alpha)
+                     omega = sqrt(1/(1 - 2 * (1/pi) * alpha^2 / (1 + alpha^2)))
+                     noise = sn::rsn(ntlist[tt], xi = 0, omega = omega, alpha = skew_alpha)
                    } else {
                      stop("not written yet")
                    }
