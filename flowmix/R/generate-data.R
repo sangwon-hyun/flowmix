@@ -241,7 +241,7 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
                    } else if (noisetype == "heavytail"){
                      noise = stats::rt(ntlist[tt], df = df)
                    } else if (noisetype == "skewed"){
-                     omega = sqrt(1/(1 - 2 * (1/pi) * alpha^2 / (1 + alpha^2)))
+                     omega = sqrt(1/(1 - 2 * (1/pi) * skew_alpha^2 / (1 + skew_alpha^2)))
                      noise = sn::rsn(ntlist[tt], xi = 0, omega = omega, alpha = skew_alpha)
                    } else {
                      stop("not written yet")
