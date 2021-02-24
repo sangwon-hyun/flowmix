@@ -137,15 +137,14 @@ get_max_lambda <- function(destin, maxres_file = "maxres.Rdata",
                            max_mean_lambda,
                            ...){
 
-  maxres_file = "maxres.Rdata"
   if(file.exists(file.path(destin, maxres_file))){
     load(file.path(destin, maxres_file))
     cat("Maximum regularization values are loaded.", fill=TRUE)
     return(maxres)
   } else {
     print(Sys.time())
-    cat("Maximum regularization values being calculated.", fill=TRUE)
-    print("with initial lambdas values (alpha and beta):")
+    cat("Maximum regularization values being calculated.", fill = TRUE)
+    cat("with initial lambdas values (alpha and beta):", fill = TRUE)
     print(c(max_prob_lambda, max_mean_lambda));
     maxres = calc_max_lambda(ylist = ylist,
                              countslist = countslist,
@@ -156,8 +155,9 @@ get_max_lambda <- function(destin, maxres_file = "maxres.Rdata",
                              max_prob_lambda = max_prob_lambda,
                              max_mean_lambda = max_mean_lambda,
                              ...)
-    save(maxres, file=file.path(destin, maxres_file))
-    cat("maximum regularization value calculation done.", fill=TRUE)
+    save(maxres, file = file.path(destin, maxres_file))
+    cat("file was written to ", file.path(destin, maxres_file), fill=TRUE)
+    cat("maximum regularization value calculation done.", fill = TRUE)
     print(Sys.time())
     return(maxres)
   }

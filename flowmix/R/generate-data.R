@@ -239,7 +239,8 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
                    if(noisetype == "gaussian"){
                      noise = stats::rnorm(ntlist[tt], 0, 1)
                    } else if (noisetype == "heavytail"){
-                     noise = stats::rt(ntlist[tt], df = df)
+                     variance = df / (df - 2)
+                     noise = stats::rt(ntlist[tt], df = df) / sqrt(variance)
                    } else if (noisetype == "skewed"){
                      omega = sqrt(1/(1 - 2 * (1/pi) * skew_alpha^2 / (1 + skew_alpha^2)))
                      noise = sn::rsn(ntlist[tt], xi = 0, omega = omega, alpha = skew_alpha)
