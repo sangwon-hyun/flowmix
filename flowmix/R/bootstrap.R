@@ -195,11 +195,13 @@ draw_membership_popular_vote <-function(resp){
 ##'
 ##' @param ylist Data.
 ##' @param res Model; \code{flowmix} class object.
-##' @param drawslist Draws, from \code{draw_membership()}.
+##' @param drawslist Membership draws, from \code{draw_membership()}.
 ##' @param mc.cores Number of cores, to be used by \code{parallel::mclapply()}.
 ##'
 ##' @export
-get_residuals <- function(ylist, res, drawslist, mc.cores = 1){
+get_residuals <- function(ylist, countslist = NULL, res, drawslist, mc.cores = 1){
+
+  ## Setup
   numclust = res$numclust
   mn = res$mn
   TT = length(ylist)
@@ -210,17 +212,32 @@ get_residuals <- function(ylist, res, drawslist, mc.cores = 1){
   ## Obtain all the residuals of the drawn particles.
   residuals_by_cluster = parallel::mclapply(1:TT, function(tt){
     y = ylist[[tt]]
-    draws = drawslist[[tt]]
     resid_by_clust = lapply(1:numclust, function(iclust){
       ind = index_by_clust[[tt]][[iclust]]
       this_clust_y = y[ind,, drop=FALSE]
-      ## this_clust_y = y[which(draws[,iclust]==1),,drop=FALSE]
       this_clust_residuals = sweep(this_clust_y, 2, mn[tt,,iclust])
     })
     names(resid_by_clust) = paste0("Clust", 1:numclust)
     return(resid_by_clust)
   }, mc.cores = mc.cores)
-  return(residuals_by_cluster)
+
+  ## Obtain the accompanying counts
+  if(!is.null(countslist)){
+    countslist_by_cluster = mclapply(1:TT, function(tt){
+      counts = countslist[[tt]]
+      counts_by_clust = lapply(1:numclust, function(iclust){
+        ind = index_by_clust[[tt]][[iclust]]
+        this_clust_counts = counts[ind]
+      })
+      names(counts_by_clust) = paste0("Clust", 1:numclust)
+      return(counts_by_clust)
+    }, mc.cores = mc.cores)
+  } else {
+    countslist_by_cluster = NULL
+  }
+
+  return(list(residuals_by_cluster = residuals_by_cluster,
+              countslist_by_cluster = countslist_by_cluster))
 }
 
 ##' Obtain the row numbers of each (binned) cytogram for bootstrap.

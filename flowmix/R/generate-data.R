@@ -161,6 +161,12 @@ get_mixture_at_timepoint <- function(tt, nt, mnlist, pilist, sigma=NULL, sigmali
 ##' @param dat.gridsize Grid size for binning.
 ##' @param datadir Directory that contains the data.
 ##' @param beta_par Parameter.
+##' @param gap Size of gap between the two clusters. Defaults to 3.
+##' @param skew_alpha skewness of skew-normal distribution that replaces
+##'   N(0,1). This distribution is further shifted and scaled to have mean 0 and
+##'   variance 1.
+##' @param df degrees of freedom for t-distribution that replaces N(0,1). This
+##'   distribution is further scaled to have mean 0 and variance 1.
 ##'
 ##' @return List containing data: {ylist, X, countslist}, and true underlying
 ##'   coefficients and mean/probs {mnmat, prob, alpha, beta}.
@@ -173,7 +179,8 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
                                         dat.gridsize = 30,
                                         noisetype = c("gaussian", "heavytail", "skewed"),
                                         df = NULL,
-                                        skew_alpha = NULL){
+                                        skew_alpha = NULL,
+                                        gap = 3){
 
   ## Setup and basic checks
   assertthat::assert_that(nt %% 5 ==0)
@@ -206,7 +213,7 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
   beta = matrix(0, ncol = numclust, nrow = p+1)
   beta[0+1,1] = 0
   beta[1+1,1] = beta_par
-  beta[0+1,2] = 3
+  beta[0+1,2] = gap
   beta[1+1,2] = -beta_par
   mnmat = cbind(1, X) %*% beta
   colnames(beta) = paste0("clust", 1:numclust)
