@@ -180,11 +180,11 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
                                         noisetype = c("gaussian", "heavytail", "skewed"),
                                         df = NULL,
                                         skew_alpha = NULL,
-                                        gap = 3){
+                                        gap = 3,
+                                        TT = 100){
 
   ## Setup and basic checks
   assertthat::assert_that(nt %% 5 ==0)
-  TT = 100
   ntlist = c(rep(0.8 * nt, TT/2), rep(nt, TT/2))
   numclust = 2
   stopifnot(p >= 3)
