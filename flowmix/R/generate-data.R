@@ -167,6 +167,10 @@ get_mixture_at_timepoint <- function(tt, nt, mnlist, pilist, sigma=NULL, sigmali
 ##'   variance 1.
 ##' @param df degrees of freedom for t-distribution that replaces N(0,1). This
 ##'   distribution is further scaled to have mean 0 and variance 1.
+##' @param no_changepoint If TRUE, remove the changepoint covariate
+##'   entirely. Defaults to FALSE.
+##' @param gradual_change If TRUE, the cluster probabilities transition to
+##'   low/high from high/low (and vice versa) in the middle. Defaults to FALSE.
 ##'
 ##' @return List containing data: {ylist, X, countslist}, and true underlying
 ##'   coefficients and mean/probs {mnmat, prob, alpha, beta}.
@@ -181,7 +185,9 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
                                         df = NULL,
                                         skew_alpha = NULL,
                                         gap = 3,
-                                        TT = 100){
+                                        TT = 100,
+                                        no_changepoint = FALSE,
+                                        gradual_change = FALSE){
 
   ## Setup and basic checks
   assertthat::assert_that(nt %% 5 ==0)
@@ -191,7 +197,6 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
   noisetype = match.arg(noisetype)
   if (noisetype == "heavytail"){ assertthat::assert_that(!is.null(df))  }
   if (noisetype == "skewed"){ assertthat::assert_that(!is.null(skew_alpha))  }
-
 
   ## Generate covariate
   ## datadir = "~/repos/cruisedat/export"
@@ -204,7 +209,6 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
   if(!is.null(seed)) set.seed(seed)
   Xrest = do.call(cbind, lapply(1:(p-2), function(ii) stats::rnorm(TT)) )
   X = cbind(scale(par[1:TT]),
-
             c(rep(0, TT/2), rep(1, TT/2)),
             Xrest)## p-2 columns
   colnames(X) = c("par", "cp", paste0("noise", 1:(p-2)))
@@ -215,21 +219,37 @@ generate_data_1d_pseudoreal <- function(bin = FALSE, seed=NULL, datadir="~/repos
   beta[1+1,1] = beta_par
   beta[0+1,2] = gap
   beta[1+1,2] = -beta_par
-  mnmat = cbind(1, X) %*% beta
   colnames(beta) = paste0("clust", 1:numclust)
   rownames(beta) = c("intercept", "par", "cp", paste0("noise", 1:(p-2)))
 
-
-
-  ## Alpha coefficients
+  ## alpha coefficients
   alpha = matrix(0, ncol = numclust, nrow = p+1)
   alpha[0+1, 2] = -10
   alpha[2+1, 2] = 10 + log(1/4)
+
   colnames(alpha) = paste0("clust", 1:numclust)
   rownames(alpha) = c("intercept", "par", "cp", paste0("noise", 1:(p-2)))
+
+  ## Generate means and probabilities
+  if(no_changepoint){
+    ## Only designed for TT=100
+    beta = beta[-3,]
+    alpha = alpha[-3,]
+    alpha[1, 2] = -1.4
+    X = X[,-2]
+  }
+
+  if(gradual_change){
+    X[,2] = c(1:(TT/2), (TT/2):1)
+    alpha[0+1, 2] = -1.4
+    ## a = 0.05
+    a = 0.05 * 100 / TT
+    alpha[2+1, 2] = a
+  }
+
+  mnmat = cbind(1, X) %*% beta
   prob = exp(cbind(1,X) %*% alpha)
   prob = prob/rowSums(prob)
-
 
   ## Samples |nt| memberships out of (1:numclust) according to the probs in prob.
   ## Data is a probabilistic mixture from these two means, over time.
