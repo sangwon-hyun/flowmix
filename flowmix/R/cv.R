@@ -4,10 +4,10 @@
 ##' @return List of fold indices.
 ##' @export
 ##'
-make_cv_folds <- function(ylist, nfold, blocksize = 20){
+make_cv_folds <- function(ylist=NULL, nfold, blocksize = 20, TT=NULL){
 
   ## Make hour-long index list
-  TT = length(ylist)
+  if(is.null(TT)) TT = length(ylist)
   endpoints = round(seq(from = 0, to = TT + blocksize,
                         by = blocksize))
   inds = Map(function(a,b){
@@ -32,6 +32,56 @@ make_cv_folds <- function(ylist, nfold, blocksize = 20){
 
   return(test.ii.list)
 }
+
+##' Using subset of indices \code{subsample_inds}, do what \code{make_cv_folds}
+##' does, but using original memberships from data of size \code{orig_TT}. The
+##' new memberships are a subset of those original memberships.
+##'
+##' @param nfold Number of CV folds.
+##' @param blocksize Size (number of time indices) of one block.
+##' @param orig_TT Original data size (for forming original memberships).
+##' @param subsample_inds Indices, out of \code{1:orig_TT}.
+##'
+##' @export
+make_cv_folds_subsample_with_original_membership <- function(nfold, blocksize, orig_TT, subsample_inds){
+
+  ## ## Sample settings
+  ## la('flowmix')
+  ## orig_TT = 298
+  ## blocksize = 20
+  ## nfold = 5
+  ## subsample_size = 100
+  ## ## End of sample settings
+
+  ## Basic checks
+  stopifnot(all(subsample_inds %in% 1:orig_TT))
+
+  ## Make original folds
+  orig_folds = make_cv_folds(TT = orig_TT,##dat$ylist,
+                             nfold = nfold,
+                             blocksize = blocksize)
+  membership = rep(NA, orig_TT)
+  for(ii in 1:nfold){   membership[orig_folds[[ii]]] = ii }
+
+  ## Test indices in the subsamples
+  ## subsample_inds = sample(1:orig_TT, subsample_size, replace = FALSE) %>% sort()
+  subsample_membership = membership[subsample_inds]
+  test.ii.list <- lapply(1:nfold, function(ifold){
+    which(subsample_membership == ifold)
+  })
+
+  ## ## Test indices in the full data
+  ## test.ii.list <- lapply(1:nfold, function(ifold){
+  ##   subsample_inds[test.ii.list[[ifold]]]
+  ## })
+
+  ## Basic checks
+  stopifnot(length(test.ii.list) == nfold)
+  stopifnot(all((test.ii.list %>% unlist() %>% sort()) == (1:length(subsample_inds))))
+
+  return(test.ii.list)
+}
+
 
 
 ##' Helper function to run ONE job for CV, in ialpha, ibeta, ifold, irep.
@@ -321,6 +371,7 @@ cv.flowmix <- function(
                        save_meta = FALSE,
                        mc.cores = 1,
                        blocksize,
+                       folds = NULL,
                        ...){
 
   ## Basic checks
@@ -334,10 +385,13 @@ cv.flowmix <- function(
     if(refit) iimat = make_iimat_small(cv_gridsize)
   }
 
-  ## Define the CV folds (e.g. 5 big consecutive time blocks)
-  ## folds = blockcv_make_folds(ylist = ylist, nfold = 5)
+  ## Define the CV folds
   ## folds = make_cv_folds(ylist = ylist, nfold = nfold, blocksize = 1)
-  folds = make_cv_folds(ylist = ylist, nfold = nfold, blocksize = blocksize)
+  if(is.null(folds)){
+    folds = make_cv_folds(ylist = ylist, nfold = nfold, blocksize = blocksize)
+  } else {
+    stopifnot(length(folds) == nfold)
+  }
 
   ## Save meta information, once.
   if(save_meta){
