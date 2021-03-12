@@ -353,6 +353,7 @@ predict.flowmix <- function(res, newx = NULL){
   TT = nrow(newx) ## This used to be nrow(X)..
   numclust = res$numclust
   dimdat = res$dimdat
+  if(is.null(dimdat)) dimdat = res %>%.$mn %>% dim() %>% .[2] ## for back=compatibility
 
   ## Predict the means (manually).
   newmn = lapply(1:numclust, function(iclust){

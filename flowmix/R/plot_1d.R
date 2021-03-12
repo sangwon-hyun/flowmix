@@ -199,11 +199,12 @@ check_if_date <- function(date){
 ##'
 ##' @param dates Vector of strings of the form "2017-05-29T00:00:00", or
 ##'   otherwise recognizeable using \code{lubridate::as_datetime()}.
+##' @param empty_tick_marks Defaults to FALSE. If TRUE, use EMPTY tick marks.
 ##' @param ... Rest of arguments to both axes via \code{axis()}.
 ##'
 ##' @return No return.
 ##' @export
-add_date_ticks_from_dates <- function(dates, ...){
+add_date_ticks_from_dates <- function(dates, empty_tick_marks=FALSE, ...){
   ## dates = sapply(as.Date(dates) %>% format("%B %d"), toString)
 
   ## Get dates and X coordinates
@@ -215,6 +216,7 @@ add_date_ticks_from_dates <- function(dates, ...){
   left_ticks = c(left_ticks, length(dates))##res$TT)
   mid_ticks = sapply(sort(unique(nums)),function(ii){mean(which(nums==ii))})
   dates_mid_ticks = dates[round(mid_ticks)]
+  if(empty_tick_marks) dates_mid_ticks = rep("", length(dates_mid_ticks))
 
   ## Place those ticks
   axis(1, at=left_ticks, labels=FALSE)

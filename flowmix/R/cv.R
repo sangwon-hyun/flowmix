@@ -288,11 +288,13 @@ make_refit_filename <- function(ialpha, ibeta, irep,
 ##' @param destin Where to save the output.
 ##' @param max_mean_lambda Maximum value of regularization
 ##' @param nfold Number of cross-validation folds. Defaults to 5.
-##' @param cv_gridsize Grid size for cross validation.
-##' @param cv_fold_blocksize Number of time blocks to be used for cross-validation folds.
 ##' @param nrep Number of repetitions.
-
-
+##' @param save_meta If TRUE, save meta data.
+##' @param mc.cores Use this many CPU cores.
+##' @param blocksize Contiguous time blocks from which to form CV folds.
+##' @param refit If TRUE, estimate the model on the full data, for each pair of
+##'   regularization parameters.
+##' @param
 ##' @param ... Additional arguments to flowmix().
 ##'
 ##' @return No return.
@@ -318,6 +320,7 @@ cv.flowmix <- function(
                        refit = FALSE,
                        save_meta = FALSE,
                        mc.cores = 1,
+                       blocksize,
                        ...){
 
   ## Basic checks
@@ -333,7 +336,8 @@ cv.flowmix <- function(
 
   ## Define the CV folds (e.g. 5 big consecutive time blocks)
   ## folds = blockcv_make_folds(ylist = ylist, nfold = 5)
-  folds = make_cv_folds(ylist = ylist, nfold = nfold, blocksize = 1)
+  ## folds = make_cv_folds(ylist = ylist, nfold = nfold, blocksize = 1)
+  folds = make_cv_folds(ylist = ylist, nfold = nfold, blocksize = blocksize)
 
   ## Save meta information, once.
   if(save_meta){
