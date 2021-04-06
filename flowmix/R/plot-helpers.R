@@ -22,6 +22,9 @@ collapse_3d_to_2d <- function(y, counts, dims = 1:2){
   ymat_summary <- ymat %>% dplyr::group_by(dim1, dim2) %>%
     dplyr::summarise(counts=sum(counts), .groups = 'drop') %>%
     as.matrix()
+  ## TODO fix check() messages about "no visible global variable for dim1
+  ## dim2" using
+  ## https://community.rstudio.com/t/data-pronoun-and-no-visible-binding-for-global-variable/85362
 
   ## Basic check
   if(is.null(colnames(y)) | all(colnames(y)=="")){
@@ -61,8 +64,8 @@ collapse_3d_to_1d <- function(ylist, countslist, idim){
 
   ## Collapse all dimensions
   TT = length(ylist)
-  countslist_1d = mclapply(1:TT, function(tt){
-    printprogress(tt, TT)
+  countslist_1d = parallel::mclapply(1:TT, function(tt){
+    print_progress(tt, TT)
 
     ## Collapse the data (only one time point, for now)
     y = ylist[[tt]]
@@ -89,4 +92,19 @@ collapse_3d_to_1d <- function(ylist, countslist, idim){
   ## Return the ylist
   return(list(ylist_1d = ylist_1d,
               countslist_1d = countslist_1d))
+}
+
+
+
+##' Helper: to get ranges for each dimension, of the list of cytograms |ylist|.
+##'
+##' @param ylist List of cytogram data.
+##'
+##' @return Matrix whose rows contain the range (min & max) of each dimension.
+get_range_from_ylist <- function(ylist){
+  maxs = do.call(rbind, lapply(ylist, function(a) apply(a,2,max)))
+  mins = do.call(rbind, lapply(ylist, function(a) apply(a,2,min)))
+  maxs = apply(maxs, 2, max)
+  mins = apply(mins, 2, min)
+  return(rbind(mins, maxs))
 }

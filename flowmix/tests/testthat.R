@@ -1,4 +1,4 @@
 library(testthat)
-library(flowcy)
+library(flowmix)
 
 test_check("flowmix")

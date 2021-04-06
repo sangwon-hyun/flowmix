@@ -1,8 +1,13 @@
 ##' Helper to make grid. Takes 3-lengthed list of ranges (2 length vectors
 ##' containing min and max) and returns a 3-lengthed list of grid points.
 ##'
+##' @param gridsize Size of equally sized grid, to be formed in each dimension
+##'   of data.
+##'
+##' @inheritParams flowmix_once
+##'
 ##' @export
-make_grid <- function(ylist, gridsize=5, grid.ind=FALSE){
+make_grid <- function(ylist, gridsize = 5){
 
 
   ## Getting ranges over ylist
@@ -14,14 +19,9 @@ make_grid <- function(ylist, gridsize=5, grid.ind=FALSE){
   ranges = lapply(1:dimdat, function(ii) range(ylist_collapsed[,ii]))
 
   ## Equally space in each dimension.
-  if(grid.ind){
-    gridpoints = lapply(ranges,
-                        function(x) 1:(gridsize + 1))
-  }
-  if(!grid.ind){
-    gridpoints = lapply(ranges,
+  gridpoints = lapply(ranges,
                         function(x) seq(from=x[1], to=x[2], length=gridsize+1))
-  }
+
   return(gridpoints)
 }
 
@@ -59,10 +59,6 @@ bin_one_cytogram <- function(y, manual.grid, qc=NULL){
   sparsecounts <- Matrix::sparseVector(counts,
                                        1:length(counts),
                                        length(counts))
-  ## sparsecounts <- as(counts, "sparseVector")
-  ## Matrix::sparseVector(x = c(0,0,1),
-  ##                      i = 1:3,
-  ##                      length=3)
 
   return(list(ybin = obj$ybin,
               counts = obj$counts,
@@ -92,7 +88,7 @@ bin_many_cytograms <- function(ylist, manual.grid, verbose = FALSE, mc.cores = 1
   ## Bin each cytogram:
   reslist = parallel::mclapply(1:TT, function(tt){
   ## reslist = lapply(1:TT, function(tt){
-    if(verbose & (tt %% 10 == 0 )) printprogress(tt, TT, "binning")
+    if(verbose & (tt %% 10 == 0 )) print_progress(tt, TT, "binning")
     bin_one_cytogram(ylist[[tt]],
                      manual.grid = manual.grid,
                      qc = qclist[[tt]])
@@ -189,6 +185,7 @@ make_ybin_3d <- function(counts, midpoints, names=NULL){
 
 
 ##' The same as \code{make_ybin_3d()} but in 2d.
+##' @inheritParams make_ybin_3d
 make_ybin_2d <- function(counts, midpoints, names=NULL){
   gridsize = length(midpoints[[1]])
   d = gridsize
@@ -216,6 +213,7 @@ make_ybin_2d <- function(counts, midpoints, names=NULL){
 }
 
 ##' The same as \code{make_ybin_3d()} but in 1d.
+##' @inheritParams make_ybin_3d
 make_ybin_1d <- function(counts, midpoints, names=NULL){
   gridsize = length(midpoints[[1]])
   d = gridsize

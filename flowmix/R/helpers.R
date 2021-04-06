@@ -1,5 +1,6 @@
 ##' Trim data so that both the list of binned responses and counts don't have
 ##' any zeros.
+##'
 ##' @param ybin_list List of binned data (assumed to be d^3 lengthed)
 ##' @param counts_list Counts of binned data (assumed to be d^3 lengthed)
 ##'
@@ -20,6 +21,9 @@ trim <- function(ybin_list, counts_list){
 
 ##' Helper to check whether ylist and countslist have been trimmed of zero
 ##' (e.g. using \code{trim()}).
+##'
+##' @inheritParams flowmix_once
+##'
 check_trim <- function(ylist, countslist){
   assertthat::assert_that(all.equal(sapply(ylist, nrow),
                         sapply(countslist, length))==TRUE)
@@ -32,17 +36,16 @@ check_trim <- function(ylist, countslist){
 ##'
 ##' @param alpha Alpha coefficients.
 ##' @param beta Beta coefficients.
-##' @param p p
-##' @param numclust numclust
-##' @param dimdat dimdat
+##' @param numclust Number of clusters
+##' @param dimdat dimension of data.
+##' @param X Covariates.
 ##'
 ##' @return list containing prettified alpha and beta.
 reformat_coef <- function(alpha, beta,
-                          p, numclust, dimdat,
+                          numclust, dimdat,
                           X){
-  ## p = ncol(best.res$X)
-  ## numclust = best.res$numclust
-  ## dimdat = best.res$dimdat
+
+  p = ncol(X)
 
   ## All X names
   if(is.null(colnames(X))){
@@ -54,7 +57,6 @@ reformat_coef <- function(alpha, beta,
 
   ## Reformat betas
   beta = lapply(beta, function(b){
-    ## b = round(b,2)
     colnames(b) = paste0("dim-", 1:dimdat)
     rownames(b) = c("intp", Xnames) ##paste0("X", 1:p)
     return(b)
@@ -62,7 +64,6 @@ reformat_coef <- function(alpha, beta,
   names(beta) = paste0("clust-", 1:numclust)
 
   ## Reformat alphas
-  ## alpha = round(best.res$alpha,2)
   if(!is.null(alpha)){
     rownames(alpha) = paste0("clust-", 1:numclust)
     colnames(alpha)[(1:(p+1))] = c("intp", Xnames)
@@ -73,8 +74,23 @@ reformat_coef <- function(alpha, beta,
 }
 
 
-##' Helper function.
-'%ni%' <- Negate('%in%')
+##' Inverse Value Matching
+##'
+##' Negation of \code{%in%}. Returns the elements of \code{x} that are
+##' not in \code{y}.
+##'
+##' @usage x \%ni\% y
+##'
+##' @param x a vector
+##' @param y a vector
+##'
+##' @export
+##'
+##' @rdname ni
+'%ni%' <- function(x, y){
+  ## return(Negate('%in%')(x))
+  return( !(x %in% y) )
+}
 
 
 ##' Helper function to lag a vector
@@ -127,3 +143,37 @@ check_zero_stabilize <- function(zero.betas, zero.alphas, iter){
   return(zero.alpha.stable & zero.beta.stable)
 }
 
+
+##' A helper function to print the progress of a loop or simulation.
+##'
+##' @param isim Replicate number.
+##' @param nsim Total number of replicates.
+##' @param type Type of job you're running. Defaults to "simulation".
+##' @param lapsetime Lapsed time, in seconds (by default).
+##' @param lapsetimeunit "second".
+##' @param start.time start time.
+##' @param fill Whether or not to fill the line.
+##'
+##' @return No return
+print_progress <- function(isim, nsim,
+                           type = "simulation", lapsetime = NULL,
+                           lapsetimeunit = "seconds", start.time = NULL,
+                           fill = FALSE){
+
+    ## If lapse time is present, then use it
+    if(fill) cat(fill = TRUE)
+    if(is.null(lapsetime) & is.null(start.time)){
+            cat("\r", type, " ", isim, "out of", nsim)
+    } else {
+        if(!is.null(start.time)){
+            lapsetime = round(difftime(Sys.time(), start.time,
+                                       units = "secs"), 0)
+            remainingtime = round(lapsetime * (nsim-isim)/isim,0)
+            endtime = Sys.time() + remainingtime
+        }
+        cat("\r", type, " ", isim, "out of", nsim, "with lapsed time",
+            lapsetime, lapsetimeunit, "and remaining time", remainingtime,
+            lapsetimeunit, "and will finish at", strftime(endtime))
+    }
+    if(fill) cat(fill = TRUE)
+}

@@ -1,4 +1,4 @@
-context("Broad-stroke tests that the main algorithm is sound.")
+context("Broad-stroke tests that the main EM algorithm is sound.")
 
 test_that("Algorithm works on 1d, 2d and 3d data", {
 
@@ -15,7 +15,7 @@ test_that("Algorithm works on 1d, 2d and 3d data", {
 
     ## Fit model
     obj = flowmix_once(ylist = ylist,
-                       X = X, numclust = numclust,
+                       X = X, numclust = 2,
                        prob_lambda = 0.01,
                        mean_lambda = 0.01,
                        maxdev = 0.5,

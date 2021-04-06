@@ -10,6 +10,8 @@
 ##'
 ##' @return Either the original objective value or, T-lengthed vector of
 ##'   objective values at each time point.
+##'
+##' @export
 objective <- function(mu, prob, sigma,
                       ## TT, N, dimdat, numclust,
                       ylist,
@@ -124,27 +126,6 @@ loglikelihood_tt <- function(ylist, tt, mu, sigma, prob, countslist = NULL, numc
   if(!sep) return(sum(log(sum_wt_dens) * counts))
 }
 
-##' A wrapper, to get objective value at a particular time or vector of times
-##' \code{tt}.
-##'
-##' @param tt Time points of interest (single integer value, or integer vector).
-##' @param ... Rest of arguments to \code{objective()}.
-##'
-##' @return Objective value
-objective_subset <- function(times, ...){
-
-
-  ## Subset things to pass to objective()
-  args = list(...)
-  args$mu = (args$mu)[times,,,drop=FALSE]
-  args$prob = (args$prob)[times,,drop=FALSE]
-  args$ylist = (args$ylist)[times]
-  args$countslist = (args$countslist)[times]
-  stopifnot(all(sapply(args$ylist, nrow) == sapply(args$countslist, length)))
-
-  ## Call the problem
-  return(do.call(objective, args))
-}
 
 
 
@@ -156,19 +137,9 @@ objective_subset <- function(times, ...){
 ##' @param countslist New count data.
 ##'
 ##' @return An out-of-sample, unpenalized likelihood (i.e. CV score).
+##'
+##' @export
 objective_newdat <- function(res, ylist, countslist){
-
-  ## ## (NOT USED NOW) The pred object.
-  ## pred = predict.flowmix(res, newx = X)
-
-  ## ## Calculate the cross-validation score.
-  ## cvscore = objective(mu = pred$newmn,
-  ##                     prob = pred$newprob,
-  ##                     sigma = pred$sigma,
-  ##                     ylist = ylist,
-  ##                     countslist = countslist,
-  ##                     prob_lambda = 0,
-  ##                     mean_lambda = 0)
 
   ## Calculate the cross-validation score.
   cvscore = objective(mu = res$mn,

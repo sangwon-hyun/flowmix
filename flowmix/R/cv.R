@@ -332,20 +332,20 @@ make_refit_filename <- function(ialpha, ibeta, irep,
 ##' Cross-validation wrapper for flowmix(). Saves results to separate files in
 ##' \code{destin}.
 ##'
-##' @param ylist data
-##' @param X covariates
-##' @param countslist multiplicity
 ##' @param destin Where to save the output.
-##' @param max_mean_lambda Maximum value of regularization
 ##' @param nfold Number of cross-validation folds. Defaults to 5.
 ##' @param nrep Number of repetitions.
 ##' @param save_meta If TRUE, save meta data.
+##' @param mean_lambdas Regularization parameters for betas.
+##' @param prob_lambdas Regularization parameters for alphas.
+##' @param folds Manually provide CV folds (list of time points of data to use
+##'   as CV folds). Defaults to NULL.
 ##' @param mc.cores Use this many CPU cores.
-##' @param blocksize Contiguous time blocks from which to form CV folds.
+##' @param blocksize Contiguous time blocks from which to form CV time folds.
 ##' @param refit If TRUE, estimate the model on the full data, for each pair of
 ##'   regularization parameters.
-##' @param
 ##' @param ... Additional arguments to flowmix().
+##' @inheritParams flowmix_once
 ##'
 ##' @return No return.
 ##'
@@ -412,7 +412,7 @@ cv.flowmix <- function(
   ## Run the EM algorithm many times, for each value of (ialpha, ibeta, ifold, irep)
   start.time = Sys.time()
   parallel::mclapply(1:nrow(iimat), function(ii){
-    printprogress(ii, nrow(iimat), "jobs (EM replicates), assigned on this computer", start.time = start.time)
+    print_progress(ii, nrow(iimat), "jobs (EM replicates), assigned on this computer", start.time = start.time)
 
     if(!refit){
       ialpha = iimat[ii,"ialpha"]

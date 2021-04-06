@@ -3,7 +3,8 @@
 ##'
 ##' @param y Multivariate data.
 ##' @param mu Mean vector.
-##' @param sigma_eig Result of eigendecomposition of sigma.
+##' @param sigma_eig Result of eigendecomposition of sigma (using
+##'   \code{eigendecomp_sigma(sigma)} for covariance matrix \code{sigma}).
 ##'
 ##' @return Density vector.
 dmvnorm_fast <- function(y, mu, sigma_eig){
@@ -31,7 +32,6 @@ dmvnorm_fast <- function(y, mu, sigma_eig){
   transformed_resids = resids %*% myinv_half
 
   ## Twice as fast as regular RowSums(), which is supposed to be fast itself
-  ## resid.prods = Rfast::rowsums(transformed_resids * transformed_resids)
   resid.prods = rowSums(transformed_resids * transformed_resids)
   dens = const * mydet^(-1/2) * exp(-1/2 * resid.prods)
   return(dens)
@@ -40,9 +40,10 @@ dmvnorm_fast <- function(y, mu, sigma_eig){
 
 
 ##' Gets eigendecomposition of a matrix. Basically, \code{sigma == evecs \%*\%
-##' Lambdamat \%*\% solve(evecs)}. (For Justin: see this
-##' https://rdrr.io/cran/Rd2roxygen/man/reformat_code.html)
+##' Lambdamat \%*\% solve(evecs)}.
+##'
 ##' @param sigma dimdat by dimdat matrix
+##'
 ##' @return List containing eigenvalues (vector), eigenvectors (matrix of
 ##'   eigenvectors as columns)
 eigendecomp_sigma_barebones <- function(sigma){
@@ -62,9 +63,10 @@ eigendecomp_sigma_barebones <- function(sigma){
 
 ##' (Wrapper for \code{eigendecomp_sigma_barebones()}) Gets eigendecomposition
 ##' of a matrix. Basically, \code{sigma == evecs \%*\% Lambdamat \%*\%
-##' solve(evecs)}. (For Justin: see this
-##' https://rdrr.io/cran/Rd2roxygen/man/reformat_code.html)
+##' solve(evecs)}.
+##'
 ##' @param sigma A single (dimdat x dimdat) matrix.
+##'
 ##' @return List containing eigenvalues (vector), eigenvectors (matrix of
 ##'   eigenvectors as columns)
 eigendecomp_sigma <- function(sigma){
@@ -86,13 +88,12 @@ eigendecomp_sigma <- function(sigma){
 
 
 ##' Gets cholesky decomposition.
+##'
 ##' @param sigma A single (dimdat x dimdat) matrix.
+##'
 ##' @return List containing eigenvalues (vector), eigenvectors (matrix of
-##'   eigenvectors as columns   )
+##'   eigenvectors as columns)
 choldecomp_sigma <- function(sigma){
-
-  ## ## Old:
-  ## return(chol(sigma))
 
   sigma_eig0 = eigendecomp_sigma_barebones(sigma)
 
@@ -118,7 +119,9 @@ det_from_eig <- function(sigma_eig){
 
 
 ##' From the eigendecomposition, make inverse of sigma.
+##'
 ##' @param sigma_eig Eigendecomposition (from \code{get_sigma_eig()}) of sigma.
+##'
 ##' @return Inverse of sigma.
 sigma_inv_from_eig <- function(sigma_eig){
   vec = 1 / sigma_eig$values
@@ -132,7 +135,9 @@ sigma_inv_from_eig <- function(sigma_eig){
 
 
 ##' From the eigendecomposition, make sigma halves.
+##'
 ##' @param sigma_eig Eigendecomposition (from \code{get_sigma_eig()}) of sigma.
+##'
 ##' @return Square root of sigma i.e. if the returned object is
 ##'   \code{sigma_half}, we should have \code{sigma_half %*% sigma_half ==
 ##'   sigma}.
@@ -148,10 +153,12 @@ sigma_half_from_eig <- function(sigma_eig){
 
 
 ##' From the eigendecomposition, make inverse sigma halves.
+##'
 ##' @param sigma_eig Eigendecomposition (from \code{get_sigma_eig()}) of sigma.
+##'
 ##' @return Square root of sigma i.e. if the returned object is
-##'   \code{sigma_half}, we should have \code{sigma_half %*% sigma_half ==
-##'   sigma}.
+##'   \code{sigma_half}, we should have \code{all((sigma_half %*% sigma_half) ==
+##'   sigma)}.
 inverse_sigma_half_from_eig <- function(sigma_eig){
   vec = 1/sqrt(sigma_eig$values)
   if(length(vec)==1){
@@ -160,11 +167,13 @@ inverse_sigma_half_from_eig <- function(sigma_eig){
     mat = diag(vec)
   }
   (sigma_eig$vectors %*% mat %*% t(sigma_eig$vectors))
-} ## TODO Test this.
+}
 
 ##' From a (numclust x dimdat x dimdat) array whose [ii,,]'th entry is
 ##' the (dimdat x dimdat) covariance matrix, do eigendecompositions.
-##' @param sigma_array (numclust x dimdat x dimdat) array
+##'
+##' @param sigma_array (numclust x dimdat x dimdat) array.
+##'
 ##' @return |numclust| lengthed list of eigendecompositions.
 eigendecomp_sigma_array <- function(sigma_array){
 

@@ -1,7 +1,5 @@
-flowmix
+\texttt{flowmix}: Sparse mixture of regressions for flow cytometry data.
 =============
-
-Sparse mixture of regressions for flow cytometry data.
 
 This package implements a sparse mixture of multivariate regressions model for
 flow cytometry data. The main motivating application is continuous-time flow
@@ -15,13 +13,13 @@ This R package can be installed using the following commands.
 
 ```{r}
 library(devtools)
-install_github("robohyun66/flowmix", subdir = "flowmix")
+install_github("sangwon-hyun/flowmix", subdir = "flowmix")
 ```
 
-## Demo
+## Vignette
 
-For a short demo about using the package, see [demo.Rmd](demo.Rmd). A
-longer vignette is in the works.
+A short vignette [here](./flowmix/vignettes/flowmix.html) shows how to use the
+package.
 	
 ## Authors & Contributors
 

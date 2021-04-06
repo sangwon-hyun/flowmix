@@ -353,17 +353,13 @@ generate_data_1d_pseudoreal_from_cv <- function(datadir, seed = NULL,
 
   ## Threshold beta at 0.01
   gen_beta = do.call(cbind, res$beta)
-  ## gen_beta %>% Matrix::Matrix(sparse=TRUE)
   small = which(abs(gen_beta[2:nrow(gen_beta),])<1E-2)
   gen_beta[2:nrow(gen_beta),][small] = 0
-  ## gen_beta %>% Matrix::Matrix(sparse=TRUE) %>% print
 
   ## Threshold alpha at 0.1
   gen_alpha = t(res$alpha)
-  ## gen_alpha %>% Matrix::Matrix(sparse=TRUE)
   small = which(abs(gen_alpha[2:nrow(gen_alpha),])<1E-1)
   gen_alpha[2:nrow(gen_alpha),][small] = 0
-  ## gen_alpha %>% Matrix::Matrix(sparse=TRUE)
 
 
   ## Beta coefficients

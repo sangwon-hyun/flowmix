@@ -41,19 +41,6 @@ plot_covariates <- function(obj, tt = NULL){
     axis(2); axis(1);
   }
 
-  ## Xsmall = X %>% as_tibble %>% select(sss, sst, par)
-  ## matlines(Xsmall, col=cols, lwd = 3)
-
-  ## ## Highlight some of the covariates, if needed.
-  ## Xsmall_names = c("Salinity", "Temperature", "Sunlight")
-  ## ttt = TT * 0.98 %>% round()
-  ## x = ttt
-  ## x = x + c(-5, -15, -5)
-  ## y = Xsmall[ttt,]
-  ## y = y + c(0, 0.5, -1.5)
-  ## text(x=x, y=y, label=Xsmall_names,## colnames(Xsmall)
-  ##      cex=2)
-
 }
 
 
@@ -101,7 +88,6 @@ plot_prob <- function(res, iclusts=NULL, main=NULL,
     axis(2);axis(1);
   }
 }
-
 
 
 ##' For a matrix of CV scores (which are included in output from the function

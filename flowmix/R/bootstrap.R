@@ -1,162 +1,8 @@
-##' Bootstrapping residuals using a coin-flip assignment of cytogram particles.
-##'
-##' @param ylist_orig Original data, containing the actual particles.
-##' @param res A \code{flowmix} class object.
-##' @param countslist Counts.
-##'
-##' @return \code{ylist_bootstrapped} is a dataset that is exactly the same size
-##'   as \code{ylist_orig}, but with the particles created by bootstrapping
-##'   residuals (after having pooled all of them, across all time points).
-##'
-##' @examples
-##' \dontrun{
-##' ## Generate data and fit model
-##' set.seed(0)
-##' dat1 = generate_data_generic(dimdat = 2, prob1 = 1/8, nt=2000)
-##' ylist = dat1$ylist
-##' X = dat1$X
-##' res = flowmix(ylist, X, numclust=4, niter=300,
-##'               mean_lambda = 5E-3, prob_lambda = 5E-3)
-##'
-##' ## Now, create the bootstrapped datasets.
-##' ylists <- lapply(1:nsim, function(isim){
-##'   new_ylist = bootstrap(ylist, res)$ylist
-##' })
-##'
-##' ## Make a list of bootstrapped models.
-##' bootreslist <- lapply(1:nboot, function(iboot){
-##'   ylist = ylists[[iboot]]
-##'   res = flowmix(ylist, X, numclust=4, niter=300,
-##'                 mean_lambda = 5E-3, prob_lambda = 5E-3)
-##' })
-##' }
-##'
-##' @importFrom magrittr %>%
-##' @importFrom magrittr %<>%
-##'
-##' @export
-##'
-bootstrap <- function(ylist, res, countslist = NULL, verbose=FALSE){
-
-  ## Setup
-  numclust = res$numclust
-  TT = length(ylist)
-  dimdat = ylist %>% .[[1]] %>% ncol()
-
-  ## Conduct the E-step once to calculate responsibilities
-  resp <- Estep(res$mn, res$sigma, res$prob, ylist = ylist,
-                numclust = res$numclust, first_iter = TRUE)
-
-  ## Do a coin-flip draw of membership
-  drawslist = draw_membership(resp)
-  rm(resp)
-
-  ## Draw residuals
-  residuals = get_residuals(ylist, res, drawslist)
-
-  ## Pool all the residuals
-  residuals_pooled = lapply(1:res$numclust, function(iclust){
-    do.call(rbind, lapply(1:TT, function(tt) residuals[[tt]][[iclust]]))
-  })
-
-  ## NEW: Obtain and pool all the biomasses (UGHH)
-  if(!is.null(countslist)){
-
-    ## Equivalent  get_residuals()
-    index_by_clust <- get_index_by_clust(drawslist)
-
-    counts_pooled = lapply(1:res$numclust, function(iclust){
-      do.call(c, lapply(1:TT, function(tt){
-        counts = countslist[[tt]]
-        index = index_by_clust[[tt]][[iclust]]
-        return(counts[index])
-      }))
-    })
-
-    ## Make sure the number of pooled counts are the same as the number of
-    ## pooled residuals
-    assertthat::assert_that(all(sapply(counts_pooled, length) == sapply(residuals_pooled, nrow)))
-  }
-
-
-  ## Get the number of coin-flipped particles for each cluster
-  ntklist = sapply(residuals, function(resids) resids %>% sapply(., nrow)) %>% t()
-
-  ## Different number of clusters
-  ## ntlist = ntklist %>% apply(., 1, sum)
-  ## ((1/ntlist) * ntklist ) %>% matplot(type='l')
-  ## (ntklist ) %>% matplot(type='l')
-  ## plot(ntlist, type='l')
-  ## ntlist2 = ylist %>% sapply(., nrow)
-
-  ## Continue here!!! I think it's correct but out of memory... I should just separate out..
-  new_y_and_counts_list = list()
-  ## <- lapply(1:TT, function(tt){
-  for(tt in 1:TT){
-    if(verbose) printprogress(tt, TT, fill = TRUE)
-    new_y_by_clust <- lapply(1:numclust, function(iclust){
-      if(verbose) printprogress(iclust, numclust, fill = TRUE)
-
-      ## How many particles in this cluster to pick?
-      ntk = ntklist[tt, iclust]
-      if(ntk == 0) return(rep(NA,dimdat) %>% rbind() %>% .[-1,])
-
-      ## Draw the new y's and multiplicities (counts)
-      bootrows = sample(1:sum(ntklist[,iclust]), ntk, replace = TRUE)
-      resampled_resids <- residuals_pooled[[iclust]][bootrows,,drop=FALSE]
-      new_y <- resampled_resids %>% sweep(., 2, res$mn[tt,,iclust], "+")
-
-      ## If there are counts, include
-      if(!is.null(countslist)){
-        resampled_counts <- counts_pooled[[iclust]][bootrows] ## DO SOMETHING ABOUT THIS
-        assertthat::assert_that(length(resampled_counts) == nrow(new_y))
-        return(cbind(new_y, counts = resampled_counts))
-      } else {
-        return(new_y)
-      }
-    })
-    ## return(new_y_by_clust)
-    new_y_and_counts_list[[tt]] = new_y_by_clust
-  }
-
-  ## Return ylist and countslist separately
-  if(!is.null(countslist)){
-    new_ylist <- new_y_and_counts_list %>% lapply(., function(a){
-      X = do.call(rbind, a) %>% as_tibble()
-      return(X %>% select(-counts) %>% as.matrix())
-    })
-    new_counts <- new_y_and_counts_list %>%
-      lapply(., function(a){ do.call(rbind, a)[,"counts", drop=TRUE] %>% unname() })
-  } else {
-    new_ylist <- new_y_and_counts_list %>% lapply(., function(a){ do.call(rbind, a)})
-    new_counts = NULL
-  }
-
-
-  ## saveRDS(list(ylist = new_ylist,
-  ##              X = res$X,
-  ##              ntklist = ntklist,
-  ##              drawslist = drawslist,
-  ##              residuals = residuals),
-  ##         file = file.path("~/Desktop/bootstrap.RDS"))
-
-  return(list(ylist = new_ylist,
-              countslist = new_counts,
-              X = res$X,
-              ntklist = ntklist,
-              drawslist = drawslist,
-              residuals = residuals))
-}
-
-
-
 ##' Drawing memberships by coinflip using the responsibilities.
 ##'
 ##'
 ##' @param resp Posteerior cluster probabilities, or responsibilities, from
 ##'   \code{Estep()}.
-##'
-##' @importFrom magrittr %>%
 ##'
 ##' @export
 draw_membership <- function(resp){
@@ -164,7 +10,7 @@ draw_membership <- function(resp){
   TT = length(resp)
 
   drawslist = lapply(1:TT, function(tt){
-    printprogress(tt, TT)
+    print_progress(tt, TT)
     draws = resp[[tt]] %>% apply(., 1, function(p){
      rmultinom(1, 1, p)}) %>% t()
   })
@@ -172,22 +18,6 @@ draw_membership <- function(resp){
   return(drawslist)
 }
 
-##' Drawing memberships by coinflip using the "popular vote" i.e. pick
-##' membership as cluster with highest responsibility..
-##'
-##' @importFrom magrittr %>%
-##' @export
-draw_membership_popular_vote <-function(resp){
-  TT = length(resp)
-  drawslist = lapply(1:TT, function(tt){
-    draws = resp[[tt]] %>% apply(., 1, function(p){
-      P = rep(0, length(p))
-      P[which.max(p)] = 1
-      P
-    }) %>% t()
-  })
-  return(drawslist)
-}
 
 
 ##' Obtain residuals of particles in \code{ylist} from the mean using model
@@ -264,11 +94,7 @@ get_index_by_clust <- function(drawslist){
 ##' compatible. (Under construction! Can you think of anything else?). Used in
 ##' unit tests.
 ##'
-##' @param ylist Data.
-##'
-##' @param res Model; \code{flowmix} class object.
-##'
-##' @importFrom assertthat assert_that
+##' @inheritParams get_residuals
 ##'
 check_compatible <- function(ylist, res){
   assertthat::assert_that(res$TT == length(ylist))
@@ -281,8 +107,6 @@ check_compatible <- function(ylist, res){
 ##' @param ylist1 One \code{flowmix} class object.
 ##'
 ##' @param ylist2 Another \code{flowmix} class object.
-##'
-##' @importFrom assertthat assert_that
 ##'
 check_if_same_size <- function(ylist1, ylist2){
 
@@ -338,3 +162,65 @@ check_if_same_size <- function(ylist1, ylist2){
 ##   ## Calculate the maximum of the problem.
 
 ## }
+
+
+
+
+
+##' From subsampling bootstrap results (summary files), produce a set of confidence intervals.
+##'
+##' @param outputdir Contains files named "summary-(isim).RDS".
+##' @param origres Model estimated from the entire dataset.
+##' @param ylist_particle Original particle-level cytogram data.
+##' @param X Accompanying covariate data.
+##'
+get_frequency <- function(nsim, outputdir, origres, ylist_particle, X){
+
+  ## Setup
+  numclust = origres$numclust
+
+  ######################
+  ###  Frequencies #####
+  ######################
+  beta_list = alpha_list = list()
+  mn_list = list()
+  start.time = Sys.time()
+  for(isim in 1:nsim){
+    print_progress(isim, nsim, start.time=start.time)
+
+    ## Load the data.
+    resfile = file.path(outputdir, paste0("summary-", isim, ".RDS"))
+    if(!file.exists(resfile)) next
+    cvres = readRDS(file = resfile)
+
+    ## Respon
+    newres = predict(cvres$bestres, newx = X)
+    class(newres) = "flowmix"
+
+    ## Reorder the new res.
+    newres = newres %>% reorder_kl(origres, ylist_particle, fac = 100, verbose = FALSE)
+
+    ## Store the beta and alpha coefficients
+    alpha_list[[isim]] = newres$alpha
+    beta_list[[isim]] = newres$beta
+    mn_list[[isim]] = newres$mn
+
+    }
+
+  #####################################################################
+  ## Obtain the frequencies (same-sized objects as alpha and beta) ####
+  #####################################################################
+  alpha_nonzero_list = lapply(alpha_list, function(alpha)alpha==0)
+
+  alpha_nonzero = alpha_list %>% lapply(., function(alpha)alpha==0) %>% Reduce("+", .)
+  beta_nonzero_list = beta_list %>% lapply(., function(beta){ lapply(beta, function(b) b==0) })
+  beta_nonzero = lapply(1:numclust, function(iclust){
+    beta_nonzero_list %>% lapply(., function(b)b[[iclust]]) %>% Reduce("+", .)
+  })
+
+  return(list(
+      alpha = alpha_nonzero,
+      beta = beta_nonzero))
+}
+
+

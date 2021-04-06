@@ -29,16 +29,12 @@ flowmix <- function(..., nrep = 5){
 ##' @param ylist T-length list each containing response matrices of size (nt x
 ##'   3), which contains coordinates of the 3-variate particles, organized over
 ##'   time (T) and with (nt) particles at every time.
+##' @param countslist Multiplicity for particles in \code{ylist}.
+##' @param numclust Number of clusters
 ##' @param X Matrix of size (T x p+1)
 ##' @param prob.list (T by K)
 ##' @param mean_lambda lambda for lasso for the mean.
 ##' @param prob_lambda lambda for lasso for probabilities.
-##' @param refit (experimental), defaults to FALSE. If TRUE, then the refitted
-##'   non-regularized solutions (with only a user-specified set of active
-##'   coefficients, coded in the argument \code{sel_coef}) are calculated.
-##' @param sel_coef (Optional) Boolean matrices of the same structure as beta
-##'   and alpha, whose TRUE entries are the active coefficients to be refitted
-##'   in a nonregularized way.
 ##' @param tol_em Relative tolerance for EM convergence. Defaults to 1E-4.
 ##' @param zero_stabilize Defaults to FALSE. If TRUE, the EM is only run until
 ##'   the zero pattern in the coefficients stabilize.
@@ -54,19 +50,9 @@ flowmix_once <- function(ylist, X,
                          mn = NULL, prob_lambda,
                          mean_lambda, verbose = FALSE,
                          sigma_fac = 1, tol_em = 1E-4,
-                         refit = FALSE, ## EXPERIMENTAL FEATURE.
-                         sel_coef = NULL,
                          maxdev = NULL,
                          countslist_overwrite = NULL,
                          zero_stabilize  = FALSE,
-
-                         ## Temporary
-                         ridge = FALSE,
-                         ridge_lambda = 0,
-                         ## End of temporary
-
-                         plot = FALSE,
-                         plotdir = "~/Desktop",
                          init_mn_flatten = FALSE,
                          ## beta Mstep (CVXR) settings
                          mstep_cvxr_ecos_thresh = 1E-8,
@@ -80,7 +66,8 @@ flowmix_once <- function(ylist, X,
                          ## beta M step (Locally Adaptive ADMM) settings
                          admm_local_adapt = TRUE,
                          admm_local_adapt_niter = 10,
-                         admm_niter = (if(admm_local_adapt)1E3 else 1E4)
+                         admm_niter = (if(admm_local_adapt)1E3 else 1E4),
+                         CVXR =FALSE ## temporary
                          ){
 
   ## Basic checks
@@ -90,14 +77,11 @@ flowmix_once <- function(ylist, X,
     maxdev = 1E10 ## Some large number
   }
   ## assert_that(!(is.data.frame(ylist[[1]])))
-  assert_that(!(is.data.frame(X)))
+  assertthat::assert_that(!(is.data.frame(X)))
   assertthat::assert_that(sum(is.na(X)) == 0)
   assertthat::assert_that(length(ylist) == nrow(X))
   ## assertthat::assert_that(prob_lambda > 0)
-  if(ridge) assertthat::assert_that(!admm) ## temporary
   assertthat::assert_that(numclust > 1)
-  assertthat::assert_that(hasArg(prob_lambda))
-  assertthat::assert_that(hasArg(mean_lambda))
   assertthat::assert_that(niter > 1)
 
   ## assertthat::assert_that(all(sapply(ylist, nrow) == sapply(countslist, length)))
@@ -111,10 +95,10 @@ flowmix_once <- function(ylist, X,
   N = sum(ntlist)
 
   ## Initialize some objects
-  prob = calc_prob(TT, numclust) ## Let's just say it is all 1/K for now.
+  prob = matrix(1/numclust, nrow = TT, ncol = numclust) ## Initialize to all 1/K.
   denslist_by_clust <- NULL
   objectives = c(+1E20, rep(NA, niter-1))
-  sigma = init_sigma(ylist, numclust, TT, fac = sigma_fac) ## (T x numclust x dimdat x dimdat)
+  sigma = init_sigma(ylist, numclust, sigma_fac) ## (T x numclust x dimdat x dimdat)
   sigma_eig_by_clust = NULL
   zero.betas = zero.alphas = list()
   admm_niters = list()
@@ -138,7 +122,7 @@ flowmix_once <- function(ylist, X,
   start.time = Sys.time()
   for(iter in 2:niter){
     if(verbose){
-      printprogress(iter-1, niter-1, "EM iterations.", start.time = start.time)
+      print_progress(iter-1, niter-1, "EM iterations.", start.time = start.time)
     }
     resp <- Estep(mn, sigma, prob, ylist = ylist, numclust = numclust,
                   denslist_by_clust = denslist_by_clust,
@@ -159,6 +143,15 @@ flowmix_once <- function(ylist, X,
     ## }
 
     ## 2. Beta
+
+    ## temporary
+    if(CVXR){
+    res.beta = Mstep_beta(resp, ylist, X,
+                          mean_lambda = mean_lambda,
+                          first_iter = (iter == 2),
+                          sigma_eig_by_clust = sigma_eig_by_clust,
+                          sigma = sigma, maxdev = maxdev)
+    } else {
     res.beta = Mstep_beta_admm(resp, ylist, X,
                                mean_lambda = mean_lambda,
                                first_iter = (iter == 2),
@@ -173,6 +166,7 @@ flowmix_once <- function(ylist, X,
                                niter = admm_niter,
                                local_adapt = admm_local_adapt,
                                local_adapt_niter = admm_local_adapt_niter)
+  }
 
     admm_niters[[iter]] = unlist(res.beta$admm_niters)
 
@@ -194,21 +188,7 @@ flowmix_once <- function(ylist, X,
     }
 
     ## 3. Sigma
-    sigma = Mstep_sigma_covar(resp,
-                              ylist,
-                              mn,
-                              numclust)
-
-    ## sigma_new = Mstep_sigma_covar_new(resp,
-    ##                                   ylist,
-    ##                                   mn,
-    ##                                   numclust,
-    ##                                   beta,
-    ##                                   res.beta$ycentered_list,
-    ##                                   res.beta$Xcentered_list,
-    ##                                   res.beta$yXcentered_list,
-    ##                                   res.beta$Qlist)
-    ## stopifnot(all(abs(sigma - sigma_new) < 1E-8))
+    sigma = Mstep_sigma(resp, ylist, mn, numclust)
 
     ## 3. (Continue) Decompose the sigmas.
     sigma_eig_by_clust <- eigendecomp_sigma_array(sigma)
@@ -223,19 +203,6 @@ flowmix_once <- function(ylist, X,
                                  alpha = alpha, beta = beta,
                                  denslist_by_clust = denslist_by_clust,
                                  countslist = countslist)
-
-    ## print(gc())
-
-    ########################
-    ## Make plots ##########
-    ########################
-    if(plot){
-      plot_iter(ylist, countslist, iter, tt=1, TT, mn, sigma, prob, objectives,
-                saveplot = TRUE,
-                ## saveplot = FALSE,
-                plotdir = plotdir,
-                numclust = numclust)
-    }
 
     ## Check convergence
     ## if(iter > 10){ ## don't stop super early. ## We might not need this.
@@ -271,7 +238,7 @@ flowmix_once <- function(ylist, X,
   ##                            sep=TRUE)
 
   ## Also reformat the coefficients
-  obj <- reformat_coef(alpha, beta, p, numclust, dimdat, X)
+  obj <- reformat_coef(alpha, beta, numclust, dimdat, X)
   alpha = obj$alpha
   beta = obj$beta
 
@@ -297,7 +264,6 @@ flowmix_once <- function(ylist, X,
                         prob_lambda = prob_lambda,
                         mean_lambda = mean_lambda,
                         maxdev=maxdev,
-                        refit = refit,
                         niter = niter,
                         admm_niters = admm_niters
                         ), class = "flowmix"))
@@ -430,90 +396,8 @@ make_denslist_eigen <- function(ylist, mu,
 }
 
 
-##' Helper function for plotting within \code{flowmix_once()} iterations.
-plot_iter <- function(ylist, countslist, iter=NULL, tt = 1, TT, mn, sigma, prob,
-                      objectives, saveplot=TRUE, plotdir=NULL, numclust){
-
-  if(!is.null(countslist)){
-    cex = (countslist[[tt]]/max(countslist[[tt]]))*5+.5
-  } else {
-    cex = .5
-  }
-
-  if(saveplot){
-    grDevices::png(file=file.path(plotdir,
-                     paste0("iteration-", iter, ".png")), width=1200, height=1200)
-    print(  file.path(plotdir,
-          paste0("iteration-", iter, ".png")))
-  }
-
-  dimdat = ncol(ylist[[1]])
-  if(dimdat==3){
-    graphics::par(mfrow=c(2,2))
-    dimslist = list(1:2, 2:3, c(3,1))
-  }
-  if(dimdat==2){
-    graphics::par(mfrow=c(1,2))
-    dimslist = list(1:2)
-  }
-
-  ylist_collapsed = do.call(rbind, ylist)
-  xlims = lapply(dimslist, function(dims) range(ylist_collapsed[,dims[1]]))
-  ylims = lapply(dimslist, function(dims) range(ylist_collapsed[,dims[2]]))
-  ntsum = nrow(ylist_collapsed)
-  if(ntsum > 10000) ylist_collapsed = ylist_collapsed[sample(1:ntsum, 10000),]
-
-  ## Make the plots
-  for(ii in 1:length(dimslist)){
-    dims = dimslist[[ii]]
-    xlim = xlims[[ii]]
-    ylim = ylims[[ii]]
-    names = c("fsc_small", "chl_small","pe")
-    graphics::plot(x = ylist[[tt]][,dims[1]],
-                   y = ylist[[tt]][,dims[2]],
-                   ## col='grey50',
-                   col = grDevices::rgb(0,0,0,0.1),
-                   pch = 16,
-                   cex = cex,
-                   ## col='pink',
-                   type = 'p',
-                   xlab = names[dims[1]],
-                   ylab = names[dims[2]],
-                   cex.lab = 1.5,
-                   cex.axis = 1.5,
-                   xlim = xlim,
-                   ylim = ylim)
-
-    ## this time point's mean
-    cols = 1:numclust
-    graphics::points(x = mn[tt,dims[1],],
-           y = mn[tt,dims[2],],
-           pch = 16, col = cols,
-           cex = prob[1,]/max(prob[1,])*5)
-           ## cex = log(prob[1,]/max(prob[1,]) + 1)*3)
 
 
-    ## All time points' means
-    for(ttt in 1:TT){
-      for(kk in 1:numclust){
-        graphics::points(x=mn[ttt,dims[1],kk],
-               y=mn[ttt,dims[2],kk],
-               pch=16, col=cols[kk],
-               cex = .2)
-      }
-    }
 
-    ## Draw the ellipses
-    for(kk in 1:numclust){
-      graphics::lines(ellipse::ellipse(x = sigma[kk,dims,dims],
-                             centre = mn[tt,dims, kk]),
-            lwd=1, col=cols[kk], lty=1)
-    }
-  }
-  graphics::plot(objectives[2:(min(100, length(objectives)))],
-                 type = 'o',
-                 ylab = "Objective Value", xlab = "EM Iteration",
-                 cex.lab = 1.5,
-                 cex.axis = 1.5)
-  if(saveplot)  grDevices::graphics.off()
-}
+##' Functions to check convergence.
+check_converge_rel <- function(old, new, tol=1E-6){ return(abs((old-new)/old) < tol )  }

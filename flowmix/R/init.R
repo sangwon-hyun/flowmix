@@ -1,36 +1,10 @@
-##' The only role is to calculate the fitted values /given/ beta.
-calc_mu <- function(beta, X, dimdat, numclust){
-
-  X.aug = cbind(1, X)
-  TT = nrow(X)
-
-  ## We want (T x dimdat x K) fitted values, each row is a fitted mean
-  fitted = array(NA, dim = c(TT, dimdat, numclust))
-  for(iclust in 1:numclust){ ## dimdat=3
-    for(idim in 1:dimdat){
-      fitted[,idim,iclust] = rowSums(beta[,,idim, iclust] * X.aug) ## Elementwise operation
-      ## LHS is (T x p+1)
-      ## RHS is (T x p+1),
-      ## So the multiple is also (T x p+1)
-      ## and the rowsum is now T lengthed
-    }
-  }
-  return(fitted)
-}
-
-
-calc_prob <- function(TT,numclust){
-
-  ## For now, return a dummy of
-  return(matrix(1/numclust, nrow=TT, ncol=numclust))
-}
-
-
 ##' Initialize the cluster centers (naively).
-##'  @param ylist  A T-length list of (nt  by 3) datasets.  There should  be T of
+##'
+##' @param ylist  A T-length list of (nt  by 3) datasets.  There should  be T of
 ##'   such datasets. 3 is actually \code{mulen}.
 ##' @param numclust Number of clusters (M).
 ##' @param TT total number of (training) time points.
+##'
 ##' @return An array of dimension (T x dimdat x M).
 init_mn <- function(ylist, numclust, TT, dimdat, countslist = NULL){
 
@@ -147,13 +121,16 @@ init_mn <- function(ylist, numclust, TT, dimdat, countslist = NULL){
 }
 
 
-##' Initialize the covariances (naively). (TODO: TT is not needed anymore)
+##' Initialize the covariances (naively).
+##'
 ##' @param data The (nt by 3) datasets. There should be T of them.
-##' @param numclust Number of clusters (M).
-##' @param TT total number of (training) time points.
-##' @return An (M by dimdat by dimdat) array containing the (dimdat by dimdat)
+##' @param numclust Number of clusters.
+##' @param fac Value to use for the diagonal of the (dimdat x dimdat) covariance
+##'   matrix.
+##'
+##' @return An (K x dimdat x dimdat) array containing the (dimdat by dimdat)
 ##'   covariances.
-init_sigma <- function(data, numclust, TT, fac=1){
+init_sigma <- function(data, numclust, fac = 1){
 
   ndat = nrow(data[[1]])
   pdat = ncol(data[[1]])
@@ -167,11 +144,3 @@ init_sigma <- function(data, numclust, TT, fac=1){
   sigmas = abind::abind(sigmas, along=0)
   return(sigmas)
 }
-
-
-##' (Probably not needed) T-length list of (nt x dimdat)
-init_resp <- function(ntlist, dimdat){
-  lapply(ntlist, function(nt) matrix(0, nrow=nt, ncol=dimdat))
-}
-
-

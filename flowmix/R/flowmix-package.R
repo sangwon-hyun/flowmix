@@ -1,23 +1,36 @@
-##' This is only a simple package help file (borrowed from the
-##' [baggr](https://cran.r-project.org/web/packages/baggr/index.html) R
-##' package).
+##' flowmix: computating sparse mixture of regressions for flow cytometry data.
 ##'
-##' For documentation of the main function for conducting analyses see [flowmix].
+##' The main function for conducting analyses is \code{flowmix()}.
 ##'
-##' For description of models, data types and priors available in the package,
-##' try the built-in vignette (`vignette("flowmix")`).
+##' Try the built-in vignette (`vignette("flowmix")`), for a step-by-step
+##' tutorial.
 ##'
 ##' @docType package
 ##' @name flowmix
 ##' @useDynLib flowmix, .registration = TRUE
-##' @import Rcpp
-##' @import glmnet
+##' @importFrom glmnet glmnet
+##' @importFrom glmnet coef.glmnet
 ##' @import CVXR
 ##' @import dplyr
-##' @import magrittr
+##' @importFrom ellipse ellipse
+##' @importFrom sn rsn
+##' @importFrom MASS mvrnorm
+##' @importFrom abind abind
+##' @useDynLib flowmix
 ##' @import Rcpp
+##' @importFrom Rcpp sourceCpp
 ##' @import RcppArmadillo
 ##' @import RcppEigen
-##' @useDynLib flowmix
-##' @importFrom Rcpp sourceCpp
 NULL
+#> NULL
+
+
+
+
+## This is to fix check()'s global definition errors
+pie_lambdas = NULL
+cvscore = NULL
+objectives = NULL
+mean_lambdas = NULL
+res = NULL
+nfold = NULL

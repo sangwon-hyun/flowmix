@@ -2,6 +2,7 @@
 ##'
 ##' @inheritParams cv.flowmix
 ##' @param filename File name to save to.
+##' @param save If TRUE, save to \code{file.path(destin, filename)}.
 ##'
 ##' @return List containing various outcomes from the cross-validation, such as
 ##'   \code{bestres} which is the \code{flowmix} class object of the overall
@@ -12,9 +13,6 @@
 ##'
 ##' @export
 cv_summary <- function(destin = ".",
-                       cv_gridsize,
-                       nrep,
-                       nfold,
                        save = FALSE,
                        filename = "summary.RDS"
                        ){
@@ -22,12 +20,18 @@ cv_summary <- function(destin = ".",
   ####################
   ## Load data #######
   ####################
+  destin = "~/Dropbox/research/usc/hpc-output/blockcv-2-64-5"
   load(file = file.path(destin, 'meta.Rdata'), verbose = FALSE)
+
+  ## This loads all the necessary things: nrep, nfold, cv_gridsize
+  stopifnot(exists("nrep"))
+  stopifnot(exists("nfold"))
+  stopifnot(exists("cv_gridsize"))
 
   ##########################
   ## Get the CV results. ###
   ##########################
-  a = cv_aggregate(destin, cv_gridsize = cv_gridsize, nfold = nfold, nrep = nrep)
+  a = cv_aggregate(destin)
   cvscore.mat = a$cvscore.mat
   min.inds = a$min.inds
 
@@ -101,18 +105,22 @@ cv_summary <- function(destin = ".",
 
 ##' Aggregate CV scores from the results, saved in \code{destin}.
 ##'
-##' @inheritParams cv.flowmix
+##' @param destin Directory with cross-validation output.
+##' @param sim Simulation or not?
+##' @param isim Simulation number.
 ##'
 ##' @export
-cv_aggregate <- function(destin, cv_gridsize, nfold, nrep,
-                         sim = FALSE, isim = 1){
+cv_aggregate <- function(destin,
+                         sim = FALSE,
+                         isim = 1){
 
   ## ## Read the meta data (for |nfold|, |cv_gridsize|, |nrep|)
   load(file = file.path(destin, 'meta.Rdata'))
 
-  ## For back-compatibility
-  if(exists("pie_lambda")) prob_lambda = pie_lambda
-  if(exists("pie_lambdas")) prob_lambdas = pie_lambdas
+  ## This loads all the necessary things: nrep, nfold, cv_gridsize
+  stopifnot(exists("nrep"))
+  stopifnot(exists("nfold"))
+  stopifnot(exists("cv_gridsize"))
 
   ## Aggregate the results
   cvscore.array = array(NA, dim = c(cv_gridsize, cv_gridsize, nfold, nrep))
@@ -127,7 +135,7 @@ cv_aggregate <- function(destin, cv_gridsize, nfold, nrep,
             load(file.path(destin, filename), verbose = FALSE)
 
             ## Purely for back-compatability
-            if(exists("pie_lambda")) prob_lambda = pie_lambda
+            ## if(exists("pie_lambda")) prob_lambda = pie_lambda ## todo: remove if not necessary
             if(exists("pie_lambdas")) prob_lambdas = pie_lambdas
 
             cvscore.array[ialpha, ibeta, ifold, irep] = cvscore
@@ -175,18 +183,18 @@ cv_aggregate <- function(destin, cv_gridsize, nfold, nrep,
 ##' Helper to aggregate parallelized CV results and obtain the |res| object, all
 ##' saved in |destin|.
 ##'
-##' @inheritParams cv_gridsize
-##' @inheritParams nrep
-##' @inheritParams destin
+##' @inheritParams cv_aggregate
 ##'
 ##' @return List containing, for every (ialpha, ibeta), the "best" estimated
 ##'   model out of the |nrep| replicates (best in the sense that it had the best
 ##'   likelihood value out of the |nrep| replicates.)
-cv_aggregate_res <- function(cv_gridsize, nrep, destin,
+cv_aggregate_res <- function(destin,
                              ## Is this a simulation or not? (soon to be outdated)
                              sim = FALSE,
                              isim = NULL
                              ){
+
+  load(file.path(destin, "meta.Rdata"))
 
   ## df.mat = matrix(NA, ncol=cv_gridsize, nrow=cv_gridsize)
   res.list = list()
@@ -224,272 +232,4 @@ cv_aggregate_res <- function(cv_gridsize, nrep, destin,
 
 
 
-##' Aggregation wrapper, for simulations.
-##'
-##' @inheritParams cv_gridsize
-##' @inheritParams nfold
-##' @inheritParams nrep
-##' @param blocktype block type
-##' @param datatype data type
-##' @param numclust number of clusters
-##' @param outputdir output directory, where the destination folder exists.
-##'
-##' @export
-cv_summary_sim <- function(nsim = 100,
-                           blocktype = 2, datatype = 80, numclust = 2, cv_gridsize = 7,
-                           nrep = 5,
-                           outputdir = "~/Dropbox/research/usc/hpc-output",
-                           datadir = "~/repos/cruisedat/export",
-                           mc.cores = 1,
-                           plotonly = FALSE,
-                           plot_all_models = FALSE){
 
-  ## Form the destin folder
-  destin = file.path(outputdir,
-                     paste0("blockcv-", blocktype, "-", datatype, "-", numclust))
-
-  ## If the folder called "summary" doesn't exist, create it.
-  if(!dir.exists(file.path(destin, "summary"))){
-    dir.create(file.path(destin, "summary"))
-  }
-
-  if(!plotonly){
-
-    ## Get |nsim| lists, each containing gridsize^2 best replicates.
-    print("Getting all gridsize^2 best replicates, from nsim simulations.")
-    start.time = Sys.time()
-    reslists = mclapply(1:nsim, function(isim){
-      printprogress(isim, nsim, start.time=start.time)
-      tryCatch({
-        reslist = cv_aggregate_res(cv_gridsize = cv_gridsize,
-                                        nrep = nrep,
-                                        sim = TRUE, isim = isim,
-                                        destin = destin)
-        return(reslist)
-      }, error = function(e){ return(NULL)  })
-    }, mc.cores = mc.cores)
-    save(reslists, file=file.path(destin, "summary",  "reslists.Rdata"))
-    cat(fill=TRUE)
-    print('Saved results to reslist.Rdata')
-
-    ## Get the |min.inds|.
-    print("Getting all best CV results, from nsim simulations.")
-    start.time = Sys.time()
-    cv_info_list = mclapply(1:nsim, function(isim){
-      tryCatch({
-        printprogress(isim, nsim, start.time=start.time)
-        obj = cv_aggregate(destin, cv_gridsize = cv_gridsize, nfold = nfold, nrep = nrep, sim = TRUE, isim = isim)##, save=FALSE)
-        ialpha = obj$min.inds[1]
-        ibeta = obj$min.inds[2]
-        cvscore = obj$cvscore.mat[ialpha, ibeta]
-        return(c(isim = isim, ialpha = ialpha, ibeta = ibeta, cvscore = cvscore))
-      }, error=function(e){ return(NULL)  })
-    }, mc.cores = mc.cores)
-    save(cv_info_list, file=file.path(destin, "summary",  "cv_info_list.Rdata"))
-    cv_info_mat = do.call(rbind, cv_info_list)
-    save(cv_info_mat, file=file.path(destin, "summary",  "cv_info_mat.Rdata"))
-    cat(fill = TRUE)
-    print('Saved results to cv_info_list.Rdata and cv_info_mat.Rdata')
-
-    ## Get bestres of each of the nsim simulations.
-    bestreslist = list()
-    for(isim in 1:nsim){
-      min.inds = cv_info_mat[isim, c("ialpha", "ibeta")]
-      if(is.null(reslists[[isim]])) next
-      reslist = reslists[[isim]]
-      bestreslist[[isim]] = reslist[[paste0(min.inds[1], "-", min.inds[2])]]
-    }
-    save(bestreslist, file=file.path(destin, "summary",  "bestreslist.Rdata"))
-      print(bestreslist)
-    print('Saved results to bestreslist.Rdata')
-
-  } else {
-    ## Load already existing summaries.
-    load(file=file.path(destin, "summary",  "bestreslist.Rdata"))
-    load(file=file.path(destin, "summary",  "reslists.Rdata"))
-    load(file=file.path(destin, "summary",  "cv_info_mat.Rdata"))
-  }
-
-  ## Making a plot of /all/ models
-  if(plot_all_models){
-  if(datatype!=9){
-    obj = generate_data_1d_pseudoreal(datadir = datadir,
-                                      nt = 200,
-                                      beta_par = 0.3,
-                                      p = 10,
-                                      bin = TRUE,
-                                      dat.gridsize = 40)##"~/repos/cruisedat/export")
-    ylist = obj$ylist
-    countslist = obj$countslist
-  } else {
-    obj = generate_data_1d_pseudoreal_from_cv(datadir = datadir)##"~/repos/cruisedat/export",
-    ylist = obj$ylist
-    countslist = obj$countslist
-  }
-  print("Making all model plots.")
-  start.time = Sys.time()
-  mclapply(1:nsim, function(isim){
-    printprogress(isim, nsim, start.time=start.time)
-    reslist = reslists[[isim]]
-    min.inds = cv_info_mat[isim, c("ialpha", "ibeta")]
-    plotname = paste0("sim-", isim, "-", blocktype, "-", datatype, "-", numclust, "-allmodels.png")
-    png(file.path(destin, "summary",  plotname), width = 3000, height = 2000)
-    par(mfrow = c(cv_gridsize, cv_gridsize))
-    for(ialpha in 1:cv_gridsize){
-      for(ibeta in 1:cv_gridsize){
-        bestres = reslist[[paste0(ialpha, "-", ibeta)]]
-        scale = !is.null(countslist)
-        plot_1d(ylist = ylist, res = bestres,
-                countslist = countslist, scale = scale, date_axis = FALSE)
-        if(all(c(ialpha, ibeta) == min.inds))box(lwd=10,col='blue')
-      }
-    }
-    grDevices::graphics.off()
-    print(paste0("Plot made in ", file.path(destin, "summary",  plotname)))
-  }, mc.cores = mc.cores)
-  cat(fill=TRUE)
-  }
-}
-
-
-
-##' From all the folds/replicates, get rid of the |nrep| replicates by retaining
-##' only the best one. (NOT USED NOW)
-cv_reduce_by_nrep <- function(destin, cv_gridsize, nfold, nrep, sim = FALSE,
-                              isim = NULL, save = FALSE,
-                              resfile = "all-cvres.Rdata"){
-
-  ## Read the meta data (for |nfold|, |cv_gridsize|, |nrep|)
-  load(file = file.path(destin, 'meta.Rdata'))
-
-  ## Identify the best CV replicate
-  cvscore.array = array(NA, dim = c(cv_gridsize, cv_gridsize, nfold, nrep))
-  cvscore.mat = matrix(NA, nrow = cv_gridsize, ncol = cv_gridsize)
-  for(ialpha in 1:cv_gridsize){
-    for(ibeta in 1:cv_gridsize){
-      ## cvscores <- sapply(1:nfold, function(igrid){
-      obj = matrix(NA, nrow=nfold, ncol=nrep)
-      for(ifold in 1:nfold){
-        for(irep in 1:nrep){
-          filename = make_cvscore_filename(ialpha, ibeta, ifold, irep, sim, isim)
-          tryCatch({
-            load(file.path(destin, filename))
-            cvscore.array[ialpha, ibeta, ifold, irep] = cvscore
-            obj[ifold, irep] = objectives[length(objectives)]
-          }, error = function(e){})
-
-          ## ## Also compare to the aggregated result so far.
-          ## aggregate_filename = make_cvscore_filename(ialpha, ibeta, ifold, irep = NULL, sim, isim)
-          ## ## if irep=NULL, look for "aggr-" prefix; bake this into the make_cvscore_filename() as well.
-          ## load(file.path(destin, filename))
-          ## obj_aggr = objectives[length(objectives)]
-        }
-      }
-
-      ## Pick out the CV scores with the *best* (lowest) objective value
-      cvscores = cvscore.array[ialpha, ibeta,,]
-      best.models = apply(obj, 1, function(myrow) which(myrow == min(myrow, na.rm=TRUE)))
-      final.cvscores = sapply(1:nfold, function(ifold){
-        cvscores[ifold, best.models[ifold]]
-      })
-      cvscore.mat[ialpha, ibeta] = mean(final.cvscores)
-    }
-  }
-
-  ## Clean a bit
-  cvscore.mat[which(is.nan(cvscore.mat), arr.ind=TRUE)] = NA
-  rownames(cvscore.mat) = signif(prob_lambdas,3)
-  colnames(cvscore.mat) = signif(mean_lambdas,3)
-
-
-  ## Find the minimum
-  mat = cvscore.mat
-  min.inds = which(mat == min(mat, na.rm=TRUE), arr.ind=TRUE)
-
-  ## Recent addition
-  if(save){
-    cat("Saving aggregated results to ", file.path(destin, resfile))
-    save(cvscore.array,
-         cvscore.mat,
-         mean_lambdas,
-         prob_lambdas,
-         min.inds,
-         file = file.path(destin, resfile))
-  }
-
-  return(list(cvscore.array = cvscore.array,
-              cvscore.mat = cvscore.mat,
-              mean_lambdas = mean_lambdas,
-              prob_lambdas = prob_lambdas,
-              min.inds = min.inds))
-}
-
-
-
-##' Helper to aggregate parallelized CV results and obtain degrees of freedom
-##' (DF) estimate, saved in |destin|.
-##'
-##' @inheritParams gridsize
-##' @inheritParams destin
-##' @inheritParams nrep
-##'
-##' @return Matrix containing estimated degrees of freedom.
-cv_aggregate_df <- function(cv_gridsize, nrep, destin){
-
-  df.array = obj.array = df.alpha.array = df.beta.array = array(NA, dim=c(cv_gridsize, cv_gridsize, nrep))
-  df.mat = df.alpha.mat = df.beta.mat = matrix(NA, ncol=cv_gridsize, nrow=cv_gridsize)
-  for(ialpha in 1:cv_gridsize){
-    for(ibeta in 1:cv_gridsize){
-
-      ## Objective value
-      obj = rep(NA, nrep)
-      df = df.alpha = df.beta = rep(NA, nrep)
-      for(irep in 1:nrep){
-
-        tryCatch({
-          ## Load fitted result
-          filename = paste0(ialpha, "-", ibeta, "-", irep, "-fit.Rdata")
-          load(file.path(destin, filename))
-
-          ## Calculate DF
-          df[irep] = do.call(sum, lapply(res$beta, function(mybeta){
-            sum(mybeta[-1,]!=0)})) + sum(res$alpha[,-1]!=0)
-
-          df.alpha[irep] = sum(res$alpha[,-1]!=0)
-
-          df.beta[irep] = do.call(sum, lapply(res$beta, function(mybeta){
-            sum(mybeta[-1,]!=0)}))
-
-          ## Also calculate objective function
-          objectives = res$objectives
-          obj[irep] = objectives[length(objectives)]
-
-        }, error = function(e){})
-      }
-      df.array[ialpha, ibeta, ] = df
-      obj.array[ialpha, ibeta,] = obj
-      df.alpha.array[ialpha, ibeta, ] = df.alpha
-      df.beta.array[ialpha, ibeta, ] = df.beta
-
-      ## Calculate the df of the best model
-      if(!all(is.na(obj))){
-        ## df.mat[ialpha, ibeta] = df[which.max(obj, na.rm=TRUE)]
-        min.df = df[which(obj == min(obj, na.rm = TRUE))]
-        df.mat[ialpha, ibeta] = min.df[1] ## RARELY there are duplicates.. (especially when bootstrap is done)
-      }
-    }
-  }
-
-  ## Assign to new names
-  mat = df.mat
-  alpha.array = df.alpha.array
-  beta.array = df.beta.array
-
-  ## return(df.mat)
-  out = list(mat = mat,
-             alpha.array = alpha.array,
-             beta.array = beta.array,
-             df.array = df.array,
-             obj.array = obj.array)
-  return(out)
-}
