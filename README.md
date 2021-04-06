@@ -18,9 +18,9 @@ install_github("sangwon-hyun/flowmix", subdir = "flowmix")
 
 ## Vignette
 
-A short vignette [here](http://htmlpreview.github.io/?https://github.com/sangwon-hyun/flowmix/blob/master/flowmix/vignettes/flowmix.html) shows how to use the
-
-package.
+A short vignette
+[here](http://htmlpreview.github.io/?https://github.com/sangwon-hyun/flowmix/blob/master/flowmix/vignettes/flowmix.html)
+shows how to use the package.
 	
 ## Authors & Contributors
 
