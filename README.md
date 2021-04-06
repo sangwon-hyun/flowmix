@@ -1,4 +1,4 @@
-\texttt{flowmix}: Sparse mixture of regressions for flow cytometry data.
+flowmix: Sparse mixture of regressions for flow cytometry data.
 =============
 
 This package implements a sparse mixture of multivariate regressions model for
