@@ -20,7 +20,6 @@ cv_summary <- function(destin = ".",
   ####################
   ## Load data #######
   ####################
-  destin = "~/Dropbox/research/usc/hpc-output/blockcv-2-64-5"
   load(file = file.path(destin, 'meta.Rdata'), verbose = FALSE)
 
   ## This loads all the necessary things: nrep, nfold, cv_gridsize
