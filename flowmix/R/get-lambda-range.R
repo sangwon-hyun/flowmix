@@ -177,6 +177,6 @@ get_max_lambda <- function(destin, maxres_file = "maxres.Rdata",
 logspace <- function(max, min=NULL, length, min.ratio = 1E-4){
   if(is.null(min)) min = max * min.ratio
   vec = 10^seq(log10(min), log10(max), length = length)
-  stopifnot(vec[length(vec)] == max)
+  stopifnot(abs(vec[length(vec)] - max) < 1E10)
   return(vec)
 }

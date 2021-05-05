@@ -11,7 +11,6 @@
 ##' @return Reordered res
 ##'
 ##' @export
-##' @param
 reorder_kl <- function(newres, origres, ylist_particle, fac = 100, verbose=FALSE){
 
   ## Randomly sample  1/100 of the original particles

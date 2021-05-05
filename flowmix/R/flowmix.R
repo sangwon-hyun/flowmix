@@ -136,12 +136,6 @@ flowmix_once <- function(ylist, X,
     alpha = res.alpha$alpha
     rm(res.alpha)
 
-    ## if(iter==3){
-    ##   save(prob, alpha, ## res.alpha,
-    ##        resp, sigma, ylist, X, file=file.path("~/Desktop", "ADMM-test.Rdata"))
-    ##   return()
-    ## }
-
     ## 2. Beta
 
     ## temporary

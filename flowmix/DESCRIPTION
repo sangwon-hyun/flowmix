@@ -9,7 +9,6 @@ Authors@R:
 Imports: 
     assertthat,
     glmnet,
-    CVXR,
     mvtnorm,
     data.table,
     dplyr,

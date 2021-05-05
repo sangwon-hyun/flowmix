@@ -1,0 +1,4 @@
+flowmix: Sparse mixture of regressions for flow cytometry data.
+=============
+
+This contains the R package source.
