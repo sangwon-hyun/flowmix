@@ -34,11 +34,8 @@ cv_summary <- function(destin = ".",
   cvscore.mat = a$cvscore.mat
   min.inds = a$min.inds
 
-  ## Also get the #nonzero coefficients (not used now)
-  dfmat = cv_aggregate_df(cv_gridsize = cv_gridsize, nrep = nrep, destin = destin)$mat
-
   ## Get the refit flowmix results
-  bestreslist = cv_aggregate_res(cv_gridsize = cv_gridsize, nrep = nrep, destin = destin)
+  bestreslist = cv_aggregate_res(destin = destin)
   bestres = bestreslist[[paste0(min.inds[1] , "-", min.inds[2])]]
   if(is.null(bestres)){
     stop(paste0("The model with lambda indices (",
@@ -89,7 +86,6 @@ cv_summary <- function(destin = ".",
   out = list(bestres = bestres,
              cvscore.mat = cvscore.mat,
              min.inds = min.inds,
-             dfmat = dfmat,
              ## Pretty formatted data
              pretty.alphas = pretty.alphas,
              pretty.betas = pretty.betas,
@@ -98,7 +94,7 @@ cv_summary <- function(destin = ".",
              bestreslist = bestreslist,
              destin = destin)
 
-  if(save){ saveRDS(out, file=file.path(destin, filename)); return(NULL) }
+  if(save){ saveRDS(out, file=file.path(destin, filename)); invisible(NULL) }
   return(out)
 }
 
@@ -113,13 +109,18 @@ cv_aggregate <- function(destin,
                          sim = FALSE,
                          isim = 1){
 
-  ## ## Read the meta data (for |nfold|, |cv_gridsize|, |nrep|)
-  load(file = file.path(destin, 'meta.Rdata'))
+  ## ## Read the meta data (for |nfold|, |cv_gridsize|, |nrep|, |prob_lambdas|,
+  ## ## |mean_lambdas|)
+  load(file = file.path(destin, 'meta.Rdata'), verbose = FALSE)
 
-  ## This loads all the necessary things: nrep, nfold, cv_gridsize
+  ## This loads all the necessary things; just double-checking.
   stopifnot(exists("nrep"))
   stopifnot(exists("nfold"))
   stopifnot(exists("cv_gridsize"))
+  stopifnot(exists(c("prob_lambdas", "mean_lambdas")))
+
+  ## Purely for back-compatability (retire soon)
+  ## if(exists("pie_lambdas")) prob_lambdas = pie_lambdas
 
   ## Aggregate the results
   cvscore.array = array(NA, dim = c(cv_gridsize, cv_gridsize, nfold, nrep))
@@ -133,9 +134,6 @@ cv_aggregate <- function(destin,
           tryCatch({
             load(file.path(destin, filename), verbose = FALSE)
 
-            ## Purely for back-compatability
-            ## if(exists("pie_lambda")) prob_lambda = pie_lambda ## todo: remove if not necessary
-            if(exists("pie_lambdas")) prob_lambdas = pie_lambdas
 
             cvscore.array[ialpha, ibeta, ifold, irep] = cvscore
             obj[ifold, irep] = objectives[length(objectives)]
@@ -159,13 +157,15 @@ cv_aggregate <- function(destin,
 
   ## Clean a bit
   cvscore.mat[which(is.nan(cvscore.mat), arr.ind=TRUE)] = NA
+
+  ## ## Read the meta data (for |nfold|, |cv_gridsize|, |nrep|)
   rownames(cvscore.mat) = signif(prob_lambdas,3)
   colnames(cvscore.mat) = signif(mean_lambdas,3)
 
 
   ## Find the minimum
   mat = cvscore.mat
-  min.inds = which(mat == min(mat, na.rm=TRUE), arr.ind=TRUE)
+  min.inds = which(mat == min(mat, na.rm = TRUE), arr.ind = TRUE)
 
   ## Return the results
   out = list(cvscore.array = cvscore.array,
