@@ -90,8 +90,8 @@ collapse_3d_to_1d <- function(ylist, countslist, idim){
                               sapply(countslist_1d, length)))
 
   ## Return the ylist
-  return(list(ylist_1d = ylist_1d,
-              countslist_1d = countslist_1d))
+  return(list(ylist = ylist_1d,
+              countslist = countslist_1d))
 }
 
 

@@ -61,3 +61,132 @@ plot_2d <- function(ylist, tt, res = NULL, drawslist = NULL, resp = NULL, iclust
           lwd = 2, col = cols[iclust], lty = 1)
   }
 }
+
+
+
+##' 2d Plotting functionality using ggplot2 (only 2d data).
+##'
+##' @param datobj_2d A data matrix with X on grid; three columns are assumed;
+##'   the first two are the coordinates of the 2d data grid (e.g. "diam" and
+##'   "chl"); the thrid column is named "counts".
+##'
+##' @return A ggplot object.
+##'
+##' @export
+##'
+##' @include ggplot2
+bin_plot_2d <- function(datobj_2d, mn=NULL, sigma=NULL, prob=NULL, labels = NULL, fac = 20){
+
+  ## Get variable names
+  varnames = datobj_2d %>% colnames()
+  stopifnot(length(varnames) == 3) ## two data columns, one called "counts"
+  stopifnot(varnames[3] == "counts")
+  varname1 = varnames[1]
+  varname2 = varnames[2]
+
+  ## Information about clusters
+  dt = data.frame(x = mn[1,], y = mn[2,], prob = prob * fac)
+  if(!is.null(mn)){
+    numclust = dim(mn)[2]
+    if(is.null(labels)) labels = 1:numclust
+    dt = cbind(dt, label = labels)
+  }
+
+  p = datobj_2d %>%
+    ggplot() +
+    theme_minimal() +
+    geom_raster(aes(x = !!sym(varname1), y=!!sym(varname2), fill = counts)) +
+    scale_fill_gradientn(colours = c("white", "blue"), guide="colorbar")+
+    theme(legend.position = "none")
+    ## xlim(c(0,8)) + ylim(c(0, 8))
+
+  ## Add model.
+  if(!is.null(mn)){
+    for(iclust in 1:numclust){
+      el = ellipse::ellipse(x = sigma[iclust,,], centre = mn[,iclust]) %>% as_tibble()
+      p = p + geom_path(aes(x = x, y = y), data = el, colour = "red", lty = 2,
+                        lwd = pmin(prob[iclust] * 5, 0.5))
+    }
+
+    ## Add points
+    p = p + geom_point(aes(x = x, y = y, size = prob),
+                       data = dt, colour = 'red') +
+                    ## data = dt, colour = 'black', fill = 'red', shape = 21, stroke = 2) +
+    scale_size_identity()
+
+    ## Add labels
+    p = p + geom_text(aes(x = x, y = y, label = label), size = 5, hjust = 0, vjust = 0, data = dt,
+                      fontface = "bold", col='black')
+  }
+
+  return(p)
+}
+
+
+
+##' Plot three 2d panels of data, optionally with a model (from \code{obj}).
+##'
+##' @param obj flowmix object. If NULL, only data is drawn.
+##' @param ylist Data.
+##' @param countslist Defaults to NULL.
+##' @param obj A flowmix object.
+##' @param tt time point of interest, out of 1 through \code{length(ylist)}.
+##'
+##' @return A grob object containing a 3-panel plot.
+##'
+##' @export
+plot_2d_threepanels <- function(obj = NULL, ## Understandably, data (ylist) might not be in the object.
+                                ylist,
+                                countslist = NULL, ## The time point of interest, out of 1:TT
+                                tt,
+                                labels = NULL,
+                                plist_return = FALSE){
+
+  ## Basic checks
+  if(!is.null(obj)) stopifnot("flowmix" %in% class(obj))
+
+  ## Setup
+  TT = length(ylist)
+  assertthat::assert_that(tt %in% 1:TT)
+  mn = sigma = prob = NULL
+
+  ## Scale the biomass (|countslist|) by the total biomass in that cytogram.
+  counts_sum = sapply(countslist, sum)
+  countslist = lapply(countslist, function(counts)counts/sum(counts))
+
+  ###############################
+  ## Make the three data plots ##
+  ###############################
+  dimslist = list(c(1:2), c(2:3), c(3,1))
+  plist = lapply(dimslist, function(dims){
+
+    ## Collapse to 2d
+    y = ylist[[tt]]
+    counts = countslist[[tt]]
+    datobj_2d = collapse_3d_to_2d(y = y, counts = counts, dims = dims) %>% as_tibble()
+
+    ## Extract model data
+    ## obj = bestres
+    if(!is.null(obj)){
+      mn = obj$mn[tt,dims,]
+      sigma = obj$sigma[,dims,dims]
+      prob = obj$prob[tt,]
+    }
+
+    ## Make the heatmap
+    p = bin_plot_2d(datobj_2d, mn, sigma, prob, labels)
+
+    return(p)
+  })
+
+  if(plist_return) return(plist)
+
+  ###############################
+  ## Return a 3 x 1 data panel ##
+  ###############################
+  mydatetime = names(ylist)[tt]
+  main_text_grob = grid::textGrob(mydatetime,
+                                  gp = grid::gpar(fontsize = 20, font = 3))
+  gridExtra::arrangeGrob(plist[[1]], plist[[2]], plist[[3]],
+                          ncol = 3, top = main_text_grob)
+}
