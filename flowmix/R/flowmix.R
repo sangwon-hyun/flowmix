@@ -67,7 +67,8 @@ flowmix_once <- function(ylist, X,
                          admm_local_adapt = TRUE,
                          admm_local_adapt_niter = 10,
                          admm_niter = (if(admm_local_adapt)1E3 else 1E4),
-                         CVXR =FALSE ## temporary
+                         CVXR =FALSE, ## temporary
+                         seed = NULL
                          ){
 
   ## Basic checks
@@ -90,6 +91,7 @@ flowmix_once <- function(ylist, X,
   TT = length(ylist)
   dimdat = ncol(ylist[[1]])
   p = ncol(X)
+  if(!is.null(seed)) set.seed(seed)
   if(is.null(mn)) mn = init_mn(ylist, numclust, TT, dimdat, countslist)
   ntlist = sapply(ylist, nrow)
   N = sum(ntlist)

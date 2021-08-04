@@ -11,9 +11,9 @@
 ##' @return Reordered res
 ##'
 ##' @export
-reorder_kl <- function(newres, origres, ylist_particle, fac = 100, verbose=FALSE){
+reorder_kl <- function(newres, origres, ylist_particle, fac = 100, verbose = FALSE){
 
-  ## Randomly sample  1/100 of the original particles
+  ## Randomly sample  1/100 of the original particles (mainly for memory reasons)
   TT = length(ylist_particle)
   N = sapply(ylist_particle, nrow) %>% sum()
   ntlist = sapply(ylist_particle, nrow)
@@ -24,31 +24,20 @@ reorder_kl <- function(newres, origres, ylist_particle, fac = 100, verbose=FALSE
 
   ## Sample responsibilities
   ylist_particle_small = Map(function(ind, y){ y[ind,,drop = FALSE]  }, indlist, ylist_particle)
-  ## resp_new_small = Map(function(ind, resp){ resp[ind,]  }, indlist, resp_new)
-  ## resp_orig_small = Map(function(ind, resp){ resp[ind,]  }, indlist, resp_orig)
 
   ## Calculate new responsibilities
-  resp_orig_small <- Estep(origres$mn,
-                           origres$sigma,
-                           origres$prob,
+  resp_orig_small <- Estep(origres$ mn, origres$sigma, origres$prob,
                            ylist = ylist_particle_small,
-                           numclust = origres$numclust,
-                           first_iter = TRUE)
-  resp_new_small <- Estep(newres$mn,
-                          newres$sigma,
-                          newres$prob,
+                           numclust = origres$numclust, first_iter = TRUE)
+  resp_new_small <- Estep(newres$mn, newres$sigma, newres$prob,
                           ylist = ylist_particle_small,
-                          numclust = newres$numclust,
-                          first_iter = TRUE)
+                          numclust = newres$numclust, first_iter = TRUE)
   assertthat::assert_that(all(sapply(resp_orig_small, dim) == sapply(resp_new_small, dim)))
 
-  ## Reorder the clusters: using KL divergences
-  matchres = kl_from_responsibilities(resp_new_small, resp_orig_small, fac = 1)
-  kls = matchres$kls
-  ordmat = matchres$ordmat
+  ## Get best ordering (using symm. KL divergence and Hungarian algorithm for
+  ## matching)
+  best_ord <- get_best_match_from_kl(resp_new_small, resp_orig_small)
 
-  ## Reorder orders using KL divergences
-  best_ord = ordmat %>% .[which.min(kls),]
   if(verbose) cat("New order is", best_ord, fill=TRUE)
   newres_reordered_kl = newres %>% reorder_clust(ord = best_ord)
 
@@ -94,72 +83,75 @@ reorder_clust <- function(res, ord = NULL){
   return(res)
 }
 
-
-
 ##' Compute KL divergence from responsibilities between two models'
-##' responsibilities \code{resp_new} and \code{resp_old}. Because this can be
-##' computationally intensive, \code{fac=100} allows you to randomly choose only
-##' 1/100 of the particles to use for this.
+##' responsibilities \code{resp_new} and \code{resp_old}.
 ##'
-##' @param resp_new new responsibilities
-##' @param resp_orig original responsiblities.
-##' @param fac Defaults to 100. This means only 1/100 randomly chosen particles
-##'   are used for calculating responsibilities
+##' @param resp_new New responsibilities
+##' @param resp_orig Original responsiblities.
 ##'
-##' @return Calculate KL divergence (of a subset of points)
+##' @return Calculate reordering \code{o} of the clusters in model represented
+##'   by \code{resp_new}. To be clear, \code{o[i]} of new model is the best
+##'   match with the i'th cluster of the original model.
+##'
 ##' @export
-kl_from_responsibilities <- function(resp_new, resp_orig, fac = 100){
+get_best_match_from_kl <- function(resp_new, resp_orig){
 
   ## Basic checks
   assertthat::assert_that(all(sapply(resp_new, dim) == sapply(resp_orig , dim)))
 
-  ## KL divergence.
-  kl <- function(p1, p2){ sum(p1 * log(p1/p2)) }
+  ## Row-bind all the responsibilities to make a long matrix
+  distmat = form_symmetric_kl_distmat(resp_orig %>% do.call(rbind,.),
+                                      resp_new %>% do.call(rbind,.))
 
-  ## Get all permutations of 1:n.
-  permutations <- function(n){
-      if(n == 1){
-          return(matrix(1))
-      } else {
-          sp <- permutations(n-1)
-          p <- nrow(sp)
-          A <- matrix(nrow=n*p,ncol=n)
-          for(i in 1:n){
-              A[(i-1)*p+1:p,] <- cbind(i,sp+(sp>=i))
-          }
-          return(A)
-      }
+  ## Use Hungarian algorithm to solve.
+  fit <- clue::solve_LSAP(distmat)
+  o <- as.numeric(fit)
+
+  ## Return the ordering
+  return(o)
+}
+
+
+##' From two probability matrices, form a (K x K) distance matrix of the
+##' (n)-vectors. The distance between the vectors is the symmetric KL
+##' divergence.
+##'
+##' @param mat1 Matrix 1 of size (n x K).
+##' @param mat2 Matrix 2 of size (n x K).
+##'
+##' @return K x K matrix containing symmetric KL divergence of each column of
+##'   \code{mat1} and \code{mat2}.
+form_symmetric_kl_distmat <- function(mat1, mat2){
+
+  ## Manually add some small, in case some columns are all zero
+  mat1 = (mat1 + 1E-10) %>% pmin(1)
+  mat2 = (mat2 + 1E-10) %>% pmin(1)
+
+  ## Calculate and return distance matrix.
+  KK1 = ncol(mat1)
+  KK2 = ncol(mat2)
+  distmat = matrix(NA, ncol=KK2, nrow=KK1)
+  for(kk1 in 1:KK1){
+    for(kk2 in 1:KK2){
+      mydist = symmetric_kl(mat1[,kk1, drop=TRUE], mat2[,kk2, drop=TRUE])
+      distmat[kk1, kk2] = mydist
+    }
   }
+  stopifnot(all(!is.na(distmat)))
+  return(distmat)
+}
 
-  ## Form all permutations
-  numclust = resp_new %>% .[[1]] %>% ncol()
-  ordmat <- permutations(numclust)
-
-  ## Randomly sample  1/100 of the original particles
-  TT = length(resp_new)
-  ntlist = sapply(resp_new, nrow)
-  indlist = lapply(1:TT, function(tt){
-    nt = ntlist[[tt]]
-    ind = sample(1:nt, round(nt/fac), replace=FALSE)
-  })
-
-  ## Sample responsibilities
-  resp_new_small = Map(function(ind, resp){ resp[ind,]  }, indlist, resp_new)
-  resp_orig_small = Map(function(ind, resp){ resp[ind,]  }, indlist, resp_orig)
-
-  ## Resp
-  resp_orig_small_combined <- do.call(rbind, resp_orig_small)
-  resp_new_small_combined <- do.call(rbind, resp_new_small)
-
-  ## For every permutation, compute the KL divergence between the resp matrices.
-  kls = c()
-  for(irow in 1:nrow(ordmat)){
-    ord = ordmat[irow, , drop = TRUE]
-    kls[irow] <- kl(resp_orig_small_combined,
-                    resp_new_small_combined[,ord])
+##' Symmetric KL divergence, of two probability vectors.
+##'
+##' @param vec1 First probability vector.
+##' @param vec2 Second prbability vector.
+##'
+##' @return Symmetric KL divergence (scalar).
+symmetric_kl <- function(vec1, vec2){
+  stopifnot(all(vec1 <= 1) & all(vec1 >= 0))
+  stopifnot(all(vec2 <= 1) & all(vec2 >= 0))
+  kl <- function(vec1, vec2){
+    sum(vec1 * log(vec1 / vec2))
   }
-
-  ## Return orders and KL divergences.
-  return(list(kls = kls,
-              ordmat = ordmat))
+  return((kl(vec1, vec2) + kl(vec2, vec1))/2)
 }

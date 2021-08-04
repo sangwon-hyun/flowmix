@@ -121,7 +121,7 @@ init_mn <- function(ylist, numclust, TT, dimdat, countslist = NULL){
 }
 
 
-##' Initialize the covariances (naively).
+##' Initialize the covariances (naively), by multiplying.
 ##'
 ##' @param data The (nt by 3) datasets. There should be T of them.
 ##' @param numclust Number of clusters.
@@ -130,13 +130,17 @@ init_mn <- function(ylist, numclust, TT, dimdat, countslist = NULL){
 ##'
 ##' @return An (K x dimdat x dimdat) array containing the (dimdat by dimdat)
 ##'   covariances.
+##'
 init_sigma <- function(data, numclust, fac = 1){
 
+  ## Setup
   ndat = nrow(data[[1]])
   pdat = ncol(data[[1]])
+
+  ## Create |numclust| separate matrices of size |fac|
   sigmas = lapply(1:numclust, function(iclust){
     onesigma = diag(fac * rep(1, pdat))
-    if(pdat==1) onesigma = as.matrix(fac)
+    if(pdat == 1) onesigma = as.matrix(fac)
     colnames(onesigma) = paste0("datcol", 1:pdat)
     rownames(onesigma) = paste0("datcol", 1:pdat)
     return(onesigma)

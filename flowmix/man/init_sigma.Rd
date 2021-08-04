@@ -2,7 +2,7 @@
 % Please edit documentation in R/init.R
 \name{init_sigma}
 \alias{init_sigma}
-\title{Initialize the covariances (naively).}
+\title{Initialize the covariances (naively), by multiplying.}
 \usage{
 init_sigma(data, numclust, fac = 1)
 }
@@ -19,5 +19,5 @@ An (K x dimdat x dimdat) array containing the (dimdat by dimdat)
   covariances.
 }
 \description{
-Initialize the covariances (naively).
+Initialize the covariances (naively), by multiplying.
 }

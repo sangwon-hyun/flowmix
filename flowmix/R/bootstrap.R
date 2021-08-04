@@ -4,16 +4,21 @@
 ##' @param resp Posteerior cluster probabilities, or responsibilities, from
 ##'   \code{Estep()}.
 ##'
+##' @return List containing cluster membership draws.
+##'
 ##' @export
 draw_membership <- function(resp){
 
   TT = length(resp)
 
-  drawslist = lapply(1:TT, function(tt){
-    print_progress(tt, TT)
+  drawslist = list()
+  for(tt in 1:TT){
+    print_progress(tt, TT, "Membership draw, time point = ")
     draws = resp[[tt]] %>% apply(., 1, function(p){
      rmultinom(1, 1, p)}) %>% t()
-  })
+    drawslist[[tt]] = draws
+  }
+  cat(fill = TRUE)
 
   return(drawslist)
 }
@@ -167,13 +172,18 @@ check_if_same_size <- function(ylist1, ylist2){
 
 
 
-##' From subsampling bootstrap results (summary files), produce a set of confidence intervals.
+##' From subsampling bootstrap results (summary files), produce stability
+##' measures.
 ##'
 ##' @param outputdir Contains files named "summary-(isim).RDS".
 ##' @param origres Model estimated from the entire dataset.
 ##' @param ylist_particle Original particle-level cytogram data.
 ##' @param X Accompanying covariate data.
 ##'
+##' @return List of nonzero frequencies, and alpha and beta coefficients of
+##'   reordered models.
+##'
+##' @export
 get_frequency <- function(nsim, outputdir, origres, ylist_particle, X){
 
   ## Setup
@@ -182,20 +192,20 @@ get_frequency <- function(nsim, outputdir, origres, ylist_particle, X){
   ######################
   ###  Frequencies #####
   ######################
-  beta_list = alpha_list = list()
-  mn_list = list()
-  start.time = Sys.time()
+  beta_list = alpha_list = mn_list = list()
+  ## start.time = Sys.time()
   for(isim in 1:nsim){
-    print_progress(isim, nsim, start.time=start.time)
+    ## print_progress(isim, nsim, start.time=start.time)
 
     ## Load the data.
-    resfile = file.path(outputdir, paste0("summary-", isim, ".RDS"))
+    ## resfile = file.path(outputdir, paste0("summary-", isim, ".RDS"))
+    resfile = file.path(outputdir, paste0("summary-sim-", isim, ".RDS"))
     if(!file.exists(resfile)) next
     cvres = readRDS(file = resfile)
 
-    ## Respon
+    ## Estimated model
     newres = predict(cvres$bestres, newx = X)
-    class(newres) = "flowmix"
+    ## class(newres) = "flowmix"
 
     ## Reorder the new res.
     newres = newres %>% reorder_kl(origres, ylist_particle, fac = 100, verbose = FALSE)
@@ -204,23 +214,26 @@ get_frequency <- function(nsim, outputdir, origres, ylist_particle, X){
     alpha_list[[isim]] = newres$alpha
     beta_list[[isim]] = newres$beta
     mn_list[[isim]] = newres$mn
-
-    }
+  }
 
   #####################################################################
   ## Obtain the frequencies (same-sized objects as alpha and beta) ####
   #####################################################################
-  alpha_nonzero_list = lapply(alpha_list, function(alpha)alpha==0)
+  threshold <- function(x, tol){abs(x) > tol}
+  alpha_nonzero = lapply(alpha_list, threshold, 1E-8) %>% Reduce("+", .)
 
-  alpha_nonzero = alpha_list %>% lapply(., function(alpha)alpha==0) %>% Reduce("+", .)
-  beta_nonzero_list = beta_list %>% lapply(., function(beta){ lapply(beta, function(b) b==0) })
-  beta_nonzero = lapply(1:numclust, function(iclust){
-    beta_nonzero_list %>% lapply(., function(b)b[[iclust]]) %>% Reduce("+", .)
-  })
+  ## Combine all betas into (K x (p+1) x d) arrays
+  beta_arrays = lapply(beta_list, abind, along = 0)
 
-  return(list(
-      alpha = alpha_nonzero,
-      beta = beta_nonzero))
+  ## Calculate frequencies
+  beta_freq = beta_arrays %>% map(. %>% threshold(1E-8)) %>% Reduce("+", .) %>% `/`(nsim)
+
+  ## Combine all alphas
+  alpha_freq = alpha_list %>% map(. %>% threshold(1E-8)) %>% Reduce("+", .) %>% t() %>% `/`(nsim)
+
+  return(list(alpha_freq = alpha_freq,
+              beta_freq = beta_freq,
+              alpha_list = alpha_list,
+              beta_list = beta_list,
+              mn_list = mn_list))
 }
-
-

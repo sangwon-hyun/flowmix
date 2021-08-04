@@ -2,7 +2,8 @@
 % Please edit documentation in R/bootstrap.R
 \name{get_frequency}
 \alias{get_frequency}
-\title{From subsampling bootstrap results (summary files), produce a set of confidence intervals.}
+\title{From subsampling bootstrap results (summary files), produce stability
+measures.}
 \usage{
 get_frequency(nsim, outputdir, origres, ylist_particle, X)
 }
@@ -15,6 +16,11 @@ get_frequency(nsim, outputdir, origres, ylist_particle, X)
 
 \item{X}{Accompanying covariate data.}
 }
+\value{
+List of nonzero frequencies, and alpha and beta coefficients of
+  reordered models.
+}
 \description{
-From subsampling bootstrap results (summary files), produce a set of confidence intervals.
+From subsampling bootstrap results (summary files), produce stability
+measures.
 }

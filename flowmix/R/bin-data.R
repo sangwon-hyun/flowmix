@@ -94,8 +94,6 @@ bin_many_cytograms <- function(ylist, manual.grid, verbose = FALSE, mc.cores = 1
                      qc = qclist[[tt]])
   }, mc.cores = mc.cores)
 
-  ## if(is.null(qclist)) browser()
-
   ## Gather results and return
   ybin_list = lapply(reslist, function(res) res$ybin)
   counts_list = lapply(reslist, function(res) res$counts)

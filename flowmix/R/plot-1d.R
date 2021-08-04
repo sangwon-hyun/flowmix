@@ -81,7 +81,7 @@ plot_1d <- function(ylist,
       add_cluster_label(res, cex_clust_label)
     }
   }
-  return(cols)
+  return(list(res = res, cols = cols))
 }
 
 ##' Make 1d data plot. No axes are added.
@@ -228,4 +228,30 @@ add_date_ticks_from_dates <- function(dates, empty_tick_marks=FALSE, ...){
   graphics::axis(1, at = left_ticks, labels = FALSE)
   graphics::axis(1, at = mid_ticks, labels = dates_mid_ticks, tick = FALSE, las=2, ...)
   graphics::axis(2, ...)
+}
+
+
+##' Make a 1d binned data plot, using ggplot.
+##'
+##' @param ylist Must be numeric vectors containing bin centers.
+##' @param qclist Corresponding QC in those bins.
+##'
+##' @return ggplot
+bin_plot_1D <- function(ylist, qclist, col=NULL){
+
+  if(is.null(col)) col = c("white", "black", "yellow", "red")
+
+  stopifnot(all(sapply(ylist, length) == sapply(qclist, length)))
+
+  combined_dat = lapply(names(ylist), function(onedatetime){
+    tibble(y = ylist[[onedatetime]],
+           qc = qclist[[onedatetime]],
+           time = onedatetime)
+  }) %>% bind_rows()
+  combined_dat = combined_dat %>% mutate(time = lubridate::as_datetime(time))
+
+  p = combined_dat %>% ggplot() + geom_raster(aes(x=time, y=y, fill=qc)) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    scale_fill_gradientn(colours = col)
+  return(p)
 }

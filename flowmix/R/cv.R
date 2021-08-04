@@ -403,6 +403,8 @@ cv.flowmix <- function(
            mean_lambdas,
            prob_lambdas,
            ylist, countslist, X,
+           bins,
+           sparse_countslist,
            ## Save the file
            file = file.path(destin, 'meta.Rdata'))
       print(paste0("wrote meta data to ", file.path(destin, 'meta.Rdata')))

@@ -10,6 +10,9 @@ draw_membership(resp)
 \item{resp}{Posteerior cluster probabilities, or responsibilities, from
 \code{Estep()}.}
 }
+\value{
+List containing cluster membership draws.
+}
 \description{
 Drawing memberships by coinflip using the responsibilities.
 }

@@ -74,8 +74,10 @@ plot_2d <- function(ylist, tt, res = NULL, drawslist = NULL, resp = NULL, iclust
 ##'
 ##' @export
 ##'
-##' @include ggplot2
-bin_plot_2d <- function(datobj_2d, mn=NULL, sigma=NULL, prob=NULL, labels = NULL, fac = 20){
+bin_plot_2d <- function(datobj_2d, mn=NULL, sigma=NULL, prob=NULL, labels = NULL, fac = 20, colours = NULL){
+
+  ## Basic checks
+  if(is.null(colours)) colours = c("white", "blue")
 
   ## Get variable names
   varnames = datobj_2d %>% colnames()
@@ -96,9 +98,9 @@ bin_plot_2d <- function(datobj_2d, mn=NULL, sigma=NULL, prob=NULL, labels = NULL
     ggplot() +
     theme_minimal() +
     geom_raster(aes(x = !!sym(varname1), y=!!sym(varname2), fill = counts)) +
-    scale_fill_gradientn(colours = c("white", "blue"), guide="colorbar")+
+    scale_fill_gradientn(colours = colours, guide="colorbar")+
+    xlim(c(0,8)) + ylim(c(0, 8)) +
     theme(legend.position = "none")
-    ## xlim(c(0,8)) + ylim(c(0, 8))
 
   ## Add model.
   if(!is.null(mn)){
@@ -140,7 +142,8 @@ plot_2d_threepanels <- function(obj = NULL, ## Understandably, data (ylist) migh
                                 countslist = NULL, ## The time point of interest, out of 1:TT
                                 tt,
                                 labels = NULL,
-                                plist_return = FALSE){
+                                plist_return = FALSE,
+                                colours = NULL){
 
   ## Basic checks
   if(!is.null(obj)) stopifnot("flowmix" %in% class(obj))
@@ -174,7 +177,7 @@ plot_2d_threepanels <- function(obj = NULL, ## Understandably, data (ylist) migh
     }
 
     ## Make the heatmap
-    p = bin_plot_2d(datobj_2d, mn, sigma, prob, labels)
+    p = bin_plot_2d(datobj_2d, mn, sigma, prob, labels, colours = colours)
 
     return(p)
   })
