@@ -132,6 +132,7 @@ flowmix_once <- function(ylist, X,
 
     ## M step (three parts)
     ## 1. Alpha
+    ## if(iter==2) browser()
     res.alpha = Mstep_alpha(resp, X, numclust, lambda = prob_lambda,
                             zerothresh = zerothresh)
     prob = res.alpha$prob

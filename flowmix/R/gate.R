@@ -48,8 +48,6 @@ gate <- function(res, ylist_particle, countslist_particle, seed = NULL){
 ##' @param top_cluster_names (optional) Labels for the clusters in
 ##'   \code{top_clusters}.
 ##'
-##' @inheritParams gate
-##'
 ##' @return One ggplot object
 gate_plot <- function(tt, dims, y, counts, memberships, datetime = "",
                                top_clusters, top_cluster_names = NULL){

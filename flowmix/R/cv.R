@@ -8,6 +8,13 @@ make_cv_folds <- function(ylist=NULL, nfold, blocksize = 20, TT=NULL){
 
   ## Make hour-long index list
   if(is.null(TT)) TT = length(ylist)
+
+  ## ## Temporary
+  ## TT = 71
+  ## blocksize = 5
+  ## nfold=5
+  ## ## End of temporary
+
   endpoints = round(seq(from = 0, to = TT + blocksize,
                         by = blocksize))
   inds = Map(function(a,b){
