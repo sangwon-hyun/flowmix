@@ -133,8 +133,6 @@ cv_aggregate <- function(destin,
           filename = make_cvscore_filename(ialpha, ibeta, ifold, irep, sim, isim)
           tryCatch({
             load(file.path(destin, filename), verbose = FALSE)
-
-
             cvscore.array[ialpha, ibeta, ifold, irep] = cvscore
             obj[ifold, irep] = objectives[length(objectives)]
           }, error = function(e){})
