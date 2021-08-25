@@ -4,7 +4,7 @@
 \alias{init_mn}
 \title{Initialize the cluster centers (naively).}
 \usage{
-init_mn(ylist, numclust, TT, dimdat, countslist = NULL)
+init_mn(ylist, numclust, TT, dimdat, countslist = NULL, seed = NULL)
 }
 \arguments{
 \item{ylist}{A T-length list of (nt  by 3) datasets.  There should  be T of

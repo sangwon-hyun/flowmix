@@ -122,7 +122,8 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
                     sim = FALSE, isim = 1,
                     ## The rest that is needed explicitly for flowmix()
                     ylist, countslist,
-                    X, ...){
+                    X,
+                    ...){
 
   ## Get the train/test data
   test.inds = unlist(folds[ifold])
@@ -262,7 +263,7 @@ one_job_refit <- function(ialpha, ibeta, destin,
 
       ## Save the results
       cat("Saving file here:", file.path(destin, filename), fill=TRUE)
-      save(res, args, objective, file=file.path(destin, filename))
+      save(res, file=file.path(destin, filename))
     }
   }
 }
@@ -379,6 +380,7 @@ cv.flowmix <- function(
                        mc.cores = 1,
                        blocksize,
                        folds = NULL,
+                       seedtab = NULL,
                        ...){
 
   ## Basic checks
@@ -434,6 +436,18 @@ cv.flowmix <- function(
       ibeta = iimat[ii, "ibeta"]
     }
 
+    ## Get the seed ready
+    if(!is.null(seedtab)){
+      seed = seedtab %>%
+        dplyr::filter(ialpha == !!ialpha,
+                      ibeta == !!ibeta,
+                      ifold == !!ifold,
+                      irep == !!irep) %>%
+        dplyr::select(seed1, seed2, seed3, seed4, seed5, seed6, seed7) %>% unlist() %>% as.integer()
+    } else {
+      seed = NULL
+    }
+
     if(!refit){
       ## Add noise to X, if applicable
       one_job(ialpha = ialpha,
@@ -449,7 +463,8 @@ cv.flowmix <- function(
               ## Additional arguments for covarem(), for ellipsis.
               numclust = numclust,
               maxdev = maxdev,
-              verbose = FALSE)
+              verbose = FALSE,
+              seed = seed)
     } else {
       one_job_refit(ialpha = ialpha,
                     ibeta = ibeta,
@@ -462,7 +477,8 @@ cv.flowmix <- function(
                     numclust = numclust,
                     maxdev = maxdev,
                     nrep = nrep,
-                    verbose = FALSE)
+                    verbose = FALSE,
+                    seed = seed)
     }
     return(NULL)
   }, mc.cores = mc.cores)

@@ -11,6 +11,7 @@ flowmix <- function(..., nrep = 5){
   ## Don't do many restarts if warmstart-able mean exists
   dots <- list(...)
   if(!is.null(dots$mn)) nrep = 1
+  if(!is.null(dots$seed)) stop("Can't provide seed for flowmix()! Only for flowmix_once().")
 
   ## Do |nrep| restarts.
   reslist = list()
@@ -38,6 +39,9 @@ flowmix <- function(..., nrep = 5){
 ##' @param tol_em Relative tolerance for EM convergence. Defaults to 1E-4.
 ##' @param zero_stabilize Defaults to FALSE. If TRUE, the EM is only run until
 ##'   the zero pattern in the coefficients stabilize.
+##' @param seed Seven integers that is called directly before \code{init_mn()}
+##'   so it can be assigned to \code{.Random.seed} for setting the random state
+##'   for the initial mean generation.
 ##'
 ##' @return List containing fitted parameters and means and mixture weights,
 ##'   across algorithm iterations. \code{beta} is a list of (p+1 x dimdat)
@@ -91,8 +95,11 @@ flowmix_once <- function(ylist, X,
   TT = length(ylist)
   dimdat = ncol(ylist[[1]])
   p = ncol(X)
-  if(!is.null(seed)) set.seed(seed)
-  if(is.null(mn)) mn = init_mn(ylist, numclust, TT, dimdat, countslist)
+  if(!is.null(seed)){
+    assertthat::assert_that(all((seed %>% sapply(., class)) == "integer"))
+    assertthat::assert_that(length(seed) == 7)
+  }
+  if(is.null(mn)) mn = init_mn(ylist, numclust, TT, dimdat, countslist, seed)
   ntlist = sapply(ylist, nrow)
   N = sum(ntlist)
 

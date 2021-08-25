@@ -23,6 +23,7 @@ cv.flowmix(
   mc.cores = 1,
   blocksize,
   folds = NULL,
+  seedtab = NULL,
   ...
 )
 }

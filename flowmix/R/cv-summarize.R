@@ -94,7 +94,7 @@ cv_summary <- function(destin = ".",
              bestreslist = bestreslist,
              destin = destin)
 
-  if(save){ saveRDS(out, file=file.path(destin, filename)); invisible(NULL) }
+  if(save){ saveRDS(out, file=file.path(destin, filename))}
   return(out)
 }
 

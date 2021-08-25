@@ -6,7 +6,14 @@
 ##' @param TT total number of (training) time points.
 ##'
 ##' @return An array of dimension (T x dimdat x M).
-init_mn <- function(ylist, numclust, TT, dimdat, countslist = NULL){
+init_mn <- function(ylist, numclust, TT, dimdat, countslist = NULL, seed=NULL){
+
+
+  if(!is.null(seed)){
+    assertthat::assert_that(all((seed %>% sapply(., class)) == "integer"))
+    assertthat::assert_that(length(seed) == 7)
+    .Random.seed <<- seed
+  }
 
   if(!is.null(countslist)){
 

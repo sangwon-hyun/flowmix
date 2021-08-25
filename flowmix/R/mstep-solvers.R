@@ -122,7 +122,7 @@ solve_multinom <- function(y, X, lambda, lambda_max = 10){
   ysums = rowSums(y)
   N = sum(ysums)
   stopifnot(lambda > 0)
-  lambdas = exp(seq(from = log(10), to = log(lambda), length = 30))
+  lambdas = exp(seq(from = log(lambda_max), to = log(lambda), length = 30))
   fit <- glmnet::glmnet(x = X,
                         y = y/ysums,
                         lambda = lambdas,

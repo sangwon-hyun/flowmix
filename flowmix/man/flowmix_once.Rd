@@ -54,6 +54,10 @@ time (T) and with (nt) particles at every time.}
 \item{zero_stabilize}{Defaults to FALSE. If TRUE, the EM is only run until
 the zero pattern in the coefficients stabilize.}
 
+\item{seed}{Seven integers that is called directly before \code{init_mn()}
+so it can be assigned to \code{.Random.seed} for setting the random state
+for the initial mean generation.}
+
 \item{prob.list}{(T by K)}
 }
 \value{

@@ -2,13 +2,16 @@
 ## Common setup ####
 ####################
 
+
 ## Change the output directory to a location of your choice.
 outputdir = "~"
 datadir = "../paper-data"
 
-library(flowmix)
+library(flowmix) ## Caution! use the version of the package as of Mar 2021.
 library(parallel)
 mc.cores = 1
+
+## Source in some helper functions
 
 ## Other setup
 maxdev = 0.5
@@ -51,7 +54,7 @@ flowmix::create_destin(destin)
 source("gradients2.R")
 
 
-## Figure 6: Pseudo-real 1d data 5-cluster analysis
+## Figure 6: Simulation using pseudo-real 1d data 5-cluster analysis
 experiment_type = 3
 sim = TRUE
 nsim = 100
@@ -63,7 +66,7 @@ for(numclust in 2:8){
 }
 
 
-## For Figure 4-5 (experiment type 4) using artificial 2-cluster 1d simulation data
+## For Figure 4-5 Simulation using artificial 2-cluster 1d synthetic data
 experiment_type = 4
 sim = TRUE
 nsim = 100

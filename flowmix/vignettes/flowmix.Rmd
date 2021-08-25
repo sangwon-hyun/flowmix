@@ -113,7 +113,7 @@ First, generate data:
 
 ```{r generate-data, echo=TRUE}
 set.seed(0)
-datobj = generate_data_generic(p=5, TT=300, fac=.5, nt=2000, dimdat = 3)
+datobj = generate_data_generic(p=5, TT=300, fac=.5, nt=2000, dimdat = 1)
 ylist = datobj$ylist
 X = datobj$X
 ```
@@ -185,13 +185,19 @@ for(tt in 1:res$TT){
 
 ## Cross-validation
 
-### Obtain the maximum lambda values
+`cv.flowmix` conducts cross-validation among the candidate regularization
+parameters in numeric vectors `prob_lambdas` and `mean_lambdas`
+($\lambda_\alpha$ and $\lambda_\beta$). These can be obtained numerically like
+this:
 
-The maximum values for the candidate regularization parameters $\lambda_\alpha$
-and $\lambda_\beta$, to be used for cross-validation, can be numerically
-obtained (and saved to a file):
+```{r}
+## Define the locations to save the CV results.
+destin = "." 
 
-```{r eval = FALSE}
+## Define the CV folds (as every fifth, nfold-sized, block of indices)
+folds = make_cv_folds(ylist, nfold = 5, verbose = FALSE, blocksize = 20) 
+
+## This saves to a file `maxres.Rdata` under the |destin| directory.
 maxres = get_max_lambda(destin,
                         "maxres.Rdata",
                         ylist = ylist,
@@ -201,25 +207,166 @@ maxres = get_max_lambda(destin,
                         maxdev = 0.5,
                         max_mean_lambda = 40,
                         max_prob_lambda = 2)
-```
 
-Now setting a few things up.
-
-```{r eval=FALSE}
-## Define the locations to save the CV results.
-destin = "." 
-
-## Define the CV folds (as every fifth, nfold-sized, block of indices)
-folds = make_cv_folds(ylist, nfold = 5, verbose = FALSE, blocksize = 20) 
-
-## Define the candidate lambda values (logarithmically spaced)
 cv_gridsize = 5
-## maxres = list(alpha = 1, beta=1)
 prob_lambdas =  logspace(min = 0.0001, max = maxres$alpha, length = cv_gridsize)
 mean_lambdas = logspace(min = 0.0001, max = maxres$beta, length = cv_gridsize)
 ```
 
-### One EM algorithm = one job
+Also define the CV folds. You can choose not to, by setting `folds=NULL`, in
+which case the default folds are used.
+
+```{r}
+## Define the CV folds (as every fifth, nfold-sized, block of indices)
+folds = make_cv_folds(ylist, nfold = 5, verbose = FALSE, blocksize = 20) 
+```
+
+Now, run the cross-validation using `cv.flowmix()`.
+
+```{r eval=FALSE}
+cvres = cv.flowmix(ylist = ylist,
+                   countslist = NULL,
+                   X = X,
+                   maxdev = 0.5,
+                   numclust = 4,
+                   prob_lambdas = prob_lambdas,
+                   mean_lambdas = mean_lambdas,
+                   nrep = 10,
+                   folds = folds,
+                   destin = destin,
+                   mc.cores = 8)
+```
+
+(This code takes long, so it's recommended that you run it separately in a
+script; use `mc.cores` option to run the jobs on multiple cores):
+
+Then, the results are saved into separate files whose names follow these rules:
+- "1-1-1-1.Rdata" for `ialpha`-`ibeta`-`irep`-`ifold`.Rdata, having run the CV.
+- "1-1-1-cvres.Rdata" for having estimated the model in the full data
+
+After the cross-validation is finished, the final selected model is summarized
+from these files, and optionally saved to a file `summary.RDS` (if `save=TRUE`):
+
+```{r eval=FALSE}
+cvres = cv_summary(destin = destin,
+                   cv_gridsize = 5,
+                   nrep = 10,
+                   nfold = 5,
+                   save = TRUE,
+                   filename = "summary.RDS")
+```
+
+We can see the final model chosen by cross-validation like this:
+
+```{r eval=FALSE}
+print(cvres$bestres)
+```
+
+## Real data
+
+Now, trying this on real data:
+
+```{r real-data}
+## Load data
+load(file = "~/repos/flowmix/demo-MGL1704.Rdata")
+X = X %>% select(-time, -lat, -lon) %>% as.matrix()
+ylist = ybin_list
+countslist = biomass_list
+
+## Estimate model
+set.seed(1)
+res = flowmix(ylist, X, numclust = 10,
+              countslist = countslist,
+              mean_lambda = 0.001,
+              prob_lambda = 0.001,
+              maxdev = 0.5,
+              nrep = 1,
+              verbose = FALSE)
+```
+
+We can visualize the model in several ways.
+
+```{r}
+## Default print
+print(res)
+```
+
+
+```{r fig.width=10, fig.height=5}
+## Plot estimated probabilities
+cols = RColorBrewer::brewer.pal(numclust, "Set2")
+res$prob %>% matplot(type = 'l', lwd = 2, col = cols, xlab = "Time", ylab = "Cluster probabilities")
+res$prob %>% .[1,] %>% text(x=10, y=., label=paste0("Cluster", 1:numclust))
+```
+
+
+```{r, animation.hook='ffmpeg', dev='jpeg', interval=0.2, ffmpeg.format="gif", fig.width=15, fig.height=6}
+## Three scatterplots of one time point
+par(mfrow = c(1,3))
+ylim = c(-3,8)
+xlim = c(-5,8)
+dimnames = c("diam", "red", "orange")
+par(mfrow = c(1,3), oma = c(2,2,2,2))
+for(tt in 1:50){
+  for(dims in list(c(1,2), c(2,3), c(3,1))){
+    scatterplot_2d(ylist = ylist,
+                   countslist = countslist,
+                   obj = res,
+                   tt,
+                   dims = dims, cex_fac=8,
+                   pt_col = rgb(0 ,0, 1, 0.1),
+                   xlab = dimnames[dims[1]],
+                   ylab = dimnames[dims[2]])
+  }
+  mtext(outer = TRUE,
+        text = paste0("t = ", tt, " out of ", res$TT),
+        cex = 2)
+}
+```
+
+
+## Appendix
+
+### Binning data
+
+If the data contains too many particles, we can reduce the size of `ylist` and
+instead deal with binned counts.
+
+The new object `countslist` can be *additionally* input to `flowmix()`.
+
+Here is an example. `make_grid(ylist, gridsize=30)` makes an equally sized grid
+of size 30 from the data range, in each dimension. Then, `bin_many_cytograms()`
+places the particles in `ylist` in each of these bins. The resulting object is a
+list which contains the grid centers `ybin_list` and the counts in each
+`counts_list`.
+
+(Not used here, but optionally, you can also upweight each particle, e.g. using
+the biomass of each particle.)
+
+```{r}
+## Bin this data
+grid = make_grid(ylist, gridsize = 30)
+obj = bin_many_cytograms(ylist, grid, mc.cores = 8, verbose=FALSE)  
+ylist = obj$ybin_list
+countslist = obj$counts_list
+
+## Run the algorithm on binned data
+res = flowmix(ylist = ylist,
+              X = X,
+              countslist = countslist,
+              numclust = numclust,
+              mean_lambda = 0.001,
+              prob_lambda = 0.001,
+              verbose = FALSE,
+              maxdev = 0.5)
+```
+
+
+### EM algorithm = one job
+
+It's useful to understand how the cross-validation is done. The key is that it
+is embarassingly parallel, and can be parallelized into multiple CPU cores on a
+single computer, or among many different computers.
 
 Next, one "job" (using the function `one_job(ialpha, ibeta, ifold, irep)`) is to
 run the EM algorithm once, for:
@@ -291,145 +438,6 @@ one_job_refit(ialpha = ialpha,
 
 As we've mentioned above, since all of this is clearly parallelizable, it's
 recommended to use multiple computers or servers for the full cross-validation.
-
-### A single function
-
-`cv.flowmix` conducts cross-validation by wrapping most of the above into a
-single function.
-
-(This code takes long, so it's recommended that you run it separately in a
-script; use `mc.cores` option to run the jobs on multiple cores):
-
-```{r eval=FALSE}
-cvres = cv.flowmix(ylist = ylist,
-                   countslist = NULL,
-                   X = X,
-                   maxdev = 0.5,
-                   numclust = 4,
-                   prob_lambdas = prob_lambdas,
-                   mean_lambdas = mean_lambdas,
-                   nrep = 10,
-                   nfold = 5,
-                   destin = "~/Desktop",
-                   mc.cores = 8)
-```
-
-Then, the results are saved into separate files whose names follow these rules:
-- "1-1-1-1.Rdata" for `ialpha`-`ibeta`-`irep`-`ifold`.Rdata, having run the CV.
-- "1-1-1-cvres.Rdata" for having estimated the model in the full data
-
-After the cross-validation is finished, the results are summarized from these
-files, and optionally saved to a file `summary.RDS` (if `save=TRUE`):
-
-```{r eval=FALSE}
-cvres = cv_summary(destin = ".",
-                   cv_gridsize = 5,
-                   nrep = 10,
-                   nfold = 5,
-                   save = TRUE,
-                   filename = "summary.RDS")
-```
-
-The final model chosen by cross-validation is this:
-
-```{r eval=FALSE}
-cvres$bestres %>% print()
-```
-
-## Binning data
-
-If the data contains too many particles, we can reduce the size of `ylist` and
-instead deal with binned counts.
-
-The new object `countslist` can be *additionally* input to `flowmix()`.
-
-Here is an example. `make_grid(ylist, gridsize=30)` makes an equally sized grid
-of size 30 from the data range, in each dimension. Then, `bin_many_cytograms()`
-places the particles in `ylist` in each of these bins. The resulting object is a
-list which contains the grid centers `ybin_list` and the counts in each
-`counts_list`.
-
-(Not used here, but optionally, you can upweight each particle, e.g. using the
-biomass of each particle.)
-
-```{r}
-## Bin this data
-grid = make_grid(ylist, gridsize = 30)
-obj = bin_many_cytograms(ylist, grid, mc.cores = 8, verbose=FALSE)  
-ylist = obj$ybin_list
-countslist = obj$counts_list
-
-## Run the algorithm on binned data
-res = flowmix(ylist = ylist,
-              X = X,
-              countslist = countslist,
-              numclust = numclust,
-              mean_lambda = 0.001,
-              prob_lambda = 0.001,
-              verbose = FALSE,
-              maxdev = 0.5)
-```
-
-
-## Real data
-
-You can repeat the above code blocks, with real data.
-
-```{r real-data}
-## Load data
-load(file = "~/repos/flowmix/demo-MGL1704.Rdata")
-X = X %>% select(-time, -lat, -lon) %>% as.matrix()
-ylist = ybin_list
-countslist = biomass_list
-
-## Estimate model
-set.seed(1)
-res = flowmix(ylist, X, numclust = 10,
-              countslist = countslist,
-              mean_lambda = 0.001,
-              prob_lambda = 0.001,
-              maxdev = 0.5,
-              nrep = 1,
-              verbose = FALSE)
-```
-
-Now visualizing the results as before.
-
-
-```{r}
-## Default print
-print(res)
-```
-
-```{r fig.width=10, fig.height=5}
-## Plot estimated probabilities
-plot_prob(res)
-```
-
-```{r, animation.hook='ffmpeg', dev='jpeg', interval=0.2, ffmpeg.format="gif", fig.width=15, fig.height=6}
-## Three scatterplots of one time point
-par(mfrow = c(1,3))
-ylim = c(-3,8)
-xlim = c(-5,8)
-dimnames = c("diam", "red", "orange")
-par(mfrow = c(1,3), oma = c(2,2,2,2))
-for(tt in 1:50){
-  for(dims in list(c(1,2), c(2,3), c(3,1))){
-    scatterplot_2d(ylist = ylist,
-                   countslist = countslist,
-                   obj = res,
-                   tt,
-                   dims = dims, cex_fac=8,
-                   pt_col = rgb(0 ,0, 1, 0.1),
-                   xlab = dimnames[dims[1]],
-                   ylab = dimnames[dims[2]])
-  }
-  mtext(outer = TRUE,
-        text = paste0("t = ", tt, " out of ", res$TT),
-        cex = 2)
-}
-```
-
 
 <!-- # Advanced usage -->
 
