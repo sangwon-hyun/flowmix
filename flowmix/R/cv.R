@@ -120,6 +120,7 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
                     mean_lambdas, prob_lambdas,
                     ## For simulations
                     sim = FALSE, isim = 1,
+                    seedtab = NULL,
                     ## The rest that is needed explicitly for flowmix()
                     ylist, countslist,
                     X,
