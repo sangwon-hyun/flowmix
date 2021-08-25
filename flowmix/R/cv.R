@@ -141,6 +141,20 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
     return(NULL)
   }
 
+
+  ## Get the seed ready
+  if(!is.null(seedtab)){
+    seed = seedtab %>%
+      dplyr::filter(ialpha == !!ialpha,
+                    ibeta == !!ibeta,
+                    ifold == !!ifold,
+                    irep == !!irep) %>%
+      dplyr::select(seed1, seed2, seed3, seed4, seed5, seed6, seed7) %>% unlist() %>% as.integer()
+  } else {
+    seed = NULL
+  }
+
+
   prob_lambda = prob_lambdas[ialpha]
   mean_lambda = mean_lambdas[ibeta]
 
@@ -151,6 +165,7 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
   args$X = train.X
   args$mean_lambda = mean_lambda
   args$prob_lambda = prob_lambda
+  args$seed = seed
   if("nrep" %in% names(args)){
     args = args[-which(names(args) %in% "nrep")] ## remove |nrep| prior to feeding to flowmix_once().
   }
@@ -230,6 +245,7 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
 ##' @export
 one_job_refit <- function(ialpha, ibeta, destin,
                           mean_lambdas, prob_lambdas,
+                          seedtab = NULL,
                           ## The rest that is needed explicitly for flowmix_once()
                           ylist, countslist, X,
                           sim = FALSE, isim = 1,
@@ -246,6 +262,19 @@ one_job_refit <- function(ialpha, ibeta, destin,
       next
     } else {
 
+     ## Get the seed ready
+     if(!is.null(seedtab)){
+       ifold = 0
+       seed = seedtab %>%
+         dplyr::filter(ialpha == !!ialpha,
+                       ibeta == !!ibeta,
+                       ifold == !!ifold,
+                       irep == !!irep) %>%
+         dplyr::select(seed1, seed2, seed3, seed4, seed5, seed6, seed7) %>% unlist() %>% as.integer()
+     } else {
+       seed = NULL
+     }
+
       ## Get the fitted results on the entire data
       args = list(...)
       args$ylist = ylist
@@ -253,6 +282,7 @@ one_job_refit <- function(ialpha, ibeta, destin,
       args$X = X
       args$prob_lambda = prob_lambdas[ialpha]
       args$mean_lambda = mean_lambdas[ibeta]
+      args$seed = seed
       if("nrep" %in% names(args)) args = args[-which(names(args) %in% "nrep")] ## remove |nrep| prior to feeding
 
       ## Call the function.
@@ -434,18 +464,7 @@ cv.flowmix <- function(
     } else {
       ialpha = iimat[ii, "ialpha"]
       ibeta = iimat[ii, "ibeta"]
-    }
-
-    ## Get the seed ready
-    if(!is.null(seedtab)){
-      seed = seedtab %>%
-        dplyr::filter(ialpha == !!ialpha,
-                      ibeta == !!ibeta,
-                      ifold == !!ifold,
-                      irep == !!irep) %>%
-        dplyr::select(seed1, seed2, seed3, seed4, seed5, seed6, seed7) %>% unlist() %>% as.integer()
-    } else {
-      seed = NULL
+      ifold = 0
     }
 
     if(!refit){
@@ -464,7 +483,7 @@ cv.flowmix <- function(
               numclust = numclust,
               maxdev = maxdev,
               verbose = FALSE,
-              seed = seed)
+              seedtab = seedtab)
     } else {
       one_job_refit(ialpha = ialpha,
                     ibeta = ibeta,
@@ -478,7 +497,7 @@ cv.flowmix <- function(
                     maxdev = maxdev,
                     nrep = nrep,
                     verbose = FALSE,
-                    seed = seed)
+                    seedtab = seedtab)
     }
     return(NULL)
   }, mc.cores = mc.cores)
