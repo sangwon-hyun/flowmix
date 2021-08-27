@@ -15,6 +15,7 @@ one_job(
   prob_lambdas,
   sim = FALSE,
   isim = 1,
+  seedtab = NULL,
   ylist,
   countslist,
   X,

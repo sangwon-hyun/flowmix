@@ -12,6 +12,7 @@ one_job_refit(
   destin,
   mean_lambdas,
   prob_lambdas,
+  seedtab = NULL,
   ylist,
   countslist,
   X,

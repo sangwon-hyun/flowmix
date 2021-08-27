@@ -75,21 +75,54 @@ flowmix_once <- function(ylist, X,
                          seed = NULL
                          ){
 
+  ## Capture all arguments once
+  call <- sys.call();
+  call[[1]] <- as.name('list');
+  args <- eval.parent(call)
+
   ## Basic checks
   if(!is.null(maxdev)){
     assertthat::assert_that(maxdev!=0)
   } else {
     maxdev = 1E10 ## Some large number
   }
-  ## assert_that(!(is.data.frame(ylist[[1]])))
   assertthat::assert_that(!(is.data.frame(X)))
   assertthat::assert_that(sum(is.na(X)) == 0)
   assertthat::assert_that(length(ylist) == nrow(X))
-  ## assertthat::assert_that(prob_lambda > 0)
   assertthat::assert_that(numclust > 1)
   assertthat::assert_that(niter > 1)
-
+  ## assert_that(!(is.data.frame(ylist[[1]])))
+  ## assertthat::assert_that(prob_lambda > 0)
   ## assertthat::assert_that(all(sapply(ylist, nrow) == sapply(countslist, length)))
+
+
+  ## Detect if any covariates are flat (low variance)
+  ## If so, remove that, run flowmix_once(), and add back zeros in the coefficients.
+  flatX = which(apply(X, 2, sd) < 1e-6)
+  if(length(flatX) == 0) rm(args)
+  if(length(flatX) > 0){
+
+    warning("Some covariates are flat. The coefficients for these variables will be set to zero.")
+    orig_names = colnames(X)
+
+    ## Recursive call of flowmix_once
+    args$X = X[, -flatX]
+    argn <- lapply(names(args), as.name)
+    names(argn) <- names(args)
+    call <- as.call(c(list(as.name("flowmix_once")), argn))
+    res = eval(call, args)
+
+    ## Alter the call so that those coefficients are all zero.
+    res$beta <- alter_beta(res$beta, flatX, orig_names)
+    res$alpha <- alter_alpha(res$alpha, flatX, orig_names)
+
+    ## Alter some other things
+    res$p = res$p + 1
+    res$X = X
+
+    ## Return the result
+    return(res)
+  }
 
   ## Setup
   TT = length(ylist)

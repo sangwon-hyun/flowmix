@@ -7,13 +7,13 @@
 ##' @return List containing cluster membership draws.
 ##'
 ##' @export
-draw_membership <- function(resp){
+draw_membership <- function(resp, verbose = FALSE){
 
   TT = length(resp)
 
   drawslist = list()
   for(tt in 1:TT){
-    print_progress(tt, TT, "Membership draw, time point = ")
+    if(verbose) print_progress(tt, TT, "Membership draw, time point = ")
     draws = resp[[tt]] %>% apply(., 1, function(p){
      rmultinom(1, 1, p)}) %>% t()
     drawslist[[tt]] = draws
@@ -179,12 +179,13 @@ check_if_same_size <- function(ylist1, ylist2){
 ##' @param origres Model estimated from the entire dataset.
 ##' @param ylist_particle Original particle-level cytogram data.
 ##' @param X Accompanying covariate data.
+##' @param prefix The prefix of the summary files, e.g. "summary-sim-" for file that are named "summary-sim-95.RDS".
 ##'
 ##' @return List of nonzero frequencies, and alpha and beta coefficients of
 ##'   reordered models.
 ##'
 ##' @export
-get_frequency <- function(nsim, outputdir, origres, ylist_particle, X){
+get_frequency <- function(nsim, outputdir, origres, ylist_particle, X, prefix="summary-sim-"){
 
   ## Setup
   numclust = origres$numclust
@@ -193,13 +194,14 @@ get_frequency <- function(nsim, outputdir, origres, ylist_particle, X){
   ###  Frequencies #####
   ######################
   beta_list = alpha_list = mn_list = list()
-  ## start.time = Sys.time()
+  start.time = Sys.time()
   for(isim in 1:nsim){
-    ## print_progress(isim, nsim, start.time=start.time)
+    print_progress(isim, nsim, start.time=start.time)
 
     ## Load the data.
     ## resfile = file.path(outputdir, paste0("summary-", isim, ".RDS"))
-    resfile = file.path(outputdir, paste0("summary-sim-", isim, ".RDS"))
+    filename = paste0(prefix, isim, ".RDS")
+    resfile = file.path(outputdir, filename)
     if(!file.exists(resfile)) next
     cvres = readRDS(file = resfile)
 

@@ -473,7 +473,7 @@ add_transition <- function(X, lat){
 
 
 ##' Function to create 1d simulated data.
-generate_1d_data <- function(TT){
+generate_1d_data <- function(TT, sigma1 = NULL, sigma2 = NULL){
 
   ## Generate covariates.
   stopifnot(TT %% 2 == 0)
@@ -527,8 +527,8 @@ generate_1d_data <- function(TT){
   ## ntlist[1:(TT/2)] = ntlist[1:(TT/2)] + rep(nt/3, TT/2)
 
   ## Define the covariances
-  sigma1 = .1
-  sigma2 = .1
+  if(is.null(sigma1))sigma1 = .1
+  if(is.null(sigma2))sigma2 = .1
   sigmalist = list(sigma1, sigma2)
   ## sigmalist = lapply(sigmalist, function(a) a / 3 * fac)
   dimdat = 1

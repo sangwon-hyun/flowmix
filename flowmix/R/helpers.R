@@ -177,3 +177,67 @@ print_progress <- function(isim, nsim,
     }
     if(fill) cat(fill = TRUE)
 }
+
+
+
+
+##' Altering the beta coefficient (for all clusters) by adding zero coefficients
+##' to certain rows.
+##'
+##' @param beta beta coefficients (list of p x dimdat matrices).
+##' @param flatX Indices, out of 1 through p, of which variables are flat.
+##' @param orig_names Original column names of X.
+##'
+##' @return Same format as beta, but all-zero rows added to beta matrix in each
+##'   cluster.
+alter_beta <- function(beta, flatX, orig_names){
+
+  ## Basic checks
+  stopifnot(length(flatX) >= 1)
+  stopifnot(nrow(beta[[1]]) + length(flatX) == 1 + length(orig_names)) ## p+1
+  dimdat = ncol(beta[[1]])
+  numclust = length(beta)
+  stopifnot(all(rownames(beta[[1]]) %in% c("intp", orig_names)))
+
+  ## Make new rows
+  newrows = matrix(0, ncol = dimdat, nrow = length(flatX))
+  rownames(newrows) = orig_names[flatX]
+
+  ## Add it to each beta coefficient
+  for(iclust in 1:numclust){
+    beta[[iclust]] = rbind(beta[[iclust]], newrows)
+    beta[[iclust]] = beta[[iclust]] %>% .[c("intp", orig_names),]
+  }
+
+  ## Return the altered beta
+  return(beta)
+}
+
+
+##' Altering the beta coefficient (for all clusters) by adding zero coefficients
+##' to certain rows.
+##'
+##' @param alpha alpha coefficients (One numclust x p matrix).
+##' @param flatX Indices, out of 1 through p, of which variables are flat.
+##' @param orig_names Original column names of X.
+##'
+##' @return Same format as alpha, but with zeros in the columns where variable
+##'   that was flat.
+alter_alpha <- function(alpha, flatX, orig_names){
+
+  ## Basic check
+  numclust = nrow(alpha)
+  stopifnot(length(flatX) >= 1)
+  stopifnot(all(colnames(alpha) %in% c("intp", orig_names)))
+  stopifnot(ncol(alpha) + length(flatX) == length(orig_names) + 1) ## p+1
+
+  ## Make new columns
+  newcol = matrix(0, nrow = numclust, ncol = length(flatX))
+  colnames(newcol) = orig_names[flatX]
+
+  ## Add it to alpha
+  alpha = cbind(alpha, newcol)
+
+  ## Return the altered beta
+  return(beta)
+}
