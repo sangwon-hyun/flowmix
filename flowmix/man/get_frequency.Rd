@@ -5,7 +5,14 @@
 \title{From subsampling bootstrap results (summary files), produce stability
 measures.}
 \usage{
-get_frequency(nsim, outputdir, origres, ylist_particle, X)
+get_frequency(
+  nsim,
+  outputdir,
+  origres,
+  ylist_particle,
+  X,
+  prefix = "summary-sim-"
+)
 }
 \arguments{
 \item{outputdir}{Contains files named "summary-(isim).RDS".}
@@ -15,6 +22,8 @@ get_frequency(nsim, outputdir, origres, ylist_particle, X)
 \item{ylist_particle}{Original particle-level cytogram data.}
 
 \item{X}{Accompanying covariate data.}
+
+\item{prefix}{The prefix of the summary files, e.g. "summary-sim-" for file that are named "summary-sim-95.RDS".}
 }
 \value{
 List of nonzero frequencies, and alpha and beta coefficients of

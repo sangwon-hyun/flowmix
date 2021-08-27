@@ -4,7 +4,7 @@
 \alias{draw_membership}
 \title{Drawing memberships by coinflip using the responsibilities.}
 \usage{
-draw_membership(resp)
+draw_membership(resp, verbose = FALSE)
 }
 \arguments{
 \item{resp}{Posteerior cluster probabilities, or responsibilities, from

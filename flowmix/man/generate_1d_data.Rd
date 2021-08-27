@@ -4,7 +4,7 @@
 \alias{generate_1d_data}
 \title{Function to create 1d simulated data.}
 \usage{
-generate_1d_data(TT)
+generate_1d_data(TT, sigma1 = NULL, sigma2 = NULL)
 }
 \description{
 Function to create 1d simulated data.
