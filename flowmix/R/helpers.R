@@ -237,7 +237,8 @@ alter_alpha <- function(alpha, flatX, orig_names){
 
   ## Add it to alpha
   alpha = cbind(alpha, newcol)
+  alpha = alpha %>% .[,c("intp", orig_names)]
 
-  ## Return the altered beta
-  return(beta)
+  ## Return the altered alpha
+  return(alpha)
 }

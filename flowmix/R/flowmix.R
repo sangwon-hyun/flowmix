@@ -98,7 +98,7 @@ flowmix_once <- function(ylist, X,
 
   ## Detect if any covariates are flat (low variance)
   ## If so, remove that, run flowmix_once(), and add back zeros in the coefficients.
-  flatX = which(apply(X, 2, sd) < 1e-6)
+  flatX = which(apply(X, 2, sd) < 1e-5)
   if(length(flatX) == 0) rm(args)
   if(length(flatX) > 0){
 
