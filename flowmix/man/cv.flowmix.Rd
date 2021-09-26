@@ -24,6 +24,7 @@ cv.flowmix(
   blocksize,
   folds = NULL,
   seedtab = NULL,
+  flatX_thresh = 1e-05,
   ...
 )
 }

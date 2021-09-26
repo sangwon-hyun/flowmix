@@ -412,6 +412,7 @@ cv.flowmix <- function(
                        blocksize,
                        folds = NULL,
                        seedtab = NULL,
+                       flatX_thresh = 1E-5,
                        ...){
 
   ## Basic checks
@@ -484,7 +485,8 @@ cv.flowmix <- function(
               numclust = numclust,
               maxdev = maxdev,
               verbose = FALSE,
-              seedtab = seedtab)
+              seedtab = seedtab,
+              flatX_thresh = flatX_thresh)
     } else {
       one_job_refit(ialpha = ialpha,
                     ibeta = ibeta,
@@ -498,7 +500,9 @@ cv.flowmix <- function(
                     maxdev = maxdev,
                     nrep = nrep,
                     verbose = FALSE,
-                    seedtab = seedtab)
+                    seedtab = seedtab,
+                    flatX_thresh = flatX_thresh
+                    )
     }
     return(NULL)
   }, mc.cores = mc.cores)
