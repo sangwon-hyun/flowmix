@@ -72,7 +72,8 @@ flowmix_once <- function(ylist, X,
                          admm_local_adapt_niter = 10,
                          admm_niter = (if(admm_local_adapt)1E3 else 1E4),
                          CVXR =FALSE, ## temporary
-                         seed = NULL
+                         seed = NULL,
+                         flatX_thresh = 1e-5
                          ){
 
   ## Capture all arguments once
@@ -98,7 +99,7 @@ flowmix_once <- function(ylist, X,
 
   ## Detect if any covariates are flat (low variance)
   ## If so, remove that, run flowmix_once(), and add back zeros in the coefficients.
-  flatX = which(apply(X, 2, sd) < 1e-5)
+  flatX = which(apply(X, 2, sd) < flatX_thresh)
   if(length(flatX) == 0) rm(args)
   if(length(flatX) > 0){
 
