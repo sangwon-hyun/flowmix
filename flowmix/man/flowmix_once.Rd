@@ -31,7 +31,8 @@ flowmix_once(
   admm_local_adapt_niter = 10,
   admm_niter = (if (admm_local_adapt) 1000 else 10000),
   CVXR = FALSE,
-  seed = NULL
+  seed = NULL,
+  flatX_thresh = 1e-05
 )
 }
 \arguments{

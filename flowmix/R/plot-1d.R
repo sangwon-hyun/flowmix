@@ -237,7 +237,7 @@ add_date_ticks_from_dates <- function(dates, empty_tick_marks=FALSE, ...){
 ##' @param qclist Corresponding QC in those bins.
 ##'
 ##' @return ggplot
-bin_plot_1D <- function(ylist, qclist, col=NULL){
+bin_plot_1d <- function(ylist, qclist, col=NULL){
 
   if(is.null(col)) col = c("white", "black", "yellow", "red")
 

@@ -74,7 +74,7 @@ plot_2d <- function(ylist, tt, res = NULL, drawslist = NULL, resp = NULL, iclust
 ##'
 ##' @export
 ##'
-bin_plot_2d <- function(datobj_2d, mn=NULL, sigma=NULL, prob=NULL, labels = NULL, fac = 20, colours = NULL){
+bin_plot_2d <- function(datobj_2d, mn=NULL, sigma=NULL, prob=NULL, labels = NULL, fac = 20, colours = NULL, mn_colours = NULL){
 
   ## Basic checks
   if(is.null(colours)) colours = c("white", "blue")
@@ -102,23 +102,66 @@ bin_plot_2d <- function(datobj_2d, mn=NULL, sigma=NULL, prob=NULL, labels = NULL
     xlim(c(0,8)) + ylim(c(0, 8)) +
     theme(legend.position = "none")
 
+
   ## Add model.
   if(!is.null(mn)){
+
+    ## Temporary
+      mn_colours = labels %>% sapply(function(label){
+        allcols = RColorBrewer::brewer.pal(6, "Set2")
+        if(grepl("pro", label)){
+          return(allcols[1])
+        } else if (grepl("pico", label)){
+          return(allcols[2])
+        } else if (grepl("croco", label)){
+          return(allcols[3])
+        }  else if (grepl("syn", label)) {
+          return(allcols[4])
+        }  else if (grepl("bead", label)) {
+          return(allcols[5])
+        }  else if (grepl("small", label)) {
+          return(allcols[6])
+        } else {
+          return(rgb(0,0,0,0.4))
+        }
+      })
+
     for(iclust in 1:numclust){
       el = ellipse::ellipse(x = sigma[iclust,,], centre = mn[,iclust]) %>% as_tibble()
-      p = p + geom_path(aes(x = x, y = y), data = el, colour = "red", lty = 2,
-                        lwd = pmin(prob[iclust] * 5, 0.5))
+      ## p = p + geom_path(aes(x = x, y = y), data = el, colour = "red", lty = 2,
+      ##                   lwd = pmin(prob[iclust] * 5, 0.5))
+      p = p + geom_path(aes(x = x, y = y), data = el, colour = mn_colours[iclust], lty = 2,
+                        lwd = pmin(prob[iclust] * 8, 0.8))
     }
 
     ## Add points
-    p = p + geom_point(aes(x = x, y = y, size = prob),
-                       data = dt, colour = 'red') +
-                    ## data = dt, colour = 'black', fill = 'red', shape = 21, stroke = 2) +
-    scale_size_identity()
+    ## p = p + geom_point(aes(x = x, y = y, size = (prob)),
+    ##                    data = dt, colour = 'red') +
+
+    p = p + geom_point(aes(x = x, y = y, size = (prob)),
+                       data = dt, colour = mn_colours) +
+
+    ## scale_size_identity()
+      scale_size_area()
+
 
     ## Add labels
-    p = p + geom_text(aes(x = x, y = y, label = label), size = 5, hjust = 0, vjust = 0, data = dt,
-                      fontface = "bold", col='black')
+    ## p = p + geom_text(aes(x = x, y = y, label = label), size = 5, hjust = 0, vjust = 0, data = dt,
+    ##                   fontface = "bold", col='black')
+
+    ## Improve label style
+    cex = ifelse(mn_colours==rgb(0,0,0,0.5), rel(3), rel(4))
+    p = p + ggrepel::geom_text_repel(aes(x = x, y = y, label = label, point.size = sqrt(prob)),
+                                     ## col = "black",
+                                     col = mn_colours,
+                                     cex = cex,
+                                     bg.color = "white",
+                                     bg.r = 0.1,
+                                     fontface = "bold",
+                                     ## point.size = NA,
+                                     force_pull   = 5, # do not pull toward data points
+                                     data = dt,
+                                     seed = 1)
   }
 
   return(p)
@@ -143,7 +186,8 @@ plot_2d_threepanels <- function(obj = NULL, ## Understandably, data (ylist) migh
                                 tt,
                                 labels = NULL,
                                 plist_return = FALSE,
-                                colours = NULL){
+                                colours = NULL,
+                                cruise_id = NULL){
 
   ## Basic checks
   if(!is.null(obj)) stopifnot("flowmix" %in% class(obj))
@@ -187,9 +231,12 @@ plot_2d_threepanels <- function(obj = NULL, ## Understandably, data (ylist) migh
   ###############################
   ## Return a 3 x 1 data panel ##
   ###############################
-  mydatetime = names(ylist)[tt]
-  main_text_grob = grid::textGrob(mydatetime,
-                                  gp = grid::gpar(fontsize = 20, font = 3))
+  mytitle = mydatetime = names(ylist)[tt]
+  if(!is.null(cruise_id)) mytitle = paste0(cruise_id,"  ", mydatetime)
+  main_text_grob = grid::textGrob(mytitle,
+                                  gp = grid::gpar(fontsize = 20, fontface = "plain"),
+                                  x = 0, hjust = 0)
   gridExtra::arrangeGrob(plist[[1]], plist[[2]], plist[[3]],
-                          ncol = 3, top = main_text_grob)
+                         ncol = 3,
+                         top = main_text_grob)
 }

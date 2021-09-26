@@ -11,7 +11,8 @@ bin_plot_2d(
   prob = NULL,
   labels = NULL,
   fac = 20,
-  colours = NULL
+  colours = NULL,
+  mn_colours = NULL
 )
 }
 \arguments{

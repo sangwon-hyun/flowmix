@@ -11,7 +11,8 @@ plot_2d_threepanels(
   tt,
   labels = NULL,
   plist_return = FALSE,
-  colours = NULL
+  colours = NULL,
+  cruise_id = NULL
 )
 }
 \arguments{
