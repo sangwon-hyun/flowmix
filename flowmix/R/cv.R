@@ -130,10 +130,10 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
   test.inds = unlist(folds[ifold])
   test.dat = ylist[test.inds]
   test.count = countslist[test.inds]
-  test.X = X[test.inds,]
+  test.X = X[test.inds,,drop=FALSE]
   train.dat = ylist[-test.inds]
   train.count = countslist[-test.inds]
-  train.X = X[-test.inds,]
+  train.X = X[-test.inds,, drop=FALSE]
 
   ## Check whether this job has been done already.
   filename = make_cvscore_filename(ialpha, ibeta, ifold, irep, sim, isim)
