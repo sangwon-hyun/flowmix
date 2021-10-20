@@ -264,6 +264,7 @@ make_counts <- function(y, grid, qc=NULL){
   nn = length(grid[[1]]) - 1
   dimdat = ncol(y)
   counts = array(0, dim=rep(nn,dimdat))
+  if(nt == 0) return(counts)
   for(ii in 1:nt){
     ijk = identify_box(grid, y[ii,])
     ijk = pmin(ijk, nn) ## fixing indexing for right-end edge points.
