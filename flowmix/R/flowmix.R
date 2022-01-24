@@ -336,14 +336,14 @@ flowmix_once <- function(ylist, X,
 predict.flowmix <- function(object, newx, ...){
 
   ## Basic checks
-  ## stopifnot(ncol(new.x) == ncol(res$X))
+  ## stopifnot(ncol(new.x) == ncol(object$X))
   ## newx = X[1,,drop=FALSE]
   if(is.null(newx)){
-    newx = res$X
+    newx = object$X
   }
 
   ## Check if the variable names are the same.
-  cnames = res$X %>% colnames()
+  cnames = object$X %>% colnames()
   cnames_new = newx %>% colnames()
   stopifnot(all(cnames == cnames_new))
 
@@ -355,21 +355,21 @@ predict.flowmix <- function(object, newx, ...){
   }
 
   TT = nrow(newx) ## This used to be nrow(X)..
-  numclust = res$numclust
-  dimdat = res$dimdat
-  if(is.null(dimdat)) dimdat = res %>%.$mn %>% dim() %>% .[2] ## for back=compatibility
+  numclust = object$numclust
+  dimdat = object$dimdat
+  if(is.null(dimdat)) dimdat = object %>%.$mn %>% dim() %>% .[2] ## for back=compatibility
 
   ## Predict the means (manually).
   newmn = lapply(1:numclust, function(iclust){
-    newx.a %*% res$beta[[iclust]]
+    newx.a %*% object$beta[[iclust]]
   })
   newmn_array = array(NA, dim=c(TT, dimdat, numclust))
   for(iclust in 1:numclust){ newmn_array[,,iclust] = newmn[[iclust]] }
 
   ## Predict the probs.
-  ## newprob = predict(res$alpha.fit, newx=newx, type='response')[,,1]
+  ## newprob = predict(object$alpha.fit, newx=newx, type='response')[,,1]
 
-  probhatmat = as.matrix(exp(cbind(1,newx) %*% t(res$alpha)))
+  probhatmat = as.matrix(exp(cbind(1,newx) %*% t(object$alpha)))
   newprob = probhatmat / rowSums(probhatmat)
   ## predict(fit, newx=X, type="response")[,,1]
   stopifnot(all(dim(newprob) == c(TT,numclust)))
@@ -379,12 +379,12 @@ predict.flowmix <- function(object, newx, ...){
   return(list(mn = newmn_array,
               prob = newprob,
               pie = newprob, ## Just a copy of prob, for back-compatibility
-              alpha = res$alpha,
-              beta = res$beta,
-              sigma = res$sigma,
-              TT = res$TT,
-              N = res$N,
-              numclust = res$numclust,
+              alpha = object$alpha,
+              beta = object$beta,
+              sigma = object$sigma,
+              TT = object$TT,
+              N = object$N,
+              numclust = object$numclust,
               X = newx))
 }
 
