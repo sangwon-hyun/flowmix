@@ -28,8 +28,8 @@ flowmix <- function(..., nrep = 5){
 ##' Main function for running the EM algorithm once.
 ##'
 ##' @param ylist T-length list each containing response matrices of size (nt x
-##'   3), which contains coordinates of the 3-variate particles, organized over
-##'   time (T) and with (nt) particles at every time.
+##'   d), which contains coordinates of the d-variate particles, organized over
+##'   time (T) and with (nt) particles at every time point.
 ##' @param countslist Multiplicity for particles in \code{ylist}.
 ##' @param numclust Number of clusters
 ##' @param X Matrix of size (T x p+1)

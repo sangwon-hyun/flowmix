@@ -33,8 +33,8 @@ Mstep_beta_admm(
 \item{resp}{Responsibilities.}
 
 \item{ylist}{T-length list each containing response matrices of size (nt x
-3), which contains coordinates of the 3-variate particles, organized over
-time (T) and with (nt) particles at every time.}
+d), which contains coordinates of the d-variate particles, organized over
+time (T) and with (nt) particles at every time point.}
 
 \item{X}{Matrix of size (T x p+1)}
 
