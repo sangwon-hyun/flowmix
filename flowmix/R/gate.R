@@ -1,4 +1,4 @@
-##' Gate (classify) the particles in \ref{ylist_particle} according to random
+##' Gate (classify) the particles in \code{ylist_particle} according to random
 ##' draws from the particle responsibilities -- from the model in \code{res}.
 ##'
 ##' @param res flowmix class object.

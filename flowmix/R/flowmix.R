@@ -323,19 +323,19 @@ flowmix_once <- function(ylist, X,
 
 
 
-##' Prediction: Given new X's, generate a set of means and probs (and return the
-##' same Sigma).
+##' Prediction: Given new covariates X's, generate a set of predicted cluster
+##' means and probs (and return the same Sigma).
 ##'
-##' @param res Object returned from covariate EM flowmix().
+##' @param object Object returned from \code{flowmix()}.
 ##' @param newx New covariate.
 ##'
 ##' @return List containing mean, prob, and sigma.
 ##'
 ##' @export
 ##'
-predict.flowmix <- function(res, newx = NULL){
+predict.flowmix <- function(object, newx, ...){
 
-  ## ## Check the dimensions
+  ## Basic checks
   ## stopifnot(ncol(new.x) == ncol(res$X))
   ## newx = X[1,,drop=FALSE]
   if(is.null(newx)){

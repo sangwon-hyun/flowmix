@@ -1,8 +1,8 @@
 ##' Trim data so that both the list of binned responses and counts don't have
 ##' any zeros.
 ##'
-##' @param ybin_list List of binned data (assumed to be d^3 lengthed)
-##' @param counts_list Counts of binned data (assumed to be d^3 lengthed)
+##' @param ybin_list List of binned data, assumed to be \code{d^3} lengthed.
+##' @param counts_list Counts of binned data, assumed to be \code{d^3} lengthed.
 ##'
 ##' @return Trimmed data, each of different length.
 trim <- function(ybin_list, counts_list){
@@ -19,8 +19,8 @@ trim <- function(ybin_list, counts_list){
 }
 
 
-##' Helper to check whether ylist and countslist have been trimmed of zero
-##' (e.g. using \code{trim()}).
+##' Helper to check whether ylist and countslist have been trimmed of zero,
+##' e.g. using \code{trim()}.
 ##'
 ##' @inheritParams flowmix_once
 ##'
@@ -74,19 +74,14 @@ reformat_coef <- function(alpha, beta,
 }
 
 
-##' Inverse Value Matching
-##'
-##' Negation of \code{%in%}. Returns the elements of \code{x} that are
-##' not in \code{y}.
-##'
-##' @usage x \%ni\% y
+##' Inverse Value Matching; Negation of \code{%in%}. Returns the elements of
+##' \code{x} that are not in \code{y}.
 ##'
 ##' @param x a vector
 ##' @param y a vector
 ##'
-##' @export
-##'
-##' @rdname ni
+##' @return Elements of \code{x} that are not in \code{y}.
+##' @noRd
 '%ni%' <- function(x, y){
   ## return(Negate('%in%')(x))
   return( !(x %in% y) )
@@ -206,7 +201,7 @@ alter_beta <- function(beta, flatX, orig_names){
   ## Add it to each beta coefficient
   for(iclust in 1:numclust){
     beta[[iclust]] = rbind(beta[[iclust]], newrows)
-    beta[[iclust]] = beta[[iclust]] %>% .[c("intp", orig_names),]
+    beta[[iclust]] = (beta[[iclust]])[c("intp", orig_names),]
   }
 
   ## Return the altered beta
@@ -237,7 +232,7 @@ alter_alpha <- function(alpha, flatX, orig_names){
 
   ## Add it to alpha
   alpha = cbind(alpha, newcol)
-  alpha = alpha %>% .[,c("intp", orig_names)]
+  alpha = alpha[,c("intp", orig_names)]
 
   ## Return the altered alpha
   return(alpha)

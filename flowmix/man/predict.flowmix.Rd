@@ -2,13 +2,13 @@
 % Please edit documentation in R/flowmix.R
 \name{predict.flowmix}
 \alias{predict.flowmix}
-\title{Prediction: Given new X's, generate a set of means and probs (and return the
-same Sigma).}
+\title{Prediction: Given new covariates X's, generate a set of predicted cluster
+means and probs (and return the same Sigma).}
 \usage{
-\method{predict}{flowmix}(res, newx = NULL)
+\method{predict}{flowmix}(object, newx, ...)
 }
 \arguments{
-\item{res}{Object returned from covariate EM flowmix().}
+\item{object}{Object returned from \code{flowmix()}.}
 
 \item{newx}{New covariate.}
 }
@@ -16,6 +16,6 @@ same Sigma).}
 List containing mean, prob, and sigma.
 }
 \description{
-Prediction: Given new X's, generate a set of means and probs (and return the
-same Sigma).
+Prediction: Given new covariates X's, generate a set of predicted cluster
+means and probs (and return the same Sigma).
 }

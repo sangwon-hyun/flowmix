@@ -54,7 +54,7 @@ collapse_3d_to_1d <- function(ylist, countslist, idim){
   stopifnot(length(idim) == 1)
   if(is.numeric(idim)){
     if(idim == as.integer(idim)){
-      assertthat::assert_that(idim > 0 & idim < ncol(ylist[[1]]))
+      assertthat::assert_that(idim > 0 & idim <= ncol(ylist[[1]]))
     }
   } else if (assertthat::is.string(idim)){
     assertthat::assert_that(idim %in% colnames(ylist[[1]]))

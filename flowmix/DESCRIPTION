@@ -19,7 +19,17 @@ Imports:
     Matrix,
     abind,
     ellipse,
-    sn
+    sn,
+    CVXR,
+    magrittr,
+    ggplot2,
+    RColorBrewer,
+    clue,
+    ggrepel,
+    gridExtra,
+    lattice,
+    lubridate,
+    plot3D
 LinkingTo: Rcpp, RcppArmadillo, RcppEigen
 Suggests:
     testthat,

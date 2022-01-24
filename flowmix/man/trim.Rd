@@ -8,9 +8,9 @@ any zeros.}
 trim(ybin_list, counts_list)
 }
 \arguments{
-\item{ybin_list}{List of binned data (assumed to be d^3 lengthed)}
+\item{ybin_list}{List of binned data, assumed to be \code{d^3} lengthed.}
 
-\item{counts_list}{Counts of binned data (assumed to be d^3 lengthed)}
+\item{counts_list}{Counts of binned data, assumed to be \code{d^3} lengthed.}
 }
 \value{
 Trimmed data, each of different length.

@@ -2,8 +2,8 @@
 % Please edit documentation in R/helpers.R
 \name{check_trim}
 \alias{check_trim}
-\title{Helper to check whether ylist and countslist have been trimmed of zero
-(e.g. using \code{trim()}).}
+\title{Helper to check whether ylist and countslist have been trimmed of zero,
+e.g. using \code{trim()}.}
 \usage{
 check_trim(ylist, countslist)
 }
@@ -15,6 +15,6 @@ time (T) and with (nt) particles at every time.}
 \item{countslist}{Multiplicity for particles in \code{ylist}.}
 }
 \description{
-Helper to check whether ylist and countslist have been trimmed of zero
-(e.g. using \code{trim()}).
+Helper to check whether ylist and countslist have been trimmed of zero,
+e.g. using \code{trim()}.
 }

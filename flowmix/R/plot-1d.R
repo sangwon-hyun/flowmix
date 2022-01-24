@@ -147,6 +147,7 @@ add_cluster_label <- function(res, cex=1.5){
 }
 
 ##' Add mean (only for 1d data)
+##' @noRd
 add_mn <- function(res, cols, mn.scale = 5){
   for(iclust in 1:res$numclust){
     graphics::lines(res$mn[,1,iclust], type = 'o', lty = 1, lwd = .1,
@@ -155,6 +156,7 @@ add_mn <- function(res, cols, mn.scale = 5){
 }
 
 ##' Add bands (only for 1d data).
+##' @noRd
 add_band <- function(res, cols){
   sigmas = sqrt(res$sigma[,1,])
   sigma_mat = matrix(sigmas,## res$sigma[,1,],
@@ -173,7 +175,8 @@ add_band <- function(res, cols){
 
 ##' Make the remaining region outside of TT white, to prevent spillover of the
 ##' cluster means' cex=17 points. (only for 1d data).
-##'
+##' @param TT Integer.
+##' @noRd
 fill_both_sides <- function(TT){
   x = c(TT -1 + (1:100), TT -1 + (100:1))
   polygon(x = x, y = c(rep(-5, 100), rep(5, 100)),
@@ -237,6 +240,8 @@ add_date_ticks_from_dates <- function(dates, empty_tick_marks=FALSE, ...){
 ##' @param qclist Corresponding QC in those bins.
 ##'
 ##' @return ggplot
+##'
+##' @import ggplot2
 bin_plot_1d <- function(ylist, qclist, col=NULL){
 
   if(is.null(col)) col = c("white", "black", "yellow", "red")
@@ -250,7 +255,7 @@ bin_plot_1d <- function(ylist, qclist, col=NULL){
   }) %>% bind_rows()
   combined_dat = combined_dat %>% mutate(time = lubridate::as_datetime(time))
 
-  p = combined_dat %>% ggplot() + geom_raster(aes(x=time, y=y, fill=qc)) +
+  p = combined_dat %>% ggplot() + geom_raster(aes_string(x = 'time', y = 'y', fill = 'qc')) +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
     scale_fill_gradientn(colours = col)
   return(p)

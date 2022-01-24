@@ -74,6 +74,7 @@ plot_2d <- function(ylist, tt, res = NULL, drawslist = NULL, resp = NULL, iclust
 ##'
 ##' @export
 ##'
+##' @import grDevices
 bin_plot_2d <- function(datobj_2d, mn=NULL, sigma=NULL, prob=NULL, labels = NULL, fac = 20, colours = NULL, mn_colours = NULL){
 
   ## Basic checks
@@ -122,7 +123,7 @@ bin_plot_2d <- function(datobj_2d, mn=NULL, sigma=NULL, prob=NULL, labels = NULL
         }  else if (grepl("small", label)) {
           return(allcols[6])
         } else {
-          return(rgb(0,0,0,0.4))
+          return(grDevices::rgb(0,0,0,0.4))
         }
       })
 

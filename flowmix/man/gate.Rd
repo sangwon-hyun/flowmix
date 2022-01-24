@@ -2,7 +2,7 @@
 % Please edit documentation in R/gate.R
 \name{gate}
 \alias{gate}
-\title{Gate (classify) the particles in \ref{ylist_particle} according to random
+\title{Gate (classify) the particles in \code{ylist_particle} according to random
 draws from the particle responsibilities -- from the model in \code{res}.}
 \usage{
 gate(res, ylist_particle, countslist_particle, seed = NULL)
@@ -20,6 +20,6 @@ gate(res, ylist_particle, countslist_particle, seed = NULL)
 Memberships.
 }
 \description{
-Gate (classify) the particles in \ref{ylist_particle} according to random
+Gate (classify) the particles in \code{ylist_particle} according to random
 draws from the particle responsibilities -- from the model in \code{res}.
 }

@@ -4,10 +4,12 @@
 \alias{print.flowmix}
 \title{Default printing functionality for flowmix() results.}
 \usage{
-\method{print}{flowmix}(obj)
+\method{print}{flowmix}(x, ...)
 }
 \arguments{
-\item{obj}{An object of class "flowmix"}
+\item{x}{An object of class "flowmix".}
+
+\item{...}{Remaining parameters.}
 }
 \value{
 Nothing.
