@@ -71,7 +71,7 @@ init_mn <- function(ylist, numclust, TT, dimdat, countslist = NULL, seed=NULL){
     ylist_downsampled <- lapply(1:TT, function(tt){
       y = ylist[[tt]]
       counts = countslist[[tt]]
-      nsize = pmin(nrow(y) / TT * 30, nrow(y))
+      nsize = ceiling(pmin(nrow(y) / TT * 30, nrow(y)))
       y[sample(1:nrow(y), size = nsize),, drop=FALSE]
     })
 
@@ -126,6 +126,81 @@ init_mn <- function(ylist, numclust, TT, dimdat, countslist = NULL, seed=NULL){
   }
   return(muarray)
 }
+
+
+##' (Temporary update) Initialize the cluster centers (naively).
+##'
+##' @param ylist  A T-length list of (nt  by 3) datasets.  There should  be T of
+##'   such datasets. 3 is actually \code{mulen}.
+##' @param numclust Number of clusters (M).
+##' @param TT total number of (training) time points.
+##'
+##' @return An array of dimension (T x dimdat x M).
+init_mn_temp <- function(ylist, numclust, TT, dimdat, countslist = NULL, seed=NULL){
+
+
+  if(!is.null(seed)){
+    assertthat::assert_that(all((seed %>% sapply(., class)) == "integer"))
+    assertthat::assert_that(length(seed) == 7)
+    .Random.seed <<- seed
+  }
+
+  if(!is.null(countslist)){
+
+    ## Initialize the means by (1) collapsing to one cytogram (2) random
+    ## sampling from this distribution, after truncation,
+    TT = length(ylist)
+    ylist_downsampled <- lapply(1:TT, function(tt){
+
+      y = ylist[[tt]]
+      counts = countslist[[tt]]
+
+      ## Sample so that, in total, we get mean(nt)*30 sized sample. In the case
+      ## of binned data, nt is the number of bins.
+      if(nrow(y) > 500) nsize = nrow(y) / TT * 30 else nsize = nrow(y)
+      some_rows = sample(1:nrow(y), size = nsize, prob = counts/sum(counts))
+      y[some_rows,, drop=FALSE]
+    })
+
+    yy = do.call(rbind, ylist_downsampled)
+    new_means = yy[sample(1:nrow(yy), numclust),, drop=FALSE]
+    jitter_sd = apply(yy, 2, sd) / 100
+    jitter_means = MASS::mvrnorm(n = nrow(new_means),
+                                 mu = rep(0, dimdat),
+                                 Sigma = diag(jitter_sd, ncol = dimdat))
+    new_means = new_means + jitter_means
+
+    ## Repeat TT times.
+    mulist = lapply(1:TT, function(tt){ new_means })
+
+  } else {
+
+    TT = length(ylist)
+    ylist_downsampled <- lapply(1:TT, function(tt){
+      y = ylist[[tt]]
+      counts = countslist[[tt]]
+      nsize = pmin(nrow(y) / TT * 30, nrow(y))
+      y[sample(1:nrow(y), size = nsize),, drop=FALSE]
+    })
+
+    ## Combine all the particles
+    yy = do.call(rbind, ylist_downsampled)
+
+    ## Get K new means from these
+    inds = sample(1:nrow(yy), numclust)
+    new_means = yy[inds,, drop=FALSE]
+    mulist = lapply(1:TT, function(tt){ new_means })
+
+  }
+
+  ## New (T x dimdat x numclust) array is created.
+  muarray = array(NA, dim=c(TT, dimdat, numclust))
+  for(tt in 1:TT){
+    muarray[tt,,] = as.matrix(mulist[[tt]])
+  }
+  return(muarray)
+}
+
 
 
 ##' Initialize the covariances (naively), by multiplying.
