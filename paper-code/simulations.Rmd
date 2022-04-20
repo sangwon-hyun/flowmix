@@ -14,7 +14,9 @@ author: Sangwon Hyun, Mattias Rolf Cape, Francois Ribalet, Jacob Bien
 
 # Setup
 
-This script uses the flowmix package from github repository commit OOOO.
+This script uses the flowmix package from github repository
+commit number `251b669443e77c30a4519ce25add277fb46718d4`.
+(https://github.com/sangwon-hyun/flowmix/commit/251b669443e77c30a4519ce25add277fb46718d4)
 
 ```{r global_options, include=FALSE}
 knitr::opts_chunk$set(fig.width=14, fig.height=8, echo=TRUE, warning=FALSE,

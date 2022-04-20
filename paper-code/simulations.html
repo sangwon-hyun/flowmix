@@ -11,7 +11,7 @@
 
 <meta name="author" content="Sangwon Hyun, Mattias Rolf Cape, Francois Ribalet, Jacob Bien" />
 
-<meta name="date" content="2022-04-19" />
+<meta name="date" content="2022-04-20" />
 
 <title>Simulation examples in the paper</title>
 
@@ -1582,14 +1582,14 @@ div.tocify {
 
 <h1 class="title toc-ignore">Simulation examples in the paper</h1>
 <h4 class="author">Sangwon Hyun, Mattias Rolf Cape, Francois Ribalet, Jacob Bien</h4>
-<h4 class="date">2022-04-19</h4>
+<h4 class="date">2022-04-20</h4>
 
 </div>
 
 
 <div id="setup" class="section level1">
 <h1>Setup</h1>
-<p>This script uses the flowmix package from github repository commit OOOO.</p>
+<p>This script uses the flowmix package from github repository commit number <code>251b669443e77c30a4519ce25add277fb46718d4</code>. (<a href="https://github.com/sangwon-hyun/flowmix/commit/251b669443e77c30a4519ce25add277fb46718d4" class="uri">https://github.com/sangwon-hyun/flowmix/commit/251b669443e77c30a4519ce25add277fb46718d4</a>)</p>
 </div>
 <div id="simulation-examples" class="section level1">
 <h1>Simulation examples</h1>
@@ -1655,7 +1655,7 @@ legend(&quot;topleft&quot;, col=cols, lwd=2, pch=16, lty=1,
 <div id="figure-6" class="section level2">
 <h2>Figure 6</h2>
 <!-- The specific instructions for can be made available upon request (Sangwon Hyun). -->
-<p>The simulation results are saved in files named <code>simulations/bestreslist-numclust-2.Rdata&quot;</code> through <code>simulations/bestreslist-numclust-9.Rdata&quot;</code>, and are produced from the script in <code>paper-code/simulations-numclusts.Rmd</code>.</p>
+<p>The simulation results are saved in files named <code>simulations/bestreslist-numclust-2.Rdata</code> through <code>simulations/bestreslist-numclust-9.Rdata</code>, and are produced from the script in <code>paper-code/simulations-numclusts.Rmd</code>.</p>
 <p>Figure 6 is produced using this code:</p>
 <pre class="r"><code>numclusts = c(2,3,4,5,6,7,8)  
 nsim = 30
@@ -1768,7 +1768,7 @@ lines(y = avg_oos_scores,
 <div id="figure-5" class="section level2">
 <h2>Figure 5</h2>
 <p>Figure 5 is produced using this code:</p>
-<p>The simulation results are saved in files named <code>simulations/bestreslist-noise-80.Rdata&quot;</code> through <code>simulations/bestreslist-noise-89.Rdata&quot;</code>, and are produced from the script in <code>paper-code/simulations-noisy-covariates.Rmd</code>.</p>
+<p>The simulation results are saved in files named <code>simulations/bestreslist-noise-80.Rdata</code> through <code>simulations/bestreslist-noise-89.Rdata</code>, and are produced from the script in <code>paper-code/simulations-noisy-covariates.Rmd</code>.</p>
 <pre class="r"><code>## Load simulation results 
 datatypes = c(80:89)
 sigmalist = seq(from=0,to=2.7, by=0.3)
@@ -1892,7 +1892,6 @@ legend(&quot;topright&quot;, lwd=c(4, 0.5), col=c(&quot;black&quot;, &quot;red&q
 </div>
 <div id="figure-19" class="section level2">
 <h2>Figure 19</h2>
-<!-- **todo: move `heavytail-simulation-results.RDS` into paper-data/simulation** -->
 <p>Figure 19 (top row) is produced using the following code:</p>
 <p>(The code used to produce simulations for figure 19 is in <code>paper-code/heavytail-skewed.Rmd</code>.)</p>
 <pre class="r"><code>l2_errs_list = readRDS(file = file.path(datadir, &quot;simulation&quot;, &quot;heavytail-simulation-results.RDS&quot;))

@@ -1587,7 +1587,7 @@ div.tocify {
 
 <div id="setup" class="section level1">
 <h1>Setup</h1>
-<p>This script uses the flowmix package from github repository commit OOOO.</p>
+<p>This script uses the flowmix package from github repository commit number <code>251b669443e77c30a4519ce25add277fb46718d4</code>. (<a href="https://github.com/sangwon-hyun/flowmix/commit/251b669443e77c30a4519ce25add277fb46718d4" class="uri">https://github.com/sangwon-hyun/flowmix/commit/251b669443e77c30a4519ce25add277fb46718d4</a>)</p>
 <div id="figure-16" class="section level2">
 <h2>Figure 16</h2>
 <p>Figure 16 is produced using this code:</p>
@@ -1652,7 +1652,6 @@ plot(p2)</code></pre>
 <div id="figure-15" class="section level2">
 <h2>Figure 15</h2>
 <p>Figure 15 is produced using this code:</p>
-<p><strong>todo: what do we need from round2-helpers.R?</strong></p>
 <pre class="r"><code>## source(&quot;aoas-revision/round2-helpers.R&quot;) 
 ## ## binobj_scaled = readRDS(file = file.path(outputdir, &quot;binned-scaled-residuals-3d.RDS&quot;))
 TT = 319
@@ -1719,7 +1718,7 @@ plot(p)</code></pre>
 <div id="figure-17" class="section level2">
 <h2>Figure 17</h2>
 <p>Figure 17 is produced using this code:</p>
-<pre class="r"><code>## Okay so the next thing to try is making a large matrix, and matching the rows &amp; columns?
+<pre class="r"><code>## Okay so the next thing to try is making a large matrix, and matching the rows &amp; columns? 
 iclust = 1
 all_y = binobj_scaled %&gt;% .[[iclust]] %&gt;% .$ybin_list %&gt;% do.call(rbind, .) %&gt;% as_tibble()
 colnames(all_y) = c(&quot;diam&quot;, &quot;chl&quot;, &quot;pe&quot;)
