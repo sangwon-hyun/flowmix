@@ -1,10 +1,10 @@
-#+title: Code for producing figures and tables in paper.
+#+title: Code for producing figures and tables
 
-These are the scripts that produce tables and figures in the paper:
+These are the scripts that produce the tables and figures in the paper:
 
-1. [gradients2-summarize-plot.html]] produces Figures 7, 8, 9, 10, 11, 12, 13, 14, and Tables 2, 3, 4, 5, 6.
-2. [[simulations.html]] produces Figures 4, 5, 6, 18 and 19.
-3. [[time-dependence.html]] produces Figures 15, 16, and 17.
-4. [[stability.html]]  produced Tables 7 and 8.
+1. [[https://htmlpreview.github.io/?https://github.com/sangwon-hyun/flowmix/blob/master/paper-code/gradients2-summarize-plot.html][gradients2-summarize-plot.html]] produces Figures 7, 8, 9, 10, 11, 12, 13, 14, and Tables 2, 3, 4, 5, 6.
+2. [[https://htmlpreview.github.io/?https://github.com/sangwon-hyun/flowmix/blob/master/paper-code/simulations.html][simulations.html]] produces Figures 4, 5, 6, 18 and 19.
+3. [[https://htmlpreview.github.io/?https://github.com/sangwon-hyun/flowmix/blob/master/paper-code/time-dependence.html][time-dependence.html]] produces Figures 15, 16, and 17.
+4. [[https://htmlpreview.github.io/?https://github.com/sangwon-hyun/flowmix/blob/master/paper-code/stability.html][stability.html]] produced Tables 7 and 8.
 
 The necessary data and output files are placed in [[../paper-data]].
