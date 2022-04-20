@@ -1,5 +1,6 @@
 ---
-title: 1D 5-cluster data example in the paper
+title: Producing figures of the 1D 5-cluster model
+date: "`r Sys.Date()`"
 code_folding: fold
 header-includes:
 - \usepackage{bbm}
@@ -11,109 +12,135 @@ output:
 author: Sangwon Hyun, Mattias Rolf Cape, Francois Ribalet, Jacob Bien
 ---
 
+# Setup #
+
+This script uses the flowmix package from github repository commit OOOO.
+
 ```{r global_options, include=FALSE}
 knitr::opts_chunk$set(fig.width=14, fig.height=8, echo=TRUE, warning=FALSE,
-                      message=FALSE, eval=TRUE, cache=TRUE)
+                      message=FALSE, cache=FALSE)
 library(gridExtra)
 library(tidyverse)
 library(dplyr)
 library(flowmix)
 
-## This is where the output should go
-figdir = "~/repos/flowmix/paper-code/figures"
+## This is where the output should (normally) go
+figdir = "figures"
 
-## This is where the parent directory of the output
-outputdir = "/home/sangwonh/Dropbox/research/usc/hpc-output"
+## This is where the data is
+datadir = "../paper-data" 
 
-## This is specific directory of the output
-destin = file.path(outputdir, "blockcv-2-76-5")
+## Temporarily load the latest flowmix package.
+la('flowmix')
 ```
+	
+	
+# 1d 5-cluster model results #
 
-
-This script contains code to produce the plots for the 1d data 5-cluster
+This section contains code to produce the plots for the 1d data 5-cluster
 analysis in the paper (Figure 7, 12, 13, and Table 2).
 
 First, run the simulations from `gradients2-run.R`, into a destination directory
 `destin`. Then, use this code to summarize the results.
 
-```{r, eval=FALSE, echo=FALSE}
+```{r, eval = FALSE, echo = FALSE}
 cv_summary(destin = destin, nfold = 5, nrep = 10,
            save = TRUE, filename = "summary.RDS")##, subfolder="orig")
 ```
 
-The summarized results are in `file.path(destin, "summary.RDS")`.
+This will save the summary of the results into `file.path(destin, "summary.RDS")`.
 
-(In the next code block, I've replaced destin with the `./paper-code`)
+In this script, I'm loading this file directly, from `./paper-data/1d-cvres.rds`
 
-```{r}
+```{r load-model}
 ## Load the summary
-cvres = readRDS(file = file.path(destin, "summary.RDS"))
+## cvres = readRDS(file = file.path(destin, "summary.RDS"))
+
+## Instead, load this summary
+cvres_filename = "1d-cvres.rds"
+cvres = readRDS(file = file.path(datadir, cvres_filename))
 
 ## For back-compatibility; prob was called pie
 cvres$bestres$prob = cvres$bestres$pie 
+class(cvres$bestres) = "flowmix"
 ```
 
-None of the `flowmix` objects contain the data (by design) so we need to load
-the data separately.
+We'll also load the 1d data from the directory `../paper-data`. (Normally, the
+data is saved to `file.path(destin, "meta.Rdata")`)
 
-The most accurate way is to load from `file.path(destin, "Meta.Rdata")`.
-
-In this script, we'll load from the directory `../paper-data`.
-
-```{r}
+```{r load-1d-data}
 ## load(file.path(cvres$destin, "meta.Rdata")) ## This is one way to load the data
 dat = readRDS(file = file.path("../paper-data", "MGL1704-hourly-paper-1d-diam.RDS"))
 countslist = dat$countslist
 ylist = dat$ylist
 ```
 
+## Figure 12 ##
 
 Figure 12 is produced using this code:
 
-```{r}
+```{r figure-12, fig.width = 12, height = 5}
 ## Plot CV scores
-pdf(file = file.path(figdir, "1d-cvscores.pdf"), width=12, height=5)
+## pdf(file = file.path(figdir, "1d-cvscores.pdf"), width=12, height=5)
 plot_cvscore(cvres$cvscore.mat)
-graphics.off()
+## graphics.off()
 ```
+
+## Figure 7 ##
 
 Figure 7 is produced using this code:
 
-```{r}
+```{r figure-7, fig.width = 12, fig.height = 5}
 ## Plot fitted mean.
-pdf(file = file.path(figdir, "1d-means.pdf"), width=12, height=5)
+## pdf(file = file.path(figdir, "1d-means.pdf"), width=12, height=5)
 plot_1d(ylist = ylist, countslist = countslist,
         res = cvres$bestres,
-        cex_data = 1)
+        cex_data = 1) %>%  invisible()
 mtext("Diameter", side = 2, line = 2.5, cex = 1.5)
-graphics.off()
+## graphics.off()
 ```
 
-Table 2 can be produced using this:
+## Table 2  ##
 
-```{r, eval=FALSE}
-cvres$bestres$alpha %>% t() %>% signif(3) %>% as.matrix() ##%>%  xtable::xtable(digits=digits)
-cvres$bestres$beta %>% t() %>% signif(3) %>% as.matrix() ##%>%  xtable::xtable(digits=digits)
+Table 2 can be produced using this code:
+
+```{r table-2, results='asis'}
+cvres$bestres$alpha %>% t() %>% round(3) %>% as.matrix() %>% knitr::kable() %>% print() ##%>%  xtable::xtable(digits=digits)
+cvres$bestres$beta  %>% setNames(paste0("Cluster-", 1:5)) %>% do.call(cbind, .) %>% `colnames<-`(paste0("Cluster-", 1:5)) %>%
+  round(3) %>% as.matrix() %>% knitr::kable() %>% print()##%>%  xtable::xtable(digits=digits)
 ```
 
-(Not in paper) Covariates can be plotted like this:
+## Figure 11 ##
 
-```{r, eval=FALSE}
+Figure 11 can be produced using this code:
+
+```{r covariates-plot, fig.height = 15, fig.width = 20}
 mats = list(alpha = cvres$bestres$alpha, beta = cvres$bestres$beta)
 
-## Some investigations
-cvres$bestres$X %>% as_data_frame %>%
-  select(p1, p2, p3, contains("phosphate"), contains("density"), contains("ugos")) %>%
-  cbind(ind =1:nrow(cvres$bestres$X)) -> Xsmall
-reshape2::melt(Xsmall, id = "ind") -> Xsmall.long
-ggplot2::qplot(x=ind, y=value, color=variable, data=Xsmall.long, geom="line")
-
 ## Plot covariates
-allnames = unique(c(rownames(mats$alphamat), rownames(mats$betamat)))
+allnames = unique(c(colnames(mats$alpha), rownames(mats$beta[[1]])))
+allnames = allnames[-which(allnames == "intp")]
 Xsmall = cvres$bestres$X %>% as_tibble %>% select(one_of(allnames)) %>% select(sort(names(.)))
 inds = round(seq(from = 1, to = ncol(Xsmall), length=5))
 
-pdf(file = file.path(figdir, "1d-covariates.pdf"), width=20, height=15)
+##' Make ticks from rownames of res$X (only for 1d data).
+##' @param res Object of class |flowmix|.
+add_date_ticks <- function(res){
+  dates = sapply(as.Date(rownames(res$X)), 
+                 toString)
+
+  nums = as.numeric(as.factor(dates))
+  left_ticks = sapply(sort(unique(nums)),function(ii){min(which(nums==ii))})
+  left_ticks = c(left_ticks, res$TT)
+  mid_ticks = sapply(sort(unique(nums)),function(ii){mean(which(nums==ii))})
+  dates_mid_ticks = dates[round(mid_ticks)]
+  axis(1, at=left_ticks, labels=FALSE)
+  axis(1, at=mid_ticks, labels = dates_mid_ticks, tick=FALSE, las=2)
+  axis(2)
+}
+
+
+## pdf(file = file.path(figdir, "1d-covariates.pdf"), width=20, height=15)
 par(mfrow=c(2,2))
 for(ii in 1:4){
   ind = (inds[ii]+1):inds[ii+1]
@@ -123,15 +150,16 @@ for(ii in 1:4){
   matlines(Xsmall[,ind], col=cols, lwd=3, lty=1)
   legend("topright", col=cols, lwd=3, lty=1, legend = colnames(Xsmall)[ind])
 }
-graphics.off()
+## graphics.off()
 ```
 
+## Figure 13 ##
 
 Figure 13 is produced using the second block (starting with `# A 5 x 5 version of this`):
 
-```{r, eval=FALSE}
+```{r figure-13, eval=FALSE}
 load(file.path(cvres$destin, "meta.Rdata")) ## load ylist
-png(file=file.path(figdir, "1d-all-models.png"), width=5000, height=4000)
+## png(file=file.path(figdir, "1d-all-models.png"), width=5000, height=4000)
 cv_gridsize = 10
 par(mfrow = c(cv_gridsize, cv_gridsize))
 for(ialpha in 1:cv_gridsize){
@@ -146,12 +174,11 @@ for(ialpha in 1:cv_gridsize){
     if(all(c(ialpha, ibeta) == cvres$min.ind)) box(lwd=10,col='blue')
   }
 }
-graphics.off()
-
+## graphics.off()
 
 ## A 5 x 5 version of this.
 load(file.path(cvres$destin, "meta.Rdata")) ## load ylist
-png(file=file.path(figdir, "1d-all-models-reduced.png"), width=5000/2, height=3000/2)
+## png(file=file.path(figdir, "1d-all-models-reduced.png"), width=5000/2, height=3000/2)
 cv_gridsize = 10
 par(mfrow = c(cv_gridsize/2, cv_gridsize/2 ))
 par(mar=c(0,0,5,0))
@@ -170,22 +197,273 @@ for(ialpha in c(1,3,5,7,10)){
     if(all(c(ialpha, ibeta) == cvres$min.ind)) box(lwd=10,col='blue')
   }
 }
-graphics.off()
+## graphics.off()
 ```
 
 
-<!-- # Analysis -->
+# 3d 10-cluster model results #
 
-<!-- * **Cluster 5** The usual culprits are all there -- lagged sunlight ("par") and -->
-<!--   sea surface temperature and salinity all affect multiple clusters. In -->
-<!--   particular, the lagged sunlight ("p1/p2/p3/p4") plays a large role in cluster -->
-<!--   5, which is visually apparent, and neat that our model captures this. -->
-<!-- * **Cluster 4** Biochemical factors like PP (Net primary productivity of Carbon -->
-<!--   per unit volume), nitrate, and $O_2$, as well as wind/current like -->
-<!--   "ugos/vgos/ftle" seems to play a large role in cluster 4. -->
-<!-- * **Cluster 2** Chlorophyll (and Phosphate) plays a large role in cluster 2's -->
-<!--   means and probabilities -- this is clear if you look at CHL (and to a lesser -->
-<!--   extent, "phosphate_WOA_clim") over time, it is high on June 1-4, and -->
-<!--   fluctuates similarly to the prevalence of the cluster during that dates.. -->
-<!-- * **Cluster 1** wind/current like "ugos/vgos/northword_wind/sla" seems to play a -->
-<!--   large role in cluster 1. -->
+
+```{r load-3d-model}
+### Load the model 
+cvres_filename = paste0("cvres-", paste0(2,"-", 64,"-", 10), ".Rdata")
+
+### cvres = blockcv_summary(2, 64, 10, 7, nrep = 5) 
+
+### save(cvres, file = file.path(datadir, cvres_filename)) 
+
+load(file = file.path(datadir, cvres_filename), verbose = FALSE)
+res = cvres$bestres
+destin = cvres$destin
+
+## Quick adjustments, for back-compatibility
+class(res) = "flowmix" ## for back-compatibility
+res$prob = res$pie ## for back-compatibility
+```
+
+## Table 3,4,5,6 ##
+
+Table 3,4,5,6 are produced using this code:
+
+```{r, results = 'asis'}
+for(iclust in 1:10){
+  onebeta = res$beta[[iclust]]
+  colnames(onebeta) = c("diam", "red", "orange")
+  knitr::kable(onebeta, digits=10, caption = paste0("Beta coefficientns for Cluster ", iclust)) %>% print()
+}
+
+t(res$alpha) %>%  knitr::kable(digits=10, caption = paste0("Alpha coefficients")) %>% print()
+```
+
+## Figure 8 ##
+
+Figure 8 is produced using this code:
+
+```{r figure-8, fig.width = 12, fig.height=5}
+## Rescale diameters (not used anymore since diam in the data is in original
+## range, and is shifted/scaled to be in the same scale as CHL and PE only at 
+## simulation time.)
+source("gradients2-helpers.R")
+
+## Temporary *undoing* of the scaling in the estimated model.
+range.diam = c(-0.6706111,  1.3070264)
+range.chl =  c(0.101313, 7.955767)
+range.pe = c(0.101313, 7.955767)
+  
+## Modify (rescale/shift) the res$mn
+width.diam = range.diam[2] - range.diam[1]
+idim = 1
+res$mn = res$mn[,idim,, drop=FALSE] / max(range.chl) * width.diam + min(range.diam)
+
+## Undoing the scaling in res$sigma
+res$sigma = cvres$bestres$sigma[,idim, idim, drop=FALSE] 
+myscale = max(range.chl) * width.diam
+res$sigma = res$sigma / myscale
+
+## Load the data
+datobj = readRDS(file.path(datadir, "MGL1704-hourly-paper-1d-diam.RDS"))
+ylist = datobj$ylist
+countslist = datobj$countslist
+
+## Make the 1d data+model plot
+res$dimdat = 1
+cols = plot_1d(ylist = ylist, countslist = countslist, res, scale=TRUE, omit_band=TRUE, omit_label=TRUE)
+
+## Additionally, add y axis label
+mtext("Diameter", side=2, line=2.5)
+
+## Additionally, write the cluster numbers with the same colors
+res <- reorder_clust(res)
+TT = length(ylist)
+for(iclust in 1:res$numclust){
+  y = res$mn[1, 1, iclust]
+  if(iclust==3) y = y + 0.05
+  if(iclust==4) y = y - 0.05
+  text(x = res$TT/50 - 5, y = y,
+       label = paste0("Cluster ", iclust), cex = 1, col="black")##col=cols[iclust])
+}
+```
+
+It's worth explaining a bit about data rescaling for Gradients 2. The three
+dimensions of the original cytogram data (e.g.  `MGL1704-hourly-paper.Rdata` or
+in `MGL1704-hourly.Rdata`) all have a range roughly between 0 and 8, as you can see
+here:
+
+```{r figure-8-1, results = 'asis'}
+datobj = readRDS(file = file.path(datadir, "MGL1704-hourly-paper.RDS"))
+datobj$ylist[[2]] %>% apply(2, range) %>% knitr::kable() %>% print()
+```
+
+This is the result of shifting and stretching the diameter dimension (the first
+of the three dimensions), which originally had a range of:
+
+```{r figure-8-2, results='asis'}
+datobj = readRDS(file.path(datadir, "MGL1704-hourly-paper-1d-diam.RDS"));
+datobj$ylist[[1]] %>% range() %>% cbind() %>% `colnames<-`(c("diam_mid")) %>% knitr::kable() %>% print()
+```
+
+<!-- |----------| -->
+<!-- | -0.6706111| -->
+<!-- |  1.3070264| -->
+<!-- |----------| -->
+
+to be the same range as the other two dimensions (Chl and PE), between $0$ and
+$7.955767$. So the code above is just reversing this shifting and scaling.
+
+## Figure 9 ##
+
+Figure 9 is produced using this code:
+
+```{r figure-9, fig.width = 24, fig.height = 6}
+plot_3d_fourpanels <- function(obj, ## Understandably, data (ylist) might not be in the object.
+                               ylist, countslist = NULL, ## The time point of interest, out of 1:TT
+                               tt, ## Other options.
+                               ## 2d scatterplot options
+                               show.xb.constraint = FALSE, cex.fac.2d = 1, par_cex_2d = 1,
+                               pt_col = rgb(0 ,0, 1, 0.1), ## 3d scatterplot options
+                               cex.fac.3d = 1, ## 3d scatterplot options
+                               destin = NULL){
+
+  ## Define layout
+  par(mfrow = c(1, 4))
+  ## par(oma = c(3, 1, 2, 1)) ## setting outer margin
+
+  ## Setup
+  TT = length(ylist)
+  assertthat::assert_that(tt %in% 1:TT)
+  all.y = do.call(rbind, ylist)
+  only_plot_cytograms = (is.null(obj))
+  if(!only_plot_cytograms){
+    obj = reorder_clust(obj)
+    mns = obj$mn
+    numclust = obj$numclust
+    p = ncol(obj$X)
+  }
+
+  ## Scale the biomass (|countslist|) by the total biomass in that cytogram.
+  counts_sum = sapply(countslist, sum)
+  fac = median(counts_sum)
+  countslist = lapply(countslist, function(counts)counts/sum(counts) * fac)
+
+
+  ###############################
+  ## Make the three data plots ##
+  ###############################
+  ## par(mar=c(1,1,3,1))
+  par(mar = c(5.1, 5.1, 4.1, 2.1))
+  dimslist = list(1:2, 2:3, c(3,1))
+  for(dims in dimslist){
+    ## one_dim_scatterplot(ylist, obj, tt,
+    scatterplot_2d(ylist, obj, tt,
+                   countslist = countslist,
+                   dims = dims,
+                   cex_fac = cex.fac.2d,
+                   pt_col = pt_col,
+                   lwd = 2)
+  }
+  par(cex=0.8)
+
+  par(mar=c(1,1,3,1))
+  ## phis = c(10,50)
+  phis = c(10)
+  for(phi in phis){
+    one_3d_plot(ylist, obj, tt, countslist = countslist, phi = phi,
+                cex.fac = cex.fac.3d)
+  }
+}
+
+## Load 3d model
+cvres_filename = paste0("cvres-", paste0(2,"-", 64,"-", 10), ".Rdata")
+load(file = file.path(datadir, cvres_filename), verbose = FALSE)
+res = cvres$bestres
+class(res) = "flowmix" ## for back-compatibility
+res$prob = res$pie ## for back-compatibility
+
+datobj = readRDS(file = file.path(datadir, "MGL1704-hourly-paper.RDS"))
+ylist = datobj$ylist
+countslist = datobj$countslist
+tt = 10
+plot_3d_fourpanels(res, ylist, countslist, tt = tt, destin = destin,
+                   cex.fac = 10, pt_col = rgb(0,0,1,0.2), cex.fac.3d = 0.4)
+```
+
+## Figure 10 ##
+
+Figure 10 is produced using this code:
+
+(The file `prochloro-gates.Rdata` comes from `paper-code/gating.Rmd`).
+
+```{r figure-10-load-data}
+## Load the results from traditional gating of Prochlorococcus
+load(file = file.path(datadir, "prochloro-gates.Rdata"))
+
+## 1. First, make 3-minute resolution prochlorococcus counts/biomass
+prop_biomass = (prochloro_biomass_list %>% unlist) / (total_biomass_list %>% unlist)
+names(prop_biomass) = names(prochloro_biomass_list)
+
+prop_count = (prochloro_count_list %>% unlist) / (total_count_list %>% unlist)
+names(prop_count) = names(prochloro_count_list)
+
+## 2. Now, hourly aggregation of prochlorococcus counts/biomass.
+times = names(prochloro_biomass_list)
+obj = get_membership(times) ## borrowed from the "cruisedat" package
+membership = obj$membership
+time = obj$time
+
+hourly_prochloro_biomass <- sapply(membership, function(memb){
+  prochloro_biomass_list[memb] %>% unlist() %>% sum() })
+hourly_total_biomass <- sapply(membership, function(memb){
+  total_biomass_list[memb] %>% unlist() %>% sum()  })
+names(hourly_prochloro_biomass) = names(hourly_total_biomass) = time
+hourly_prop_biomass = hourly_prochloro_biomass / hourly_total_biomass
+```
+
+
+```{r figure-10, fig.width = 8, fig.height = 4}
+## Make plot 
+## pdf(file = file.path(figdir, "3d-prochloro-prob.pdf"),
+##     width = 8,height = 4)
+par(mar = c(5.1, 4.1, 2.1, 2.1))
+cols = RColorBrewer::brewer.pal(10, "Paired")
+iclusts = c(10)
+flowmix::plot_prob(res, iclusts, main = "", cols = cols)
+lines(hourly_prop_biomass[-c(1:48)],
+      lty = 1, type = 'l',lwd = 2,
+      col='grey40')
+legend("topleft",
+       lwd = c(3, rep(3, length(iclusts))),
+       col=c('grey40', cols[iclusts]),
+       lty = 1,
+       legend=c("Gated Prochlorococcus\nbiomass proportion", paste0("Cluster ", iclusts, " probability")),
+       bg="white")
+## graphics.off()
+```
+
+
+
+## Figure 14 ##
+
+Figure 14 is produced using this code:
+
+```{r figure-14, fig.width = 30, fig.height = 15}
+## ## Load 3d model
+## cvres_filename = paste0("cvres-", paste0(2,"-", 64,"-", 10), ".Rdata")
+## load(file = file.path(datadir, cvres_filename), verbose = FALSE)
+## res = cvres$bestres
+## class(res) = "flowmix" ## for back-compatibility
+## res$prob = res$pie ## for back-compatibility
+
+## ## Load 3d data
+## datobj = readRDS(file = file.path(datadir, "MGL1704-hourly-paper.RDS"))
+## ylist = datobj$ylist
+## countslist = datobj$countslist
+
+tt = 10 ## WHAT is this?
+plot_3d(res, ylist, countslist, tt = tt, cex.fac = 10, pt_col = rgb(0,0,1,0.2),
+        cex.fac.3d = 0.4,
+        lat = datobj$lat,
+        lon = datobj$lon)
+```
+
+
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height:0;"></div>

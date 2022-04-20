@@ -1,4 +1,3 @@
-
 ################################
 ## Generate data and folds ####
 ################################
@@ -21,7 +20,8 @@ if(experiment_type == 1){
   ## Generate realistic 5-cluster 1d data (Figure 6)
 
   ## 1. Load data (1d-cvres.rds was created from experiment 2)
-  obj = flowmix::generate_data_1d_pseudoreal_from_cv(datadir = datadir) ## loads a file called "1d-cvres.rds"
+  source("gradients2-helpers.R")
+  obj = generate_data_1d_pseudoreal_from_cv(datadir = datadir) ## loads a file called "1d-cvres.rds"
   ylist = obj$ylist
   X = obj$X
   countslist = obj$countslist

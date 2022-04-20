@@ -1,0 +1,168 @@
+---
+title: 1D simulation example in the paper (varying the number of clusters)
+code_folding: fold
+header-includes:
+- \usepackage{bbm}
+author: Sangwon Hyun
+---
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.width=14, fig.height=8, echo=FALSE, warning=FALSE,
+                      message=FALSE, eval=TRUE, cache=TRUE)
+la('flowcy')
+library('flexmix')
+library(Matrix)
+figdir = "./figures"
+datadir = "./data"
+```
+
+# Note of caution
+
+This code is legacy code that accompanies the `paper-code/simulations.Rmd`
+script, and runs the experiments for examining how mis-specifying the number of
+clusters affects the out-of-sample model fit.
+
+
+# Summary
+
+Produces two pdf files `noisy-covariate-fit.pdf` and `noisy-covariate-power.pdf`, for the 
+figure label `\label{fig:numclusts-results}`.
+
+
+## Simulation steps
+
+Internally, each job is numbered by data types 80-89, which is relevant for
+`blockcv-generate-data.R`.
+
+All of the following scripts are contained in the zip file `all-scripts.R`
+
+Scripts to run on a SLURM server:
+
+1. **Generate the data** once, using the script: `./blockcv-numclust-gendat.R` 
+
+3. **Run the simulations** `./run-sims-numclust.sh`
+  - which calls `run-blockcv-2-9-x.slurm` over datatypes 9, numclust = 2, ..., 10.
+  - which calls `blockcv-numclust.R` which runs the simulation. (this script is
+    different from `blockcv.R`)
+
+4. **Summarize the simulations on server** `./run-summarize-numclust.sh`
+  - which calls `run-summarize-numclust.slurm`
+  - which calls `summarize-numclust.R` on data types 9, numclust = 2, ..., 10.
+  - which calls `blockcv-summarize-sim()`.
+
+5. **Download results on my computer**, `./run-summarize-client-numclust.sh`
+  - which downloads
+  - `scp hpc:/scratch/sangwonh/output/blockcv-2-9-[ ]/summary/.` to
+   `/Dropbox/research/usc/hpc-output/blockcv-2-9-[ ]/summary/.`for [ ] = 2, ..., 10.
+
+
+# Code
+
+Visualizing the data once.
+
+```{r viz-numclust-sim}
+obj = generate_data_1d_pseudoreal_from_cv(datadir=datadir##"~/repos/cruisedat/export",
+                                          bin = TRUE, plot = TRUE, dat.gridsize=50)
+```
+
+Now, we download the data once. The steps are similar to before.
+- Make some summaries directly on the server, using `summarize-numclust.sh`.
+- Download the server, using `run-summarize-client.sh` to download these results.
+
+```{r}
+numclusts = c(2,3,4,5,6,7,8)
+nsim = 30
+probs = c(0.05, 0.95, 0.25, 0.75)
+
+## Empty CV score objects
+avg_cvscores = rep(NA, length(numclusts))
+quantile_cvscores = matrix(NA, nrow=length(numclusts), ncol=4)
+all_cvscores = matrix(NA, nrow=length(numclusts), ncol=nsim)
+
+## Empty out-of-sample score objects
+avg_oos_scores = rep(NA,  length(numclusts)) ## new
+quantile_oos_scores = matrix(NA, nrow=length(numclusts), ncol=4)
+all_oos_scores = matrix(NA, nrow=length(numclusts), ncol=nsim)
+
+## Generate LARGE new dataset (large = large n_t$) from new model
+datobj = generate_data_1d_pseudoreal_from_cv(datadir="~/repos/cruisedat/export", nt=3000)
+
+blocktype = 2
+datatype = 9
+for(iclust in 1:length(numclusts)){
+  printprogress(iclust, 1:length(numclusts), "iclusts", fill=TRUE)
+  numclust = numclusts[iclust]
+  ## datadir = "~/stagedir/output"
+  destin = file.path(datadir,
+                     paste0("blockcv-", blocktype, "-", datatype, "-", numclust))
+  load(file = file.path(destin, "summary", "bestreslist.Rdata"))
+
+  nsim = length(bestreslist)
+  ## New: calculate the REAL CV score 
+  for(isim in 1:nsim){
+    printprogress(isim, nsim, "sim", fill=TRUE)
+    bestres = bestreslist[[isim]]
+    if(is.null(bestres))next
+    all_oos_scores[iclust, isim] = objective_newdat(ylist = datobj$ylist,
+                                                    countslist = datobj$countslist,
+                                                    res  =  bestres)
+
+  }
+}
+
+## Calculate the average and quantiles
+for(iclust in 1:length(numclusts)){
+  numclust = numclusts[iclust]
+  avg_oos_scores[iclust] = mean(all_oos_scores[iclust,], na.rm=TRUE)
+  quantile_oos_scores[iclust,] = quantile(all_oos_scores[iclust,], probs = probs,
+                                      na.rm=TRUE) ## middle 90% quantile.
+}
+
+## Labeling quantile CV scores
+rownames(quantile_cvscores) = numclusts
+colnames(quantile_cvscores) = probs
+rownames(all_cvscores) = numclusts
+names(avg_cvscores) = numclusts
+
+## Labeling out of sample scores
+rownames(quantile_oos_scores) = numclusts
+colnames(quantile_oos_scores) = probs
+rownames(all_oos_scores) = numclusts
+names(avg_oos_scores) = numclusts
+
+pdf(file=file.path(figdir, "numclusts-cvscores-new.pdf"), width=5, height=5)
+par(mar=c(5.1,4.1,3.1,2.1))
+all_numclusts = 2:8
+plot(NA,
+     xlim = c(2, 8),
+     ylim = range(all_oos_scores, na.rm=TRUE),
+     ylab = "Out-of-sample NLL",
+     xlab = "Number of clusters used in estimation (K)",
+     axes=FALSE)
+abline(v=5, col='orange', lwd=3)
+abline(h=seq(from=0.40, to=0.48, by=0.02), col='grey80', lty=2)
+## text(x=5, y=0.47, label="True underlying K")
+legend('topright', col=c(rgb(0,0,0,0.2), 'black', 'orange'),
+       lwd = c(NA, 3,3),
+       pch = c(16, NA,NA),
+       legend = c("One simulation", "Average", "True K"),
+       bg = "white")
+axis(1, at=1:10);
+axis(2)
+pch = 1:30
+for(iclust in 1:length(numclusts)){
+  numclust = numclusts[iclust]
+  points(y = all_oos_scores[iclust, ],
+         x = rep(numclust, ncol(all_oos_scores)),
+         ## type = 'p',
+         col = rgb(0,0,0,0.2),
+         cex = 1,
+         ## pch = sapply(1:30, toString)
+         pch = 16
+         )
+}
+lines(y = avg_oos_scores,
+      x = numclusts,
+      lwd = 3, type = 'l')
+graphics.off()
+
+```

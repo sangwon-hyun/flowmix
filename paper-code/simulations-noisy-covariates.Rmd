@@ -1,0 +1,368 @@
+---
+title: 1D simulation example in the paper (noisy covariates)
+code_folding: fold
+header-includes:
+- \usepackage{bbm}
+author: Sangwon Hyun
+---
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.width=14, fig.height=8, echo=FALSE, warning=FALSE,
+                      message=FALSE, eval=TRUE, cache=TRUE)
+library(flexmix)
+library(Matrix)
+load_all('~/repos/flowmix/flowmix') ## Replace
+figdir = "./figures"
+```
+
+# Note of caution
+
+This code is legacy code that accompanies the `paper-code/simulations.Rmd`
+script, and runs the experiments for examining how adding noise to the
+covariates affects the model performance.
+
+# Summary
+
+This script produces three plots:
+
+- `noisy-covariates-data.pdf`, and `noisy-covariates.pdf` for the figure label
+  `\label{fig:noisy-covariates-data}`.
+- `noisy-covariate-fit.pdf` for the figure label
+  `\label{fig:noisy-covariates-results}`.
+
+
+## Simulation steps
+
+Internally, each job is numbered by data types 80-89, which is relevant for
+`blockcv-generate-data.R`.
+
+All of the following scripts are contained in the zip file `all-scripts.R`
+
+Scripts to run on a SLURM server:
+
+1. Generate the data once: `./run-sim-gendat.sh` 
+  - which calls `run-sim-gendat.slurm`.
+  - which calls `blockcv-sim-gendat.R`
+
+2. Get the maximum regularization parameters: `./run-sim-maxres.sh` 
+  - which calls `run-sim-maxres.slurm`.
+  - which calls `blockcv-sim-maxres.R`
+
+3. **Run the simulations** `./run-sims.sh`
+  - which calls `run-sim.slurm` over datatypes 80-89
+  - which calls `blockcv-sim.R` which runs the simulation. (this script is
+    different from `blockcv.R`)
+
+4. **Summarize the simulations on server** `./run-sim-summarize.sh`
+  - which calls `run-summarize.slurm`
+  - which calls `summarize.R` on data types 80-89.
+  - which calls `blockcv-summarize-sim()`.
+
+5. **Download results on my computer**, `./run-summarize-client.sh`
+  - which downloads
+  - `scp hpc:/scratch/sangwonh/output/blockcv-2-80-2/summary/.` to
+   `/Dropbox/research/usc/hpc-output/blockcv-2-80-2/summary/.`
+
+## Code for summarizing results
+
+First, we want to visualize the **out-of-sample likelihoods** as a function of
+$\sigma_{\text{add}}$.
+
+```{r cv-error-viz}
+
+##' From simulation results, loads |bestreslist| containing the chosen models
+##' from CV, then calculates the out-of-sample log likelihood of these models
+##' with respect to a large new dataset (cytograms) generated from the same
+##' mechanism.
+##'
+##' @param blocktype CV block type
+##' @param datatypes 80:89
+##' @param numclust 2
+##' @param cv_gridsize 7
+##' @param nrep 5
+##' @param outputdir Output directory on client computer
+##' 
+##' @return List of OOS scores.
+outsample_loglik <- function(blocktype = 2, 
+                             datatypes = c(80:89),
+                             numclust = 2,
+                             cv_gridsize = 7,
+                             nrep = 5,
+                             outputdir = "~/Dropbox/research/usc/hpc-output"
+                             ){
+
+  ## Generate large data once
+  datobj_large = generate_data_1d_pseudoreal(datadir = datadir,##"~/repos/cruisedat/export",
+                                             nt1 = 20000,
+                                             beta_par = 0.3,
+                                             p = 10)
+
+  ## Calculate the out-of-sample scores
+  ## datatypes = c(80:89)
+  ## datatypes = c(80, 83, 86, 89)
+  avg_oos = rep(NA, length(datatypes))
+  quantile_oos = matrix(NA, nrow=length(datatypes), ncol = 4)
+  nsim = 100
+  all_oos = matrix(NA, nrow = length(datatypes), ncol = nsim)
+  probs = c(0.05, 0.95, 0.25, 0.75)
+  for(ii in 1:length(datatypes)){
+    print(ii)
+  
+    ## Load the best model from each noise level
+    datatype = datatypes[ii]
+    destin = file.path(outputdir, paste0("blockcv-", blocktype, "-", datatype, "-", numclust))
+    load(file = file.path(destin, "summary", "bestreslist.Rdata"))
+    nsim = length(bestreslist)
+    print(nsim)
+    for(isim in 1:nsim){
+      ## lapply(1:9, function(isim){
+      bestres = bestreslist[[isim]]
+      if(is.null(bestres)) next
+      oos_loglik = objective_newdat(ylist = datobj_large$ylist,
+                                   countslist = datobj_large$countslist,
+                                   res = bestres)
+      all_oos[ii, isim] = oos_loglik
+    }
+  }
+
+  ## Obtain the mean & quantiles
+  avg_oos = apply(all_oos, 1, mean, na.rm = TRUE) ##mean(all_oos[ii,])
+  quantile_oos = apply(all_oos, 1, function(myrow){
+    quantile(myrow, probs = probs, na.rm=TRUE)
+  })
+
+  ## Return results
+  return(list(all_oos = all_oos,
+              avg_oos = avg_oos,
+              quantile_oos = quantile_oos))
+} 
+
+
+## Make plots 
+datatypes = c(80:89)
+sigmalist = seq(from=0,to=2.7, by=0.3)
+lwd = 3
+ooslist =  outsample_loglik(2, datatypes, 2)
+list2env(ooslist, envir=.GlobalEnv)
+pdf(file=file.path(figdir, "noisy-covariate-fit.pdf"), width=5, height=5)
+par(mar = c(4.1, 4.1, 1.1, 2.1))
+par(mgp = c(2.5, 1, 0))
+plot(NA,
+     ylab = "Out-of-sample NLL",
+     xlab = expression(sigma["add"]),
+     ylim = range(all_oos, na.rm=TRUE),
+     ## ylim = range(c(the_best_loglik - 0.005, all_oos), na.rm=TRUE),
+     xlim = range(sigmalist),
+     axes = FALSE)
+abline(h = seq(from=1.6, to=1.7, by = 0.01), col ='grey80', lty=2)
+## abline(h = the_best_loglik, lwd=3, col='orange')
+## text(y = the_best_loglik * 1.003, x=2, labels="Best attainable \n Neg. log likelihood (NLL)")
+matlines(y = all_oos,
+        x = sigmalist,
+        type='p', pch=16, col=rgb(0,0,0,0.1))
+axis(2); axis(1, at=sigmalist)##, las=3)##[c(1,2*(1:5))]);
+lines(y = avg_oos,
+      x = sigmalist,
+      lwd=3, type='l')
+legend("bottomright",
+       col = c(rgb(0,0,0,0.1), "black"),
+       lwd = c(NA, lwd),
+       pch = c(16, NA),
+       legend = c("NLL (Neg. log-likelihood)", "Average NLL"),
+       bty="o",
+       border="white",
+       bg="white")
+graphics.off()
+```
+
+## Visualizing the sparsity.
+
+This figure is not used in the paper.
+
+```{r viz-coef}
+datatypes = c(80:89)
+sigmalist = seq(from=0,to=2.7, by=0.3)[datatypes-79]
+
+## Calculate power
+thresh = 0
+res = get_power(datatypes = datatypes,
+                sigmalist = sigmalist,
+                thresh = thresh) %>% select(-contains("alpha")) ##%>% select(-beta_par_prob)
+
+## Make the plot
+figdir = "~/Dropbox/research/usc/flow-cytometry/figures"
+pdf(file = file.path(figdir, "noisy-covariate-power.pdf"), width=5, height=5)
+plot_power(res)
+graphics.off()
+
+##' Plot power.
+plot_power <- function(res){ 
+
+  res %>% select(-datatypes) -> res
+  res %>% select(sigma_add) %>%unlist -> sigmalist
+  res %>% select(-sigma_add) -> res
+  ## par(mar=c(3,3,3,3))
+  par(mar = c(4.1, 4.1, 1.1, 2.1))
+  par(mgp = c(2.5, 1, 0))
+  matplot(NA, ylim = c(0,1), xlim = range(sigmalist),
+          ylab = expression(P(hat(beta)!=0)),
+          xlab = expression(sigma["add"]),
+          axes = FALSE)
+  matlines(y = res %>% select(contains("beta_par")),
+           x = sigmalist,
+           type = 'l', col = c(1,1),
+           lwd = 3, lty = c(1,2))
+  matlines(y = res %>% select(contains("beta_spurious_prob1")), x = sigmalist,
+           type = 'l', lwd = 1, lty = 1, col=rgb(1,0,0,0.2))
+  matlines(y = res %>% select(contains("beta_spurious_prob1")) %>% rowMeans, x = sigmalist,
+           type = 'l', lwd = 3, lty = 1, col='red')
+  matlines(y = res %>% select(contains("beta_spurious_prob2")), x = sigmalist,
+           type = 'l', lwd = 1, lty = 1, col=rgb(1,0,0,0.2))
+  matlines(y = res %>% select(contains("beta_spurious_prob2")) %>% rowMeans, x = sigmalist,
+           type = 'l', lwd = 3, lty = 2, col='red')
+  axis(2, at=seq(from=0,to=1, by=0.2)); axis(1, at=sigmalist)##, las=3)##[c(1,2*(1:5))]);
+  legend(x=1.1, y=0.92,##"topright",
+         lwd = c(3,3,3,3,1),
+         lty = c(1,2,1,2,1),
+         col=c("black","black","red","red",rgb(1,0,0,0.2)),
+         legend=c("Sunlight, Clust 1",
+             "Sunlight, Clust 2",
+             "Avg Spurious, Clust 1",
+             "Avg Spurious, Clust 2",
+             "Each Spurious"), bty='n')
+  return()
+}
+
+##' Obtain P(nonzero), and return as a data frame whose rows are for different
+##' additive noise, and the columns are different probabilities; probabilities
+##' for coefficients of each cluster separately, and together.
+##'
+##' @param datatypes 
+##'
+get_power <- function(blocktype = 2, 
+                      datatypes = c(80:89),
+                      sigmalist,
+                      numclust = 2,
+                      cv_gridsize = 7,
+                      nrep = 5,
+                      thresh = 0,
+                      outputdir = "~/Dropbox/research/usc/hpc-output"){
+
+  stopifnot(length(sigmalist) == length(datatypes))
+
+  nsim_max=100
+  beta_par_prob1 = beta_par_prob2 = c()
+  beta_spurious_prob1 = beta_spurious_prob2 = matrix(NA, nrow = length(datatypes), ncol = 8)
+  for(ii in c(1:length(datatypes))){ 
+    print(ii)
+    
+    datatype = datatypes[ii]
+    destin = file.path(outputdir,
+                       paste0("blockcv-", blocktype, "-", datatype, "-", numclust))
+    
+    ## Obtain the best quantile CV scores
+    load(file = file.path(destin, "summary", "bestreslist.Rdata")) ## This would normally work!
+    nsim = length(bestreslist)
+
+    ## Obtain the beta coefficients from simulations
+    betas = lapply(bestreslist, function(bestres){
+      if(!is.null(bestres)){
+      beta = do.call(cbind, bestres$beta)
+      ## order the two according to the intercept
+      beta = beta[,order(beta[1,])]
+      } else { return(NULL)}
+    })
+    betas = betas[which(sapply(betas, length) > 0)] ## temporary handling
+  
+    ## Count the interesting stuff (sunlight betas)
+    beta_par_prob1[ii] = sapply(betas, function(beta)abs(beta["par",1]) > thresh) %>% mean
+    beta_par_prob2[ii] = sapply(betas, function(beta)abs(beta["par",2]) > thresh) %>% mean
+
+    ## Count the interesting stuff (spurious betas)
+    spurious_nonzero1 = sapply(betas, function(beta){
+      apply(beta[4:nrow(beta),], 1, function(myrow){
+      (abs(myrow[1])>thresh)})
+    })
+    spurious_nonzero2 = sapply(betas, function(beta){
+      apply(beta[4:nrow(beta),], 1, function(myrow){
+      (abs(myrow[2])>thresh)})
+    })
+    beta_spurious_prob1[ii,] = apply(spurious_nonzero1, 1, mean)
+    beta_spurious_prob2[ii,] = apply(spurious_nonzero2, 1, mean)
+  }
+  res = data.frame(datatypes = datatypes,
+                   beta_par_prob1 = beta_par_prob1,
+                   beta_par_prob2 = beta_par_prob2,
+                   beta_spurious_prob1 = beta_spurious_prob1,
+                   beta_spurious_prob2 = beta_spurious_prob2,
+                   sigma_add = sigmalist)
+  return(res)
+}
+```
+
+## Visualizing the data
+
+Here are the generating coefficients.
+
+```{r viz-coef-table}
+## Export the true covariates
+obj = generate_data_1d_pseudoreal(nt1 = 200, beta_par = 0.3, p = 10)
+list2env(obj, envir = globalenv())
+print(xtable::xtable(cbind(alpha, beta)) )
+```
+
+Visualizing the data once.
+
+```{r viz-data}
+ymat = do.call(rbind, lapply(ylist, as.numeric))
+pdf(file=file.path(figdir, "noisy-covariates-data.pdf"), width=7, height=5)
+par(mar = c(5.1, 4.1, 1.1, 2.1))
+par(mgp = c(2.5, 1, 0))
+cex.fac = 1.3
+par(cex.lab=cex.fac)
+matplot(NA, xlim=c(0,100), ylim=c(-5, 7), axes=FALSE, ylab="Data", xlab="Time")
+abline(h=seq(from=-30, to=30, by=1), lwd=.5, col='grey90', lty=2)
+matpoints(ymat, type='p', pch=16, col=rgb(0,0,0,0.05), cex=0.8)
+axis(1, cex.axis=cex.fac); axis(2, tick=TRUE, label=TRUE, cex.axis=cex.fac)
+cols = RColorBrewer::brewer.pal( 3, "Set2")
+cols = sapply(cols, function(col) adjustcolor( col, alpha.f = 0.5))
+matlines(mnmat, type='l', lwd=.5, col=cols, lty=2)
+points(mnmat[,1], type='p', lwd=2, col=cols[1], pch=15, cex=pie[,1]*3)
+points(mnmat[,2], type='p', lwd=2, col=cols[2], pch=15, cex=pie[,2]*3)
+legend("topleft", col=cols, lwd=2, pch=16, lty=1,
+       legend=c(expression(Cluster~1~Mean~~mu["1t"]),
+                expression(Cluster~2~Mean~~mu["2t"])),
+       bg = "white",
+       cex=cex.fac)
+graphics.off()
+```
+
+Visualizing the noisy sunlight covariate:
+
+```{r viz-covariates}
+pdf(file.path(figdir, "noisy-covariates.pdf"), width=7, height=5) 
+par(mar = c(5.1, 4.1, 1.1, 2.1))
+par(mgp = c(2.5, 1, 0))
+cex.fac = 1.3
+par(cex.lab = cex.fac)
+lwd = 2
+cols = RColorBrewer::brewer.pal(4, "Set2")
+matplot(NA, ylab="Sunlight covariate", xlab="Time", axes=FALSE,ylim=c(-5, 10), xlim = c(0,100))
+abline(h=seq(from = -5, to = 10), lwd=.5, col='grey90', lty=3)
+set.seed(0)
+lines(obj$X[,1] + rnorm(nrow(X), 0, 2.7), type='l', lwd=lwd, lty=1,  col=cols[3],)
+lines(obj$X[,1] + rnorm(nrow(X), 0, 1), type='l', lwd=lwd, lty=1,  col=cols[2],)
+lines(obj$X[,1] + rnorm(nrow(X), 0, 0), type='l', lwd=5, lty=1,  col=1)##cols[1],)
+lines(obj$X[,2], type='l', lwd=5, lty=1,  col=2)
+lines(obj$X[,1] + rnorm(nrow(X), 0, 0.3), type='l', lwd=lwd, lty=1,  col=cols[1],)
+axis(1)
+axis(2)
+legend("topright", col=c("red","black", cols[1:3]), lwd=c(5,5,rep(lwd,3)), lty=1, legend=c(expression(Changepoint~X[2]),
+                                                                                   expression(Sunlight~X[1]),
+                                                                                   expression(Noisy~Sunlight~sigma["add"]==0.3),
+                                                                                   expression(Noisy~Sunlight~sigma["add"]==1),
+                                                                                   expression(Noisy~Sunlight~sigma["add"]==2.7)),
+       bg="white",
+       cex = cex.fac)
+legend("topright", col=c(""))
+graphics.off()
+```

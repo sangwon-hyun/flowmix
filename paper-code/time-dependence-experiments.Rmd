@@ -1,0 +1,1033 @@
+---
+title: Experiments for examining time-dependence
+date: "Compiled at `r format(Sys.time(), '%Y-%m-%d %H:%M:%S', tz = 'UTC')` UTC"
+header-includes: 
+  - \usepackage{bm} 
+output: 
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float: true
+---
+
+\newcommand{\one}{\mathbbm{1}}
+\newcommand{\R}{\mathbb{R}}
+
+
+# Note of caution
+
+This code is legacy code that accompanies the `paper-code/time-dependence.Rmd`
+script, and runs the experiments for examining time-dependence in the residuals.
+
+You can obtain specific instructions for the datasets and for running this code
+by contacting (emailing) the author Sangwon Hyun.
+
+The R functions used here (e.g. `process_cruise_data()`) can be found in the
+`sangwon-hyun/cruisedat` github repository (commit number
+"916ad03ff36574ddaab6a79a3d533c772b708d82", also found here:
+https://github.com/sangwon-hyun/cruisedat/commit/916ad03ff36574ddaab6a79a3d533c772b708d82
+)
+
+It also relies on *an earlier version of* the `popcycle` R package; use
+
+```{r global_options, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(fig.width=10, fig.height=5, echo=TRUE, eval=TRUE, cache=TRUE,
+                      warning=FALSE, message=FALSE)
+                      ## cache.lazy = FALSE)
+
+## Load packages
+library(tidyverse)
+library(knitr)
+library(here)
+library(ggplot2)
+library(MTS)
+library(purrr)
+library(plotly)
+library(ggpmisc)
+source("time-dependence-experiments-helpers.R")
+la("flowmix")
+
+
+## Output directory
+## outputdir = "~/repos/flowmixapp/data/02-estimate/MGL1704/summaries/"
+outputdir = "/home/sangwonh/repos/flowmix/paper-code/aoas-revision/3d-residuals"
+maindir = "/home/sangwonh/repos/flowmix/paper-code/aoas-revision"
+## outputdir = "~/scratchdir/output/flowmixapp/data/02-estimate/MGL1704/summaries/overtrim" ## on the server
+```
+ 
+# Video of 3d model 
+
+# {.tabset}
+
+```{r labeled-video, results='asis'}
+for(ii in 1:2){
+
+  if(ii == 1)cat("## Unlabeled", fill = TRUE)
+  if(ii == 2)cat("## Labeled", fill = TRUE)
+  
+  ## Make video
+  if(ii==1)videofile = file.path(maindir, "MGL1704-model-unlabeled.mp4") 
+  if(ii==2)videofile = file.path(maindir, "MGL1704-model.mp4") 
+  
+  ## Embed video
+  cat(paste0('<video width="1280" height="720" controls>  <source src="', 
+             videofile,
+             '" type="video/mp4"> </video>'))
+  cat('\n\n')
+}
+```
+
+# Preparing model and residuals
+
+## Load 3d MGL1704 model
+
+Load model from the new experiments.
+
+```{r load-model-and-data}
+modeldir = "~/repos/flowmixapp/data/02-estimate/MGL1704/summaries"
+summary = readRDS(file =  file.path(modeldir, "summary-orig.RDS"))
+origres = summary$bestres
+
+datadir = "~/repos/flowmixapp/data/01-cytograms/MGL1704/data"
+particle_datobj = readRDS(file =  file.path(datadir, "MGL1704-particle-datobj.RDS"))
+times = particle_datobj$time
+```
+
+## Load the particle level data
+
+```{r plot-particle-data, fig.width = 5, fig.height = 5}
+datobj_2d = collapse_3d_to_2d(
+    y = particle_datobj %>% .$ylist %>% .[[1]],
+    counts = particle_datobj %>% .$countslist %>% .[[1]],
+    dims = c(1,2)) %>% as_tibble()
+time = particle_datobj %>% .$ylist %>% names() %>% .[[1]]
+datobj_2d %>% 
+  ggplot() +
+  geom_point(aes(x = diam, y = chl, size = counts), col = rgb(0,0,1,0.01)) +
+  scale_size_area() +
+  ggtitle(paste0("Particle cytogram ", time))
+```
+
+
+## Do the coin-flip experiment
+
+Doing the coin-flip experiment to draw particle memebership using
+responsibilities.
+
+(This is done on the server, in `scripts/flowmix-revision/bin.R`.)
+
+```{r coin-flip, eval = FALSE}
+## Particle data to use
+ylist_particle = particle_datobj$ylist
+countslist_particle = particle_datobj$countslist
+ylist_particle = ylist_particle %>% lapply(as.matrix)
+
+## Draw membership
+resp <- Estep(origres$mn, origres$sigma, origres$prob, ylist = ylist_particle,
+              numclust = origres$numclust, first_iter = TRUE)
+set.seed(0)
+drawslist = draw_membership(resp)
+
+rm(particle_datobj)
+rm(resp)
+
+save(drawslist, file = file.path(outputdir, "drawslist-3d.Rdata"))
+
+
+## Get the residuals
+residuals_obj = get_residuals(ylist = ylist_particle,
+                              countslist = countslist_particle,
+                              res = origres,
+                              drawslist = drawslist,
+                              mc.cores = 1)
+
+## Save it
+save(residuals_obj, file = file.path(outputdir, "residuals-3d.Rdata"))
+```
+
+Now, binning the residuals once.
+
+(This is also done on the server, in `scripts/flowmix-revision/bin.R`.)
+
+
+```{r bin-residuals, eval = FALSE}
+## Read the data
+load(file = file.path(outputdir, "residuals-3d.Rdata"), verbose = TRUE)
+
+
+## Reverse order of nested list (from time->clust to clust->time)
+numclust = 10
+residuals = residuals_obj$residuals_by_cluster
+countslist = residuals_obj$countslist_by_cluster
+resids_by_clust = cluster_then_time(residuals)
+counts_by_clust = cluster_then_time(countslist)
+
+## Make grid for binning
+ylist_particle = particle_datobj$ylist
+dat_grid = flowmix::make_grid(ylist_particle, gridsize = 100)
+TT = length(resid_by_clust[[1]])
+residuals = residuals %>% lapply(function(a){
+  a = a %>% lapply(as_tibble) %>% bind_rows()
+})
+## dat_grid = flowmix::make_grid(residuals, gridsize = 40)
+saveRDS(dat_grid, file = file.path(outputdir, "dat_grid.RDS"))
+
+
+## Bin once
+dat_grid = readRDS(file = file.path(outputdir, "dat_grid.RDS"))
+binobj = list()
+for(iclust in 1:numclust){
+  print(iclust)
+  obj = flowmix::bin_many_cytograms(ylist = resid_by_clust[[iclust]],
+                                    qclist = counts_by_clust[[iclust]],
+                                    dat_grid, mc.cores = 8, verbose = TRUE)
+  binobj[[iclust]] = obj
+}
+
+
+## Save the binned residuals
+saveRDS(binobj, file = file.path(outputdir, "binned-scaled-residuals-3d.RDS"))
+```
+
+
+Lastly, here's a command to move things from the server to a local directory.
+
+
+```{sh download-from-server, eval = FALSE}
+rsync discovery:scratchdir/output/flowmixapp/data/02-estimate/MGL1704/3d-residuals/* ~/repos/flowmix/paper-code/aoas-revision/3d-residuals/.
+```
+
+
+## Scaled residuals
+
+Now, form **scaled** residuals.
+
+(Scaling here means deconvolving; if the $k$'th cluster's covariance matrix was
+$\Sigma_k \in R^{3 \times 3}$, then the residuals $r \in R^{3 \times 1}$ are
+transformed by a left-multiplication by the inverse square root
+$\Sigma^{-1/2}$.)
+
+(Why are there fractional amounts in each bin?)
+
+```{r scaled-residuals, fig.width = 15, fig.height = 11}
+## Read the residual data in
+load(file = file.path(outputdir, "residuals-3d.Rdata"), verbose = FALSE)
+
+## ## Temporary
+## tt = 1
+## iclust = 1
+## cbind(residuals_obj %>% .$residuals_by_cluster %>% .[[tt]] %>% .[[iclust]],
+##       counts = residuals_obj %>% .$countslist_by_cluster %>% .[[tt]] %>% .[[iclust]]) %>% head()
+## ## End of temporary: why are these all 
+
+## Scale (deconvolve) the particle-level residuals
+mu = origres$mn
+prob = origres$prob
+sigma = origres$sigma
+numclust = 10
+TT = dim(mu)[1]
+all_scaled_resids = lapply(1:TT, get_scaled_resids_realdata_3d,
+                           residuals_obj, sigma) 
+
+## Okay, let's see if this deconvolving makes sense in one time point and one cluser
+tt = 10
+iclust = 3
+allnames = c("diam", "chl", "pe")
+
+## Before de-convolving
+plist1 = lapply(list(1:2, 2:3, c(3,1)), function(inds){
+  name1 = allnames[inds[1]]
+  name2 = allnames[inds[2]]
+  g2 = residuals_obj %>% .$residuals_by_cluster %>% .[[tt]] %>% .[[iclust]] %>% as_tibble() %>% 
+    ggplot() +
+    geom_point(aes(x = !!sym(name1), y = !!sym(name2)), alpha = .5) +
+    labs(title = "Synecho residuals",
+         subtitle = times[[tt]])
+}) 
+
+## After de-convolving
+plist2 = lapply(list(1:2, 2:3, c(3,1)), function(inds){
+  name1 = allnames[inds[1]]
+  name2 = allnames[inds[2]]
+  a = get_scaled_resids_realdata_3d(tt, residuals_obj, sigma)
+  dat = a$resids %>% .[[iclust]] %>% as_tibble() %>% setNames(c("diam", "chl", "pe"))
+  g1 = dat  %>% ggplot() +
+    geom_point(aes(x = !!sym(name1), y = !!sym(name2)), alpha = .5) +
+    labs(title = "Synecho residuals, deconvolved",
+         subtitle = times[[tt]])
+})
+
+do.call(gridExtra::grid.arrange, c(c(plist1, plist2), ncol=3))
+```
+
+Bin these, for later plotting (done on the server) in `scripts/flowmix-revision/bin.R`.
+
+```{r bin-scaled-residuals, eval = FALSE}
+## Get the residuals
+TT = nrow(prob)
+numclust = 10
+all_scaled_resids = lapply(1:TT, get_scaled_resids_realdata_3d,
+                           residuals_obj, sigma)
+
+## Reorganize data by cluster
+numclust = 10
+resid_by_clust = list()
+counts_by_clust = list()
+TT = length(residuals)
+numclust = length(residuals[[1]])
+for(iclust in 1:numclust){
+  resids_thistime = list()
+  counts_thistime = list()
+  for(tt in 1:TT){
+    resids_thistime[[tt]] = all_scaled_resids %>% .[[tt]] %>% .$resids %>% .[[iclust]]
+    counts_thistime[[tt]] = all_scaled_resids %>% .[[tt]] %>% .$counts %>% .[[iclust]]
+  }
+  resid_by_clust[[iclust]]  = resids_thistime
+  counts_by_clust[[iclust]]  = counts_thistime
+}
+
+## Make the grid
+TT = length(residuals)
+residuals = lapply(1:TT, function(tt){
+  a = all_scaled_resids %>% .[[tt]]  %>% .$resids %>% lapply(as.data.frame) %>% bind_rows()
+})
+dat_grid = flowmix::make_grid(residuals, gridsize = 100)
+
+## Bin the scaled residuals
+binobj = list()
+for(iclust in 1:numclust){
+  print(iclust)
+  obj = flowmix::bin_many_cytograms(ylist = resid_by_clust[[iclust]],
+                                    qclist = counts_by_clust[[iclust]],
+                                    dat_grid, mc.cores = 8, verbose = TRUE)
+  binobj[[iclust]] = obj
+}
+
+## Save the result
+saveRDS(binobj, file = file.path(outputdir, "binned-scaled-residuals-3d.RDS"))
+```
+
+# Visualize the (scaled) residuals
+
+Before de-convolving.
+
+```{r viz-2d-residuals, fig.width = 10, fig.height=20}
+binobj = readRDS(file = file.path(outputdir, "binned-residuals-3d.RDS"))
+
+## Load the dates
+modeldir = "~/repos/flowmixapp/data/01-cytograms/MGL1704/data"
+times = readRDS(file = file.path(modeldir, "MGL1704-datobj.RDS"))$time
+
+## ## Saving them once.
+## datadir = "~/repos/flowmix/paper-data"
+## saveRDS(times, file=file.path(datadir, "binned-residuals-time.RDS"))
+
+## Make 2d plots of a few snapshot in time
+iclust = 3
+glist = list()
+dats_2d = lapply(1:9, function(ii){
+  tt = ii * 20
+  datobj_2d = collapse_3d_to_2d(
+      y = binobj %>% .[[iclust]] %>% .$ybin_list %>% .[[tt]],
+      counts = binobj %>% .[[iclust]] %>% .$counts_list %>% .[[tt]],
+      dims = c(1,2)) %>%
+    as_tibble() %>%
+    add_column(time = times[tt])
+}) %>% bind_rows()##.id = "date")
+dats_2d = dats_2d %>% mutate(time = as.factor(time))
+
+name1 = "diam"
+name2 = "chl"
+dats_2d %>% ggplot() +
+  facet_wrap(~time) +
+  geom_raster(aes(x = !!sym(name1), y = !!sym(name2), fill = counts)) +
+  scale_fill_gradientn(colours = c("white", "blue"), guide="colorbar")  +
+  coord_fixed() +
+  ggtitle("Original residuals")
+  ## theme_minimal() 
+```
+
+
+A few 2d (diam vs chl) scaled residual plots.
+
+```{r viz-2d-scaled-residuals, fig.width = 10, fig.height=17}
+binobj = readRDS(file = file.path(outputdir, "binned-scaled-residuals-3d.RDS"))
+
+## Load the dates
+modeldir = "~/repos/flowmixapp/data/01-cytograms/MGL1704/data"
+times = readRDS(file = file.path(modeldir, "MGL1704-datobj.RDS"))$time
+
+## ## Saving them once.
+## datadir = "~/repos/flowmix/paper-data"
+## saveRDS(times, file=file.path(datadir, "binned-residuals-time.RDS"))
+
+## Make 2d plots of a few snapshot in time
+iclust = 3
+glist = list()
+dats_2d = lapply(1:9, function(ii){
+  tt = ii * 20
+  datobj_2d = collapse_3d_to_2d(
+      y = binobj %>% .[[iclust]] %>% .$ybin_list %>% .[[tt]],
+      counts = binobj %>% .[[iclust]] %>% .$counts_list %>% .[[tt]],
+      dims = c(1,2)) %>%
+    as_tibble() %>%
+    add_column(time = times[tt])
+}) %>% bind_rows()##.id = "date")
+dats_2d = dats_2d %>% mutate(time = as.factor(time))
+
+dats_2d %>% ggplot() + 
+  facet_wrap(~time) +
+  ## geom_raster(aes(x = diam, y = chl, fill = counts)) +
+  geom_raster(aes(x = dim1, y = dim2, fill = counts)) +
+  scale_fill_gradientn(colours = c("white", "blue"), guide="colorbar") +
+  coord_fixed() +
+  ggtitle("After deconvolving")
+  ## theme_minimal() 
+```
+
+1d plot (diameter) of scaled residuals, by cluster:
+
+## {.tabset}
+
+```{r viz-1d-scaled-residuals, fig.width=10, fig.height=10, results='asis'}
+## Get the 1d version.
+numclust = 10
+TT = 319
+dats_by_clust = lapply(1:numclust, function(iclust){ 
+  dats = lapply(1:TT, function(tt){
+    dt = data.frame(binobj %>% .[[iclust]] %>% .$ybin_list %>% .[[tt]] %>% rbind()) 
+    dt = dt %>% add_column( counts = binobj %>% .[[iclust]] %>% .$counts_list %>% .[[tt]])
+    dt = dt %>% setNames(c("diam", "chl", "pe", "counts"))
+    if(nrow(dt>0)) dt = dt %>% tibble::add_column(tt)
+    return(dt)
+  }) %>% bind_rows() %>% as_tibble()
+  ## dat_1d = dats %>% group_by(diam, tt) %>% summarize(counts=sum(counts))
+  ## return(dat_1d)
+  return(dats)
+})
+
+## Making a small data table containing time indices and dates.
+modeldir = "~/repos/flowmixapp/data/01-cytograms/MGL1704/data"
+times = readRDS(file = file.path(modeldir, "MGL1704-datobj.RDS"))$time
+timetable = data.frame(tt = 1:TT, times = times)
+
+## ## Temporary: Checking that densities in all clusters sum to 1
+## dats_by_clust[[1]]
+## binobj %>% length()
+## binobj[[1]] %>% names()
+## ntlist = sapply(1:319, function(tt){
+##   sapply(1:10, function(iclust){
+##     binobj[[iclust]]$counts_list[[tt]]
+##   }) %>% unlist() %>% sum()
+## }) 
+## ## End temporary
+
+
+## ## Begin temporary 2
+##   load(file = file.path(outputdir, "residuals-3d.Rdata"), verbose = FALSE)
+##   numclust = 10
+##   residuals = residuals_obj$residuals_by_cluster
+##   countslist = residuals_obj$countslist_by_cluster
+##   countslist %>% .[[tt]] %>% .[[iclust]] 
+## ## End temporary
+
+## name1 ="diam"
+for(name1 in c("diam", "chl", "pe")){## for(labeled in c(TRUE, FALSE)){
+  ## cat("###", name1, (if(labeled)"labeled" else ""), fill=TRUE)
+  labeled = FALSE
+  cat("###", name1, fill=TRUE)
+  dat_1d_by_clust = lapply(1:numclust, function(iclust){ 
+    dats = dats_by_clust[[iclust]]
+    dat_1d = dats %>% group_by(!!sym(name1), tt) %>% summarize(counts = sum(counts))
+    ## dat_1d$counts = dat_1d$counts / ntlist[tt]
+    dat_1d
+  })
+  
+  dat_1d_by_clust = dat_1d_by_clust %>% bind_rows(.id="iclust")
+  dat_1d_by_clust = dat_1d_by_clust %>% mutate(iclust = factor(iclust, levels = 1:10))
+  
+  if(labeled){
+    names = c(pro = c(10,NA), small =NA,  syn = 3,  pico1_ = c(9  ),
+                pico2_ = c(1,NA), pico3_ = c( 6), pico4_ = c(NA), croco =NA,
+              bead = NA, rest1_ = c(4, 7), rest2_ = c(8), bg = c(5, 2)) %>%
+      na.omit() %>%
+      sort() %>% names()
+  } else {
+    names = 1:numclust
+  }
+  
+  ## Add cluster names (doesn't do anything right now)
+  dat_1d_by_clust = dat_1d_by_clust %>% mutate(clustername = names[iclust])
+
+  ## Standardize the counts 
+  if(FALSE){
+    dat_1d_by_clust = dat_1d_by_clust %>% group_by(iclust, tt)  %>% mutate(counts = counts/sum(counts))
+  }
+
+  ## Add times
+  dat_1d_by_clust = dat_1d_by_clust %>% left_join(timetable)
+
+  
+  ## Make plot
+  p = dat_1d_by_clust %>% ggplot() + 
+    ## facet_wrap(iclust~., nrow=2) +
+    facet_wrap(clustername~., nrow = 5) +
+    geom_raster(aes(x = times, y = !!sym(name1), fill = counts)) +
+    scale_fill_gradientn(colours = c("white", "black", "yellow")) + ##(low="skyblue", high= "black") +
+    xlab("Time") +
+    ylab("log(cell diameter)") +
+    scale_x_datetime(date_breaks = "1 day") +
+    theme(axis.text.x = element_text(angle = 25, vjust = 1.0, hjust = 1.0))
+
+  plot(p)
+  cat("\n\n")
+  ## }
+}
+```
+
+
+# Visualize and test 3d residuals
+
+Hereon, we operate with scaled residuals. 
+
+First, obtain the means over time (for each cluster).
+
+```{r form-means} 
+means_by_clust = list() 
+for(iclust in 1:numclust){
+  means = lapply(1:TT, function(tt){
+    resid = all_scaled_resids %>% .[[tt]] %>% .$resids %>% .[[iclust]] 
+    if(nrow(resid) == 0) return(tibble(diam=NA, chl=NA, pe=NA))
+    resid = resid %>% as_tibble() %>% setNames(c("diam", "chl", "pe"))
+    count = all_scaled_resids %>% .[[tt]] %>% .$counts %>% .[[iclust]] 
+    combined = resid %>% add_column(count)
+    avg = combined %>% mutate(prop = count/sum(count)) %>% summarize(diam = sum(diam*prop),
+                                                                     chl = sum(chl*prop),
+                                                                     pe = sum(pe*prop))
+    return(avg)
+  })  %>% bind_rows()
+  ## print(means %>% apply(2, max, na.rm=TRUE) %>% round(3))
+  means_by_clust[[iclust]] = means %>% add_column(times)
+} 
+```
+
+## One-dimensional means over time
+
+## {.tabset}
+
+```{r plot-1d-means, results='asis', fig.width=15, fig.height=15}
+longnames = c(diam = "Diameter (diam)", chl = "Chlorophyll (chl)", pe = "Phycoerythrin (pe)")
+for(name1 in c("diam", "chl", "pe")){
+  longname1 = longnames[name1]
+  cat("###", name1, fill=TRUE) 
+  dt = lapply(1:numclust, function(iclust){
+    dt0 = tibble(mean = means_by_clust[[iclust]] %>% pull(!!sym(name1)),
+                 times = times)
+  }) %>% bind_rows(.id = "iclust") %>% mutate(iclust=factor(iclust, levels=1:10))
+  p = dt %>% ggplot(aes(x = times, y = mean)) +
+    facet_wrap(~iclust, nrow = 5) +
+    geom_point(size=rel(.5)) +
+    geom_line() +
+    ylab(name1)
+  p = p + labs(title = paste0("Mean of residuals: ", longname1))
+  plot(p)
+  cat("\n\n")
+}
+```
+
+Overlaying the binned residuals (background, in greyscale and yellow) with the
+residual means (red).
+
+```{r separate-plots, fig.width=10, fig.height=5}
+for(name1 in c("diam", "chl", "pe")){
+
+  longname1 = longnames[name1]
+
+  cat("###", name1, fill=TRUE) 
+
+  ## Get binned data ready
+  dat_1d_by_clust = lapply(1:numclust, function(iclust){ 
+    dats = dats_by_clust[[iclust]]
+    dat_1d = dats %>% group_by(!!sym(name1), tt) %>% summarize(counts=sum(counts))
+  })
+  
+  dat_1d_by_clust = dat_1d_by_clust %>% bind_rows(.id="iclust")
+  dat_1d_by_clust = dat_1d_by_clust %>% mutate(iclust = factor(iclust, levels = 1:10))
+  dat_1d_by_clust = dat_1d_by_clust %>% mutate(clustername = names[iclust])
+
+  ## Cluster means
+  dt = lapply(1:numclust, function(iclust){
+    dt0 = tibble(mean = means_by_clust[[iclust]] %>% pull(!!sym(name1)),
+                 times = times)
+  }) %>% bind_rows(.id = "iclust") %>% mutate(iclust=factor(iclust, levels=1:10))
+  
+  for(iclust in 1:10){
+  
+    ## Get the mean ready 
+    dt1 = dt %>% filter(iclust == !!(iclust))
+    dt1 = dt1 %>% arrange(times) %>% add_column(tt = 1:nrow(dt1))
+    
+    p = dat_1d_by_clust %>% filter(iclust==!!(iclust)) %>% ggplot() + 
+      geom_raster(aes(x=tt, y=!!sym(name1), fill=counts)) +
+      scale_fill_gradientn(colours = c("white", "black", "yellow")) 
+    p = p + geom_line(aes(x = tt, y = mean), size=rel(.5), data = dt1, size = rel(2), col = 'red') 
+    p = p + geom_point(aes(x = tt, y = mean), size=rel(.5), data = dt1, size = rel(.5), col = 'red') 
+    p = p + labs(title = paste0("Binned residuals\nCluster ", iclust,
+                                " and dimension: ", longname1))
+    p = p + xlab("Time index (t)")
+    plot(p)
+    filename = paste0("1d-", name1, "-clust-", iclust, ".png")
+    ggsave(file = file.path(outputdir, filename), width = 10, height = 5)
+  }
+} 
+```
+
+## 2d plots of means over time 
+
+Next, make a 3d plot of (diam, pe, time), over time:
+
+```{r 3d-means-plotly}
+name1 = "diam"
+name2 = "pe"
+
+## for(iclust in 1:numclust){
+htmltools::tagList(lapply(1:numclust, function(iclust) {
+  p = plot_ly(
+    data = means_by_clust[[iclust]],
+    type = 'scatter3d',
+    mode = 'lines + markers',
+    x = ~ times,
+    y = as.formula(paste0('~', name1)),
+    z = as.formula(paste0('~', name2)),
+    marker = list(size = 3.5, color = ~c, colorscale = 'Greens', cmin = -20, cmax = 50)
+  ) %>% layout(scene = list(aspectmode="manual",aspectratio = list( x = 3, y = 1, z = 1))) %>%
+    layout(title=paste0("Cluster ", iclust))
+  p
+})) 
+```
+
+
+## ACF plots
+
+The next set of plots show the autocorrelation function (ACF) plots of the three
+measurements (diam, chl, pe) over time, in each cluster.
+
+## {.tabset}
+
+```{r means-acf, fig.width=15, fig.height=5, results='asis'}
+for(iclust in 1:numclust){
+  cat("### clust", iclust, fill=TRUE)
+
+  ## Make the separate ACF plots
+  means = means_by_clust[[iclust]] %>% drop_na()
+  par(mfrow=c(1,3))
+  acf(means$diam, main = paste("ACF Plot for", "diameter"))
+  acf(means$chl , main = paste("ACF Plot for", "chl"))
+  acf(means$pe  , main = paste("ACF Plot for", "pe"))
+  cat("\n\n")
+}
+```
+
+## Scatterplots of orig vs lagged means
+
+These plots shows the scatterplots of means in each dimension against their
+time-lagged versions.
+
+## {.tabset}
+
+```{r means-lag-plot, fig.width=15, fig.height=15, results='asis'}
+for(iclust in 1:numclust){
+  cat("### clust", iclust, fill = TRUE)
+
+  ## Make the scatterplots
+  means = means_by_clust[[iclust]] %>% drop_na()
+  p = plot_lagged(means$diam) + ggtitle(paste0("diam", ", cluster :", iclust))
+  print(p)
+  name1 = "diam"
+  filename = paste0("acf-", name1, "-clust-", iclust, ".png")
+  ggsave(file = file.path(outputdir, filename), width = 15, height = 15)
+
+  p = plot_lagged(means$chl) + ggtitle(paste0("chl", ", cluster :", iclust))
+  print(p)
+  name1 = "chl"
+  filename = paste0("acf-", name1, "-clust-", iclust, ".png")
+  ggsave(file = file.path(outputdir, filename), width = 15, height = 15)
+
+  p = plot_lagged(means$pe) + ggtitle(paste0("pe", ", cluster :", iclust))
+  print(p)
+  name1 = "pe"
+  filename = paste0("acf-", name1, "-clust-", iclust, ".png")
+  ggsave(file = file.path(outputdir, filename), width = 15, height = 15)
+
+  cat('\n\n')
+}
+```
+
+
+## Ljung-box test
+
+Next, we apply multivariate Ljung-Box test to the means:
+
+
+## {.tabset}
+
+```{r print-ljung-means, results = 'asis'}
+for(iclust in 1:numclust){
+  cat("### clust", iclust, fill=TRUE)
+  mq_table(means_by_clust[[iclust]] %>% drop_na() %>% select(diam, chl, pe), 18)
+  cat('\n\n')
+}
+```
+
+# Deviance residuals
+
+Next, we take deviance residuals and plot them over time. 
+
+```{r get-devres}
+devres = get_devres(origres, particle_datobj$ylist %>% lapply(as.matrix), particle_datobj$countslist)
+ntlist = sapply(particle_datobj$countslist, sum)
+devresmat = tibble(times = times,
+                   ntlist = ntlist,
+                   devres = devres) %>%
+  mutate(scaled_devres = devres/ntlist)
+```
+
+
+
+## Plot deviance residuals
+
+This three-panel plot shows (i) deviance residuals, (ii) $n_t$ over $t=1,..,
+319$, and (iii) *scaled* deviance residuals (i.e. divided by $n_t$).
+
+```{r plot-devres, fig.width=10, fig.height=10}
+mynames <- c(
+  'devres'="Deviance residuals",
+  'ntlist'="Biomass by time",
+  'scaled_devres'="Scaled deviance residuals")
+
+devresmat %>%  
+  pivot_longer(cols = !(times)) %>% 
+  ggplot(aes(x=times, y=value)) +
+  facet_wrap(~name, scale = "free", nrow=3, labeller=as_labeller(mynames)) +
+  geom_point() + 
+  geom_line() +
+  ylab("") +
+  ggtitle("Deviance Residuals")
+
+
+devresmat %>%  select(times, scaled_devres) %>% 
+  ## pivot_longer(cols = !(times)) %>% 
+  ggplot(aes(x=times, y=scaled_devres)) +
+  ## facet_wrap(~name, scale = "free", nrow=3, labeller=as_labeller(mynames)) +
+  geom_point() + 
+  geom_line() +
+  ylab("") +
+  ggtitle("Deviance Residuals")
+filename = "devres.pdf"
+ggsave(file = file.path(outputdir, filename), width = 10, height = 3.5)
+```
+
+This plot shows the scaled deviance residuals' scatterplots against their
+time-lagged versions.
+
+```{r, plot-devres2, fig.width = 15, fig.height=15}
+devresmat$scaled_devres %>% plot_lagged() + ggtitle(paste0("Scaled deviance residuals"))
+```
+
+
+## Test deviance residuals
+
+Then, we test the deviance residuals (a univariate time series) using
+multivariate Ljung-Box.
+
+```{r, test-devres, fig.width=3, fig.height=3, results="asis"}
+devresmat$scaled_devres %>% mq_table(17,  caption = "Ljung-box on scaled deviance residuals")
+```
+
+
+
+## Permutation test
+
+
+Conduct permutation test of the residuals' means, for each cluster.
+
+```{r permtest, fig.width = 12, fig.height=5}
+filename = "perm-test.pdf"
+## pdf(file = file.path(outputdir, filename), width = 12, height=5)
+par(mfrow = c(2, 5))
+for(iclust in 1:10){
+  means = means_by_clust[[iclust]]
+  test_stat(means)
+  permtest(means, 1000, plot = TRUE, title = paste0("Cluster ", iclust))
+}
+## graphics.off()
+```
+
+Also conduct permutation test on the deviance residuals.
+
+```{r permtest-devres, fig.width=5, fig.height=5}
+means = devresmat$scaled_devres 
+filename = "permtest-devres.pdf"
+## pdf(file = file.path(outputdir, filename), width = 5, height=5)
+permtest(cbind(means), 1000, plot = TRUE, title = NULL)##"Permutation test\n on Deviance residuals")
+## graphics.off()
+```
+
+# Using Wasserstein's distance
+
+Instead of cross-correlation :
+
+$$ T(\{\tilde r_{kt}^i\}_{t=1}^T) :=   \max_{\substack{d\in\{1,2,3\},\\ l\in\{1,\cdots, 18\}}} \left|\text{corr}\left(\{e_d^T
+\tilde r^i_{kt}\}_{t=1}^{T-l},\;\; \{e_d^T \tilde r^i_{kt} \}_{t=l+1}^T\right) \right|, i = 1, \cdots, 1000. $$
+
+of the (permuted) means:
+
+$$e_d^T \tilde r_{kt}^i,$$
+
+
+we'll calculate 
+
+$$\{h(e_d^T r_{kt}^j)\}_{t, d, l}$$
+
+across $t, k, $l$.
+
+The thing to measure is
+
+$$W_{t_1,k_1,l_1}^{t_2, k_2, l_2}  = Wass (h(e_{d_1}^T r_{k_1, t_1}^j), h(e_{d_2}^T r_{k_2, t_2}^j)$$
+
+
+First, a sanity check: does EMD measure correctly?
+
+```{r emd-test-small}
+outputdir = "/home/sangwonh/repos/flowmix/paper-code/aoas-revision/3d-residuals"
+maindir = "/home/sangwonh/repos/flowmix/paper-code/aoas-revision"
+library(ggplot2)
+library(tidyverse)
+la("flowmix")
+name1 = "dim1"
+name2 = "dim2"
+iclust = 3
+binobj = readRDS(file = file.path(outputdir, "binned-scaled-residuals-3d.RDS"))
+plist = lapply(c(100, 101, 102, 103, 104, 200), function(tt){
+  collapse_3d_to_2d(
+      y = binobj %>% .[[iclust]] %>% .$ybin_list %>% .[[tt]],
+      counts = binobj %>% .[[iclust]] %>% .$counts_list %>% .[[tt]],
+      dims = c(1,2)) %>%
+    as_tibble() %>%
+    ggplot() +
+    geom_raster(aes(x = !!sym(name1), y = !!sym(name2), fill = counts)) +
+    scale_fill_gradientn(colours = c("white", "blue"), guide="colorbar")  +
+    coord_fixed() +
+    ylim(c(-3,3)) +
+    xlim(c(-3,3)) +
+    ggtitle(paste0("time = ", tt))
+})
+do.call(gridExtra::grid.arrange, c(plist, ncol = 3))
+
+sixdat = lapply(c(100, 101, 102, 103, 104, 200), function(tt){
+  dat = data.frame(binobj %>% .[[iclust]] %>% .$ybin_list %>% .[[tt]],
+                   counts = binobj %>% .[[iclust]] %>% .$counts_list %>% .[[tt]])
+})
+
+## Collapse 1o 1d
+iclust = 3
+ylist_small = lapply(c(100, 101, 102, 103, 104, 200), function(tt){
+  dat = data.frame(binobj %>% .[[iclust]] %>% .$ybin_list %>% .[[tt]]) %>% as.matrix()
+})
+countslist_small = lapply(c(100, 101, 102, 103, 104, 200), function(tt){
+  counts = binobj %>% .[[iclust]] %>% .$counts_list %>% .[[tt]] %>% as.numeric()
+})
+
+## What the problem
+dat1d = collapse_3d_to_1d(ylist_small, countslist_small, idim = 2)
+ylist_1d = dat1d$ylist
+countslist_1d = dat1d$countslist
+
+dmat = matrix(NA, nrow = 6, ncol = 6)
+for(ii in 1:6){
+  for(jj in 1:6){
+    dmat[ii, jj] = emd(ylist_1d[[ii]] %>% cbind(),
+                       countslist_1d[[ii]],
+                       ylist_1d[[jj]] %>% cbind(),
+                       countslist_1d[[jj]])
+
+  }
+}
+colnames(dmat) = rownames(dmat) =  c(100, 101, 102, 103, 104, 200)
+drawmat_precise(dmat)
+```
+
+It appears so!
+
+
+```{r emd-test-large, eval=FALSE}
+## Okay so the next thing to try is making a large matrix, and matching the rows & columns?
+all_y = binobj %>% .[[iclust]] %>% .$ybin_list %>% do.call(rbind, .) %>% as_tibble()
+colnames(all_y) = c("diam", "chl", "pe")
+all_y %>% pull(diam) %>% unique() %>% sort() %>% length()
+all_y %>% pull(chl) %>% unique() %>% sort() %>% length()
+all_y %>% pull(pe) %>% unique() %>% sort() %>% length()
+
+## Rows are "from", columns are "to"
+TT = 319
+## for(iclust in
+mclapply(c(3,1,2,4:10), function(iclust){
+  for(idim in 1:3){
+    if(file.exists(file = file.path(outputdir, "distmats", paste0(idim, "-", iclust, ".RDS")))) next
+    ylist = lapply(1:TT, function(tt){
+      dat = data.frame(binobj %>% .[[iclust]] %>% .$ybin_list %>% .[[tt]]) %>% as.matrix()  })
+    countslist = lapply(1:TT, function(tt){
+      counts = binobj %>% .[[iclust]] %>% .$counts_list %>% .[[tt]] %>% as.numeric()  })
+    dat1d = collapse_3d_to_1d(ylist, countslist, idim = idim)
+    cat(fill = TRUE)
+
+    ## There is one that is both NA; what to do?
+    ylist_1d = dat1d$ylist
+    countslist_1d = dat1d$countslist
+
+    ## Calculate the distance
+    dists = matrix(NA, nrow = TT, ncol = TT)
+    for(tt1 in 1:TT){
+      for(tt2 in 1:TT){
+        if(abs(tt1 - tt2) >= 100) next
+
+        if(any(is.na(ylist_1d[[tt1]])) | any(is.na(ylist_1d[[tt2]]))) next
+        if(any(is.na(countslist_1d[[tt1]])) | any(is.na(countslist_1d[[tt2]]))) next
+         dists[tt1, tt2] =  emd(ylist_1d[[tt1]] %>% cbind(),
+              countslist_1d[[tt1]],
+              ylist_1d[[tt2]] %>% cbind(),
+              countslist_1d[[tt2]])
+      }
+    }
+    colnames(dists) = rownames(dists) =  1:TT
+    saveRDS(dists, file = file.path(outputdir, "distmats", paste0(idim, "-", iclust, ".RDS")))
+    cat(fill = TRUE)
+    cat("saved to", file.path(outputdir, "distmats", paste0(idim, "-", iclust, ".RDS")))
+  }
+  return(NULL)
+}, mc.cores = 2)
+
+
+## Drawing one matrix at a time
+for(idim in 1:3){
+  for(iclust in 1:10){
+    iclust=1
+    dists = readRDS(file = file.path(outputdir, "distmats", paste0(idim, "-", iclust, ".RDS")))
+    drawmat_precise(dists)
+  }
+}
+```
+
+Now, let's make a plot of cross-correlations that use Wasserstein distance
+instead of Pearson correlation.
+
+
+```{r main-emd-plot, fig.width = 10, fig.height = 14}
+## Okay, so from this, we can easily calculate the cross-correlations
+dats = list()
+for(idim in 1:3){
+  for(iclust in 1:10){
+
+    ## Load distance matrix
+    dists = readRDS(file = file.path(outputdir, "distmats", paste0(idim, "-", iclust, ".RDS")))
+
+    ## Get all means
+    allstats = sapply(1:100, function(numlag){
+      onestat = dists[row(dists) == (col(dists) - numlag)] %>% mean(na.rm=TRUE)
+      return(onestat)
+    })
+
+    ## Save as a long 
+    onedat = data.frame(lag = 1:100, dist = allstats, idim = idim, iclust = iclust) %>% as_tibble()
+    onename = paste0(idim, "-", iclust)
+    dats[[onename]] = onedat
+  }
+}
+
+## String together by row:
+long = do.call(rbind, dats)
+long = long %>%
+  mutate(idim = replace(idim, idim == 1, "diam")) %>%
+  mutate(idim = replace(idim, idim == 2, "chl")) %>%
+  mutate(idim = replace(idim, idim == 3, "pe"))
+long = long %>% mutate(idim = factor(idim, levels = c("diam", "chl", "pe")))
+
+p = long %>%
+  ggplot() +
+  facet_grid(iclust ~ idim) +
+  geom_point(aes(x = lag, y = dist), size = rel(0.3)) +
+  geom_line(aes(x = lag, y = dist), alpha=.5) +
+  ylab("Mean Wasserstain Distance") +
+  xlab("Number of Time Lags") +
+  scale_y_continuous(sec.axis = sec_axis(~ . , name = "Cluster number", breaks = NULL, labels = NULL)) +
+  scale_x_continuous(sec.axis = sec_axis(~ . , name = "Cytogram dimension", breaks = NULL, labels = NULL))
+plot(p)
+ggsave(file = file.path(outputdir, "mean-wasserstein.pdf"), width = 10, height = 14)
+```
+
+
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height:0;"></div>
+
+
+
+```{r}
+knitr::knit_exit() 
+```
+
+The remainder is a graveyard.
+
+# Combine the residuals
+
+```{r, eval = FALSE}
+all_scaled_resids %>% length()
+
+residlist = list()
+for(tt in 1:TT){
+  dt_combined = lapply(1:numclust, function(iclust){
+    rr = all_scaled_resids %>% .[[tt]] %>% .$resid %>% .[[iclust]]
+    cc = all_scaled_resids %>% .[[tt]] %>% .$counts %>% .[[iclust]]
+    dt = data.frame(rr) %>% add_column(counts=cc) %>% as_tibble()
+    colnames(dt) = c("diam", "chl", "pe", "counts")
+    dt
+  }) %>% bind_rows()
+  residlist[[tt]] = dt_combined
+}
+
+dat_grid = make_grid(residlist, 100)[1:3] %>% setNames(c("diam", "chl", "pe"))
+## ranges = lapply(residlist,
+##                 function(a){ apply(a, 2, range) %>% as_tibble()}) %>%
+##   bind_rows() %>%
+##   apply(2, range)
+## ranges
+
+diam = residlist[[1]] %>% pull(diam) 
+
+residlist[[2]] %>% pull(diam) %>% hist()
+
+chl = residlist[[2]] %>% pull(chl) 
+hist(chl)
+
+chl[chl>5]
+counts[chl>5]
+
+counts = residlist[[1]] %>% pull(counts)
+max(chl)
+diam[diam< -5]
+
+## tt = 1
+ylist = list()
+countslist = list()
+for(tt in 1:TT){
+  print(tt)
+  dt_combined = residlist[[tt]]
+  one_bin = bin_one_cytogram(dt_combined[,c("diam","chl", "pe")],
+                             qc = dt_combined[,"counts", drop=TRUE],
+                             manual.grid = dat_grid)
+  ylist[[tt]] = one_bin$ybin
+  countslist[[tt]] = one_bin$counts
+}
+
+collapse_3d_to_1d(ylist, countslist, idim = 1)
+
+```
+

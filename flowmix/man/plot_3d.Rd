@@ -15,7 +15,8 @@ plot_3d(
   par_cex_2d = 1,
   pt_col = rgb(0, 0, 1, 0.1),
   cex.fac.3d = 1,
-  destin = NULL
+  lon = NULL,
+  lat = NULL
 )
 }
 \arguments{

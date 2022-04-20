@@ -1,0 +1,161 @@
+---
+title: Estimating stability of coefficient estimates
+author: Sangwon Hyun, Mattias Rolf Cape, Francois Ribalet, Jacob Bien
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float: true
+---
+
+# Setup
+
+This script uses the flowmix package from github repository commit OOOO.
+
+```{r setup, eval = TRUE, echo = FALSE, message = FALSE, warning = FALSE}
+knitr::opts_chunk$set(fig.width=14, fig.height=8, echo=TRUE, eval=TRUE,
+                      cache=FALSE, warning=FALSE, message=FALSE,
+                      cache.lazy = FALSE)
+library(flowmix)
+library(tidyverse)
+library(xtable)
+## source("~/repos/flowmix/graveyard.R")
+```
+
+# Code to conduct the subsampling bootstrap
+
+Loading the data files required:
+
+* Particle level data: `MGL1704-hourly-paper-1d-diam-not-binned.RDS`
+  + This is non-binned cytogram data used for matching clusters.
+
+* Summaries from estimated models in subsampled datasets:
+  + `subsample-random-time/subsample-b-150/subsample-summaries`
+  + Subsampling is done by randomly taking time blocks of length $T/2 = 150$
+    (out of $T=296$ timepoints in total).
+  + The results are in 100 files named like
+    `subsample-random-time/subsample-b-150/sim-10` (sim-1 through sim-100).
+  + These files are produced by running `run-subsample.slurm`, which calls
+      `subsample.R` repeatedly on a high-performance computing environment with
+      a slurm task management system.
+	
+* The original model is in `paper-data/1d-cvres.RDS`. (Internally, the
+  experiment name is `blockcv-2-76-5`)
+
+The following code is used to obtain all the subsampled models, in the object
+`all-models.RDS`. 
+
+```{r load-model}
+## Load original model
+## cvres = cv_summary(destin = file.path("~/Dropbox/research/usc/hpc-output/blockcv-2-76-5"))
+datadir = "~/repos/flowmix/paper-data/"
+cvres = readRDS(file.path(datadir, "1d-cvres.rds"))
+origres = cvres$bestres
+origres$prob = origres$pie
+class(origres) = "flowmix"
+origres = origres %>% reorder_clust()
+```
+
+This code was used to further summarize the results, but is currently not run in
+this script.
+
+```{r get-subsampled-models, eval = FALSE}
+## Load original particle-level data (for cluster matching)
+obj = readRDS("~/repos/cruisedat/export/MGL1704-hourly-paper-1d-diam-not-binned.RDS")
+ylist_particle = obj$ylist
+X = obj$X
+rm(obj)
+
+## Get all the models
+nsim = 100
+outputdir = "~/Dropbox/research/usc/hpc-output/subsample-random-time/subsample-b-150/subsample-summaries"
+all_models = get_simulated_models(nsim, outputdir, origres, ylist_particle, X) 
+## saveRDS(all_models, file = file.path(datadir, "all-models.RDS"))
+```
+
+## Table 7 and 8 ##
+
+Assuming the code above has been run, the model summaries are loaded directly
+from an RDS file `all-models.RDS`.
+
+```{r load-summaries}
+all_models = readRDS(file = file.path(datadir, "subsampling", "all-models.RDS"))
+numclust = 5
+```
+
+Then, we calculate the beta coefficients' stability estimates.
+
+```{r calculate-beta-stability, results='asis'}
+## Make the frequency matrix
+beta_list = lapply(all_models, function(a)a$beta)
+beta_nonzero_list = beta_list %>% lapply(., function(beta){ lapply(beta, function(b) b==0) })
+beta_nonzero = lapply(1:numclust, function(iclust){
+  beta_nonzero_list %>% lapply(., function(b)b[[iclust]]) %>% Reduce("+", .)
+}) %>% do.call(cbind, .)
+nsim = 100
+betamat_orig = beta_nonzero ##%>% t()
+betamat_orig = nsim - betamat_orig
+betamat_orig = betamat_orig / nsim
+
+## ## Showing together with parameter estimates
+## combined_bmat = lapply(1:numclust, function(iclust){
+##   a1 = origres$beta %>% .[[iclust]] %>% .[-1,] %>% sapply(., function(cc){ if(cc==0) -Inf else cc})
+##   a2 = betamat_orig  %>% .[-1,] %>% .[,iclust] %>% sapply(., function(cc){ if(cc==0) -Inf else cc})
+##   cbind(coef=a1, freq=a2)
+## }) %>% do.call(cbind, .)
+## ## paste0("Cluster-", rep(1:5, each = 2)) %>% paste0(collapse = " & ")
+## colnames(combined_bmat) = paste0("Cluster-", rep(1:5, each = 2))
+## combined_bmat %>% knitr::kable() %>% print() ## %>% Matrix() %>% round(3) %>% print() %>% to.
+```
+
+Tables 7 and 8 (left panel) are produced using this code:
+
+```{r table-7-8, results='asis'}
+## Sorting within each cluster
+numclust = 5
+beta_ranked = lapply(1:numclust, function(iclust){
+
+  ## Get the estimates and the stability
+  a1 = origres$beta %>% .[[iclust]] %>% .[-1,] %>% sapply(., function(cc){ if(cc==0) -Inf else cc})
+  a2 = betamat_orig %>% .[-1,iclust] %>% sapply(., function(cc){ if(cc==0) -Inf else cc})
+  a = cbind(a1, a2)
+
+  ## Reorder this by the stability
+  a = a[order(a2, decreasing=TRUE),,drop=FALSE] %>% round(3)
+  rn = rownames(a)
+
+  ## Reformat
+  a = a %>%
+    as_tibble(rownames = NA) %>%
+    rownames_to_column( var = "rowname") %>%
+    mutate(a1 = sprintf("%.3f", a1),
+           a2 = sprintf("%.2f", a2)) ##%>% as.matrix()
+
+  ## convert the rownames to have \texttt{}
+  texttt <- function(vec_of_strings){
+    sapply(vec_of_strings, function(str) paste0("texttt{", str, "}"))
+  }
+  remove_clutter <- function(vec_of_strings){
+    vec_of_strings = sapply(vec_of_strings, function(str) sub("_WOA_clim", "", str))
+    vec_of_strings = sapply(vec_of_strings, function(str) gsub("surface_downward_northward_stress", "sdns", str))
+    vec_of_strings = sapply(vec_of_strings, function(str) gsub("surface_downward_eastward_stress", "sdns", str))
+    return(vec_of_strings)
+  }
+  ## a = a %>% mutate(rowname = texttt(rowname))
+  a = a %>% mutate(rowname = (rowname))
+  a = a %>% mutate(rowname = remove_clutter(rowname)) ## Not used now.
+
+  ## Change back -Inf (which means zero) to cdot
+  a = a %>%
+    mutate(across(c(a1,a2), .fns = function(a) sub("-Inf", "$.$", a,  fixed = TRUE)))  %>% 
+    rbind(c("Variable", "Estim.", "P(nonzero)"), .)
+  colnames(a) = rep(paste0("Cluster ", iclust), 3)
+  return(a)
+})
+beta_ranked[1:3] %>% do.call(cbind, .)  %>% knitr::kable() %>% print()
+beta_ranked[4:5] %>% do.call(cbind, .)  %>% knitr::kable() %>% print()
+```
+
+
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height:0;"></div>
