@@ -1,0 +1,8 @@
+#+title: Data and output for producing figures and tables in paper.
+
+These are data and output files used (by the scripts in [[../paper-code]]) to
+produce tables and figures in the paper.
+
+They are too large in size, so they are instead available for download in the following repository:
+
+[[./][placeholder link to zenodo repository]]

@@ -1,0 +1,293 @@
+---
+title: Producing figures measuring time-dependence
+code_folding: fold
+header-includes:
+- \usepackage{bbm}
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+author: Sangwon Hyun, Mattias Rolf Cape, Francois Ribalet, Jacob Bien
+---
+
+
+# Setup #
+
+This script uses the flowmix package from github repository commit OOOO.
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.width=14, fig.height=8, echo=TRUE, warning=FALSE,
+                      message=FALSE, cache=FALSE)
+library(gridExtra)
+library(tidyverse)
+library(dplyr)
+library(flowmix)
+
+## This is where the output should (normally) go
+figdir = "figures"
+
+## This is where the data is
+datadir = "../paper-data" 
+
+## Temporarily load the latest flowmix package.
+la('flowmix')
+
+##' @param bin1 bin centers of 1 deconvolved distribution.
+##' @param count1 counts in each bins.
+##' @param bin2 counterpart to bin1
+##' @param count2 counterpart to count1
+emd <- function(bin1, count1, bin2, count2){
+
+
+  ## Make cost matrix
+  costm = make_cost_matrix(bin1, bin2, verbose = FALSE)
+
+  ## Do the transport calculation
+  count1 = count1/sum(count1)
+  count2 = count2/sum(count2)
+  res = transport::transport(count1, count2, costm = costm, p = 2)$dist
+  pp = 2
+  dist = transport::wasserstein(count1,
+                                count2,
+                                costm = costm^pp,
+                                tplan = res)
+
+  return(dist^(1/pp))
+}
+```
+## Figure 16 ##
+
+Figure 16 is produced using this code:
+
+These data files are required:
+
+* `binned-residuals-3d.RDS`
+* `binned-scaled-residuals-3d.RDS`
+* `binned-residuals-time.RDS`
+
+and are produced using `paper-code/time-dependence-experiments.Rmd`.
+
+```{r figure-16, fig.width = 10, fig.height=7}
+## Load binned residuals, before and after "sphering"
+binobj = readRDS(file = file.path(datadir, "binned-residuals-3d.RDS"))
+binobj_scaled = readRDS(file = file.path(datadir, "binned-scaled-residuals-3d.RDS"))
+
+## Load the dates
+times = readRDS(file = file.path(datadir, "binned-residuals-time.RDS"))
+
+## 2d plot of residuals /before/ sphering.
+iclust = 3
+dats_2d = lapply(1:3, function(ii){
+  tt = ii * 20
+  datobj_2d = collapse_3d_to_2d(
+      y = binobj %>% .[[iclust]] %>% .$ybin_list %>% .[[tt]],
+      counts = binobj %>% .[[iclust]] %>% .$counts_list %>% .[[tt]],
+      dims = c(1,2)) %>%
+    as_tibble() %>%
+    add_column(time = times[tt])
+}) %>% bind_rows()##.id = "date")
+dats_2d = dats_2d %>% mutate(time = as.factor(time))
+name1 = "diam"
+name2 = "chl"
+p1 = dats_2d %>% ggplot() +
+  facet_wrap(~time) +
+  geom_raster(aes(x = !!sym(name1), y = !!sym(name2), fill = counts)) +
+  scale_fill_gradientn(colours = c("white", "blue"), guide="colorbar")  +
+  coord_fixed() +
+  ggtitle("Original residuals")
+plot(p1)
+
+## 2d plot of Sphered residuals
+iclust = 3
+dats_2d_scaled = lapply(1:3, function(ii){
+  tt = ii * 20
+  datobj_2d = collapse_3d_to_2d(
+      y = binobj_scaled %>% .[[iclust]] %>% .$ybin_list %>% .[[tt]],
+      counts = binobj_scaled %>% .[[iclust]] %>% .$counts_list %>% .[[tt]],
+      dims = c(1,2)) %>%
+    as_tibble() %>%
+    add_column(time = times[tt])
+}) %>% bind_rows()##.id = "date")
+dats_2d_scaled = dats_2d_scaled %>% mutate(time = as.factor(time))
+
+p2 = dats_2d_scaled %>% ggplot() + 
+  facet_wrap(~time) +
+  geom_raster(aes(x = dim1, y = dim2, fill = counts)) +
+  scale_fill_gradientn(colours = c("white", "blue"), guide="colorbar") +
+  coord_fixed() +
+  ggtitle("After deconvolving")
+plot(p2)
+```
+
+
+## Figure 15 ##
+
+Figure 15 is produced using this code:
+
+**todo: what do we need from round2-helpers.R?**
+
+```{r figure-15}
+## source("aoas-revision/round2-helpers.R") 
+## ## binobj_scaled = readRDS(file = file.path(outputdir, "binned-scaled-residuals-3d.RDS"))
+TT = 319
+timetable = data.frame(tt = 1:TT, times = times)
+
+## Get the 1d version.
+numclust = 10
+dats_by_clust = lapply(1:numclust, function(iclust){ 
+  dats = lapply(1:TT, function(tt){
+    dt = data.frame(binobj_scaled %>% .[[iclust]] %>% .$ybin_list %>% .[[tt]] %>% rbind()) 
+    dt = dt %>% add_column( counts = binobj_scaled %>% .[[iclust]] %>% .$counts_list %>% .[[tt]])
+    dt = dt %>% setNames(c("diam", "chl", "pe", "counts"))
+    if(nrow(dt>0)) dt = dt %>% tibble::add_column(tt)
+    return(dt)
+  }) %>% bind_rows() %>% as_tibble()
+  return(dats)
+})
+
+name1 = c("diam", "chl", "pe")[1]
+labeled = FALSE
+dat_1d_by_clust = lapply(1:numclust, function(iclust){ 
+  dats = dats_by_clust[[iclust]]
+  dat_1d = dats %>% group_by(!!sym(name1), tt) %>% summarize(counts = sum(counts))
+  dat_1d
+})
+
+dat_1d_by_clust = dat_1d_by_clust %>% bind_rows(.id="iclust")
+dat_1d_by_clust = dat_1d_by_clust %>% mutate(iclust = factor(iclust, levels = 1:10))
+
+if(labeled){
+  names = c(pro = c(10,NA), small =NA,  syn = 3,  pico1_ = c(9  ),
+              pico2_ = c(1,NA), pico3_ = c( 6), pico4_ = c(NA), croco =NA,
+            bead = NA, rest1_ = c(4, 7), rest2_ = c(8), bg = c(5, 2)) %>%
+    na.omit() %>%
+    sort() %>% names()
+} else {
+  names = 1:numclust
+}
+
+## Add cluster names (doesn't do anything right now)
+dat_1d_by_clust = dat_1d_by_clust %>% mutate(clustername = names[iclust])
+
+## Standardize the counts 
+if(FALSE){
+  dat_1d_by_clust = dat_1d_by_clust %>% group_by(iclust, tt)  %>% mutate(counts = counts/sum(counts))
+}
+
+## Add times
+dat_1d_by_clust = dat_1d_by_clust %>% left_join(timetable)
+
+
+## Make plot
+p = dat_1d_by_clust %>% ggplot() + 
+  facet_wrap(clustername~., nrow = 5) +
+  geom_raster(aes(x = times, y = !!sym(name1), fill = counts)) +
+  scale_fill_gradientn(colours = c("white", "black", "yellow")) + ##(low="skyblue", high= "black") +
+  xlab("Time") +
+  ylab("log(cell diameter)") +
+  scale_x_datetime(date_breaks = "1 day") +
+  theme(axis.text.x = element_text(angle = 25, vjust = 1.0, hjust = 1.0))
+plot(p)
+```
+
+
+## Figure 17 ##
+
+Figure 17 is produced using this code:
+
+
+```{r figure-17-load, eval = FALSE}
+## Okay so the next thing to try is making a large matrix, and matching the rows & columns? 
+iclust = 1
+all_y = binobj_scaled %>% .[[iclust]] %>% .$ybin_list %>% do.call(rbind, .) %>% as_tibble()
+colnames(all_y) = c("diam", "chl", "pe")
+
+## Rows are "from", columns are "to"
+TT = 319
+## for(iclust in
+mclapply(c(3,1,2,4:10), function(iclust){
+  for(idim in 1:3){
+    ## file.path(outputdir, "distmats", paste0(idim, "-", iclust, ".RDS")))) next
+    if(file.exists(file = file.path(datadir, "time-dependence", paste0(idim, "-", iclust, ".RDS")))) next
+    ylist = lapply(1:TT, function(tt){
+      dat = data.frame(binobj_scaled %>% .[[iclust]] %>% .$ybin_list %>% .[[tt]]) %>% as.matrix()  })
+    countslist = lapply(1:TT, function(tt){
+      counts = binobj_scaled %>% .[[iclust]] %>% .$counts_list %>% .[[tt]] %>% as.numeric()  })
+    dat1d = collapse_3d_to_1d(ylist, countslist, idim = idim)
+    cat(fill = TRUE)
+
+    ## There is one that is both NA; what to do?
+    ylist_1d = dat1d$ylist
+    countslist_1d = dat1d$countslist
+
+    ## Calculate the distance
+    dists = matrix(NA, nrow = TT, ncol = TT)
+    for(tt1 in 1:TT){
+      for(tt2 in 1:TT){
+        if(abs(tt1 - tt2) >= 100) next
+
+        if(any(is.na(ylist_1d[[tt1]])) | any(is.na(ylist_1d[[tt2]]))) next
+        if(any(is.na(countslist_1d[[tt1]])) | any(is.na(countslist_1d[[tt2]]))) next
+         dists[tt1, tt2] =  emd(ylist_1d[[tt1]] %>% cbind(), countslist_1d[[tt1]],
+                                ylist_1d[[tt2]] %>% cbind(), countslist_1d[[tt2]])
+      }
+    }
+    colnames(dists) = rownames(dists) =  1:TT
+    saveRDS(dists, file = file.path(datadir, "time-dependence", paste0(idim, "-", iclust, ".RDS")))
+    cat(fill = TRUE)
+    cat("saved to", file.path(datadir, "time-dependence", paste0(idim, "-", iclust, ".RDS")))
+  }
+  return(NULL)
+}, mc.cores = 2)
+```
+
+Now, let's make a plot of cross-correlations that use Wasserstein distance
+instead of Pearson correlation.
+
+
+```{r figure-17, fig.width = 10, fig.height = 14}
+## Okay, so from this, we can easily calculate the cross-correlations
+dats = list()
+for(idim in 1:3){
+  for(iclust in 1:10){
+
+    ## Load distance matrix
+    ## dists = readRDS(file = file.path(outputdir, "distmats", paste0(idim, "-", iclust, ".RDS")))
+    dists = readRDS(file = file.path(datadir, "time-dependence", paste0(idim, "-", iclust, ".RDS")))
+
+    ## Get all means
+    allstats = sapply(1:100, function(numlag){
+      onestat = dists[row(dists) == (col(dists) - numlag)] %>% mean(na.rm=TRUE)
+      return(onestat)
+    })
+
+    ## Save as a long 
+    onedat = data.frame(lag = 1:100, dist = allstats, idim = idim, iclust = iclust) %>% as_tibble()
+    onename = paste0(idim, "-", iclust)
+    dats[[onename]] = onedat
+  }
+}
+
+## String together by row:
+long = do.call(rbind, dats)
+long = long %>%
+  mutate(idim = replace(idim, idim == 1, "diam")) %>%
+  mutate(idim = replace(idim, idim == 2, "chl")) %>%
+  mutate(idim = replace(idim, idim == 3, "pe"))
+long = long %>% mutate(idim = factor(idim, levels = c("diam", "chl", "pe")))
+
+p = long %>%
+  ggplot() +
+  facet_grid(iclust ~ idim) +
+  geom_point(aes(x = lag, y = dist), size = rel(0.3)) +
+  geom_line(aes(x = lag, y = dist), alpha=.5) +
+  ylab("Mean Wasserstain Distance") +
+  xlab("Number of Time Lags") +
+  scale_y_continuous(sec.axis = sec_axis(~ . , name = "Cluster number", breaks = NULL, labels = NULL)) +
+  scale_x_continuous(sec.axis = sec_axis(~ . , name = "Cytogram dimension", breaks = NULL, labels = NULL))
+plot(p)
+## ggsave(file = file.path(outputdir, "mean-wasserstein.pdf"), width = 10, height = 14)
+```
+
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height:0;"></div>

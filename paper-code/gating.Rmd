@@ -1,0 +1,331 @@
+---
+title: Comparing gating results
+code_folding: fold
+header-includes:
+- \usepackage{bbm}
+---
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.width=14, fig.height=8, echo=FALSE, warning=FALSE,
+                      message=FALSE, eval=TRUE, cache=TRUE)
+la('flowcy')
+la('cruisedat')
+library(popcycle)
+library(tibble)
+library(dplyr)
+library(purrr)
+repodir = "/home/shyun/repos/cruisedat"
+outputdir = file.path(repodir, "export")
+outputdir = "~/repos/cruisedat/export"
+figdir = "~/Dropbox/research/usc/flow-cytometry/figures"
+```
+
+# Note of caution
+
+This code is legacy code, mainly to load the "gates" (hard clustering
+boundaries) from the original cruise's data, and to perform the gating.
+
+You can obtain specific instructions for the datasets and for running this code
+by contacting (emailing) the author Sangwon Hyun.
+
+The R functions used here (e.g. `process_cruise_data()`) can be found in the
+`sangwon-hyun/cruisedat` github repository (commit number
+"916ad03ff36574ddaab6a79a3d533c772b708d82", also found here:
+https://github.com/sangwon-hyun/cruisedat/commit/916ad03ff36574ddaab6a79a3d533c772b708d82
+)
+
+It also relies on *an earlier version of* the `popcycle` R package; use
+`remotes::install_github("seaflow-uw/popcycle@035a9904fe4177e7a373d540b3217874ce3ee7d4")`
+to install that version
+
+# Obtain and save the gates information
+
+Load data from database file `MGL1704.db`.
+(This code is taken directly from `cruisedat::process_cruise_data()`.)
+
+```{r, eval = FALSE}
+## Synechococcus, Picoeukariotes are single gates, so simple matrices containing
+## polygon vertices are returned.
+
+## This step is important: the following code relies on an earlier version of
+## popcycle
+## remotes::install_github("seaflow-uw/popcycle@035a9904fe4177e7a373d540b3217874ce3ee7d4")
+## library(popcycle)
+poly_synecho <- get_synecho_gates()
+save(poly, file = file.path(outputdir, "synecho-gates.Rdata"))
+poly_picoeuk <- get_picoeuk_gates()
+save(poly, file = file.path(outputdir, "picoeuk-gates.Rdata"))
+
+## Prochlorococcus is more complicated, since the gating is done on a
+## per-cytogram basis.
+la('cruisedat')
+res = get_prochloro_gates(mc.cores = 8)## plot=TRUE) ## This produces plots
+list2env(res, envir = globalenv())
+save(polylist, total_biomass_list, prochloro_biomass_list, total_count_list,
+     prochloro_count_list, min.pe, file = file.path(outputdir, "prochloro-gates.Rdata"))
+```
+
+## Prochloro processing and plots
+
+Now, plot the biomass and count **proportions**.
+
+```{r}
+load(file = file.path(outputdir, "prochloro-gates.Rdata"))
+
+## 1. First, make 3-minute resolution prochlorococcus counts/biomass
+prop_biomass = (prochloro_biomass_list %>% unlist) / (total_biomass_list %>% unlist)
+names(prop_biomass) = names(prochloro_biomass_list)
+
+prop_count = (prochloro_count_list %>% unlist) / (total_count_list %>% unlist)
+names(prop_count) = names(prochloro_count_list)
+
+## 2. Now, hourly aggregation of prochlorococcus counts/biomass.
+times = names(prochloro_biomass_list)
+obj = cruisedat::get_membership(times)
+membership = obj$membership
+time = obj$time
+
+hourly_prochloro_biomass <- sapply(membership, function(memb){
+  prochloro_biomass_list[memb] %>% unlist() %>% sum() })
+hourly_total_biomass <- sapply(membership, function(memb){
+  total_biomass_list[memb] %>% unlist() %>% sum()  })
+names(hourly_prochloro_biomass) = names(hourly_total_biomass) = time
+hourly_prop_biomass = hourly_prochloro_biomass / hourly_total_biomass
+
+hourly_prochloro_count <- sapply(membership, function(memb){
+  prochloro_count_list[memb] %>% unlist() %>% sum() })
+hourly_total_count <- sapply(membership, function(memb){
+  total_count_list[memb] %>% unlist() %>% sum()  })
+names(hourly_prochloro_count) = names(hourly_total_count) = time
+hourly_prop_count = hourly_prochloro_count / hourly_total_count
+
+## 3. Make four plots, two 3-minutely, then two hourly plots.
+pdf(file = file.path(figdir, paste0("prochloro-gating.pdf")),
+    width = 12, height = 8)
+
+par(mfrow = c(2,2))
+
+plot(prop_biomass,
+     ylab = "Biomass proportion", xlab = "", lty = 1, type = 'l',
+     main = "(Prochloro biomass) / (total biomass), over time",
+     axes = FALSE)
+cruisedat::add_date_ticks_from_dates(names(prop_biomass))
+abline(h=seq(from=0, to =1, by=0.1), col='grey80', lty=2)
+
+plot(prop_count,
+     ylab = "Count proportion", xlab = "", type = 'l',
+     main = "(#Prochloro) / (#total), over time",
+     axes  =  FALSE)
+abline(h=seq(from=0, to =1, by=0.1), col='grey80', lty=2)
+cruisedat::add_date_ticks_from_dates(names(prop_biomass))
+
+plot(hourly_prop_biomass, 
+     ylab = "Biomass proportion", xlab = "", lty = 1, type = 'l',
+     main = "HOURLY\n(Prochloro biomass) / (total biomass), over time",
+     axes = FALSE)
+abline(h=seq(from=0, to =1, by=0.1), col='grey80', lty=2)
+cruisedat::add_date_ticks_from_dates(time)
+
+plot(hourly_prop_count, 
+     ylab = "Count proportion", xlab = "", type = 'l',
+     main = "HOURLY\n(#Prochloro) / (#total), over time",
+     axes = FALSE)
+cruisedat::add_date_ticks_from_dates(time)
+abline(h=seq(from=0, to =1, by=0.1), col='grey80', lty=2)
+
+graphics.off()
+```
+
+Now, obtain the prochloro biomass and count proportions from OUR 3d 10 cluster model.
+
+```{r}
+## ## Load 10 cluster 3d model
+## cvres10 = flowcy::blockcv_summary(2, 64, 10, 7, nrep = 10)
+
+## Reorder clusters in order of diam_mid()
+## res <- flowcy::reorder_clust(cvres10$bestres)
+
+datadir = "/home/sangwonh/repos/flowmix/paper-data" 
+cvres_filename = paste0("cvres-", paste0(2,"-", 64,"-", 10), ".Rdata")
+load(file = file.path(datadir, cvres_filename), verbose = TRUE)
+res = cvres$bestres
+class(res) = "flowmix" ## for back-compatibility
+res$prob = res$pie ## for back-compatibility
+res <- flowmix::reorder_clust(res)
+
+## Make plot
+pdf(file=file.path(figdir, "3d-10clust", "3d-prochloro-prob.pdf"),
+    width=8,height=4)
+par(mar=c(5.1, 4.1, 2.1, 2.1))
+cols = RColorBrewer::brewer.pal(10, "Paired")
+## cols = RColorBrewer::brewer.pal(10, "Set3")
+iclusts = c(10)
+flowmix::plot_prob(res, iclusts, main="", cols=cols)##, main = "HOURLY\n(Prochloro biomass) / (total biomass), over time")
+lines(hourly_prop_biomass[-c(1:48)],### TODO: VERY AD HOC
+      lty = 1, type = 'l',lwd=2,
+      col='grey40')
+     ## ylab = "Biomass proportion", xlab = "", ,
+     ## main = "(Prochloro biomass) / (total biomass), over time",
+     ## axes = FALSE)
+dim(res$pie)
+length(hourly_prop_biomass)
+## abline(h=seq(from=0, to =1, by=0.1), col='grey80', lty=2)
+legend("topleft",
+       lwd = c(3, rep(3, length(iclusts))),##, 2),
+       col=c('grey40', cols[iclusts]),##, "red"),
+       lty = 1,
+       legend=c("Gated Prochlorococcus\nbiomass proportion", paste0("Cluster ", iclusts, " probability")),
+       bg="white")##, "Sum of clusters"))
+graphics.off()
+```
+
+# Synecho and Picoeuks
+
+Produce the gated results for synecho and picoeuks.
+
+```{r}
+## Obtain the gates
+poly_synecho <- get_synecho_gates()
+poly_picoeuk <- get_picoeuk_gates()
+
+## Load |ylist|, |ybin_list|, |counts_list|, |biomass_list|, |X|
+load(file = file.path(outputdir, "MGL1704-hourly.Rdata"), verbose = TRUE)
+
+## Make two plots
+relmat = cruisedat::gate_synecho_picoeuk(poly_synecho, ylist,
+                                         ybin_list, counts_list, biomass_list, X)
+cruisedat::plot_synecho_picoeuk(relmat,
+                                res = res,
+                                iclusts = 8,
+                                plotname = "synecho-gating.pdf", celltype = "synecho")
+
+
+relmat = cruisedat::gate_synecho_picoeuk(poly_picoeuk, ylist, ybin_list,
+                                         counts_list, biomass_list, X, mc.cores=1)
+cruisedat::plot_synecho_picoeuk(relmat,
+                                res = res,
+                                iclusts = c(2,5),
+                                plotname = "picoeuk-gating.pdf", celltype = "picoeuk")
+
+
+```
+
+Also produce scatterplots of data with gates written on top!
+
+```{r}
+## Obtain the gates 
+poly_synecho <- cruisedat::get_synecho_gates()
+poly_picoeuk <- cruisedat::get_picoeuk_gates()
+
+## Load |ylist|, |ybin_list|, |counts_list|, |biomass_list|
+load(file = file.path(outputdir, "MGL1704-hourly.Rdata"), verbose = TRUE)
+
+## Load 10 cluster 3d model
+cvres10 = blockcv_summary(2, 64, 10, 7, nrep = 10)
+
+## Reorder clusters in order of diam_mid()
+res <- reorder_clust(cvres10$bestres)
+
+## Setup
+cex.fac = 1
+ybin_list_diam_rescaled = ybin_list[-(1:12)]
+biomass_list = biomass_list[-(1:12)]
+TT = length(ybin_list_diam_rescaled)
+times = names(ybin_list_diam_rescaled)
+
+## Produce synecho and picoeuk gating plots.
+start.time = Sys.time()
+mclapply(1:TT, function(tt){
+  printprogress(tt, TT, start.time = start.time)
+
+  ## Rescale the diam_mid
+  ybin_list_diam_rescaled[[tt]][,"diam_mid"] = ybin_list_diam_rescaled[[tt]][,"diam_mid"] %>%
+    cruisedat::rescale_reshift_diam( hardcode=TRUE)
+
+  ## Make plots
+  png(file=file.path(figdir, "synecho-picoeuk", paste0("synecho-picoeuk-gate-boundary-", tt, ".png")),
+                     width=1200, height=600)
+  par(mfrow = c(1,2))
+  dims = c(1,2)
+  flowcy::one_dim_scatterplot(ybin_list_diam_rescaled, res, tt,
+                              countslist = biomass_list,
+                              dims = dims,
+                              cex.fac = cex.fac)
+  polygon(poly_picoeuk[,2],
+          poly_picoeuk[,1],
+          lwd=2)
+  legend("topleft",
+         legend="Picoeuk",
+         bty='n',
+         cex=2)
+  title(main=times[tt],cex.main=2)
+
+  dims = c(3,1)
+  flowcy::one_dim_scatterplot(ybin_list_diam_rescaled, res, tt,
+                              countslist = biomass_list,
+                              dims = dims,
+                              cex.fac = cex.fac)
+  polygon(poly_synecho[,1],
+          poly_synecho[,2],
+          lwd=2)
+  legend("topleft",
+         legend="Synecho",
+         bty='n',
+         cex=2)
+  title(main=times[tt],cex.main=2)
+  graphics.off()
+}, mc.cores = 8)
+```
+
+# Automatic detection from the existing data using ~flowDensity~
+
+Prochlorococcus
+
+```{r}
+plot(res.tab[,dims],
+     pch = 16,
+     col = rgb(0, 0, 1, 0.1))
+polygon(cruisedat::fsc_to_diam(poly[,1]),
+        poly[,2],
+        col = rgb(1,0,0,0.1),
+        lwd = 3,
+        border = "red")
+
+## Get the gating parameters
+gate = popcycle::get.gating.params.latest(dbfilename)
+
+poly = gate$gates.log$prochloro$poly %>% log
+
+names = c(gate$gates.log$prochloro$x,
+          gate$gates.log$prochloro$y)
+res.tab = cbind(log(opptable)[,c("fsc_small", "diam_mid", "chl_small", "pe")],
+                opptable[,"Qc_mid"])
+plot(res.tab[,names], type='p', pch=16, col=rgb(0,0,1,0.1))
+
+abline(h=2,v=2)
+abline(h=0.2,v=0.2)
+polygon(poly[,1],
+        poly[,2])
+
+```
+
+Some tidbits from the vignette:
+- A gating strategy here means the **sequence of 2D** gates needed to apply
+  **one at a time** on a FCS file to eventually extract the cell subset of
+  interest. <--- This is probably because gating is done VISUALLY.
+- Arguments to `flowDensity()`:
+  - `percentile`: In the single cluster that is found using nonparametric
+    density estimation, the 95\% region.
+- From Francois' seaflow paper (https://www.nature.com/articles/s41597-019-0292-2)
+  - "Prochlorococcus particles are clustered using a supervised clustering
+    algorithm that emulates a sequential bivariate gating strategy based on cell
+    density."
+	- So, for Prochloro
+
+The vignette here:
+https://bioconductor.org/packages/devel/bioc/vignettes/flowDensity/inst/doc/flowDensity.html
+was used. Section 3.3 is particularly useful.
+
+This is interesting because our clustering is based on the biomass
+representation of the data (i.e. each particle don't have equal weight, but
+instead has a biomass weight that is proportional to `diam_mid^3`, in
+clustering), but we can still produce counts from these gating regions.

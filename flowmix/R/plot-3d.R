@@ -17,7 +17,9 @@ plot_3d <- function(obj,
                     show.xb.constraint = FALSE, cex.fac.2d = 1, par_cex_2d = 1,
                     pt_col = rgb(0 ,0, 1, 0.1), ## 3d scatterplot options
                     cex.fac.3d = 1, ## 3d scatterplot options
-                    destin = NULL){
+                    lon = NULL,
+                    lat = NULL){
+                    ## destin = NULL){
 
   ## Define layout
   m = matrix(c(1, 1, 2, 2, 3, 3, 4, 4, 5, 5,
@@ -32,7 +34,7 @@ plot_3d <- function(obj,
 
   ## Setup
   TT = length(ylist)
-  assert_that(tt %in% 1:TT)
+  assertthat::assert_that(tt %in% 1:TT)
   all.y = do.call(rbind, ylist)
   only_plot_cytograms = (is.null(obj))
   if(!only_plot_cytograms){
@@ -74,7 +76,7 @@ plot_3d <- function(obj,
 
 
   ## Add map with cruise location.
-  make_map(obj, tt, destin = destin)
+  make_map(obj, tt, lon, lat)##, destin = destin)
   ## make_map_ggplot(obj, tt, destin = destin)
 
   ######################
@@ -378,6 +380,7 @@ scatterplot_2d_addmodel <- function(obj, tt, dims,
 
 ##' Making a 3d scatter plot with a certain angle..
 ##' @param ... Additional arguments to plot3d::scatter3d().
+##' @export
 one_3d_plot <- function(ylist, obj=NULL, tt, countslist=NULL, phi = 40,
                         cex.fac = 1,
                         cex.axis = 1,
@@ -483,7 +486,7 @@ plot3d_simple <- function(obj,
 
   ## Setup
   TT = length(ylist)
-  assert_that(tt %in% 1:TT)
+  assertthat::assert_that(tt %in% 1:TT)
   all.y = do.call(rbind, ylist)
   only_plot_cytograms = (is.null(obj))
   if(!only_plot_cytograms){

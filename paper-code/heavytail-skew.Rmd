@@ -1,0 +1,1128 @@
+---
+title: Heavy tail simulations
+author: Justin, Mattias, Francois, Jacob, 
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float: true
+---
+
+```{r}
+library(flowmix)
+```
+
+
+# Note of caution
+
+This code is legacy code that accompanies the `paper-code/simulation.Rmd`
+script, and runs the experiments for examining model performance when data is
+actually from heavy-tailed or skewed distributions.
+
+You can obtain specific instructions for the datasets and for running this code
+by contacting (emailing) the author Sangwon Hyun.
+
+
+# Experiment design
+
+The simulation for section 3.1.1 (Figure 4) will be used for this
+simulation. Revisiting this setup:ee
+
+We generate synthetic data with $T=100$ time points, $K=2$ clusters, and $p=10$
+covariates as shown in Figure~\ref{fig:noisy-covariates-data} -- one sunlight
+variable $X_1$, one changepoint variable $X_2$, and eight spurious covariates
+$\{X_i\}_{i=3}^{10}$.  From these covariates, $T$ 1-dimensional cytograms are
+generated from the generative model in Section~\ref{sec:likelihood} with the
+true underlying coefficient values, 
+
+$$
+\begin{array}{l}
+  \alpha_{0,1} = 0,  \hspace{5mm}
+  \alpha_{0,2} = 0, \hspace{5mm}
+  \alpha_1 = (0 \;\; 0 \;\; 0)^T, \hspace{5mm}
+  \alpha_2 = (0 \;\; 0 \;\; 8.61)^T,\\
+  \beta_{0,1} = 0,  \hspace{5mm}
+  \beta_{0,2} = 3, \hspace{5mm}
+  \beta_1 = (0.3 \;\; 0 \;\; 0)^T, \hspace{5mm}
+  \beta_2 = (-0.3 \;\; 0 \;\; 0)^T.
+\end{array}
+$$
+
+Both clusters' means follow the sunlight $X_1$. Cluster $1$ has $n_t=200$
+particles for all time points $t=1,\cdots,100$. Cluster $2$ overlaps with
+cluster $1$, is present only in the second half of the time range
+$t=51,\cdots, 100$, and is 1/4th as populous as cluster 1 at those time
+points. Both cluster variances are equal to $1$, and the spurious covariates
+play no role in data generation i.e. all other coefficients not specified in
+\eqref{eq:noisy-covariates-coef} are zero.
+
+
+# Design the heavy-tail and skewed experiments
+
+For `isim` in 1:200, repeat:
+
+1. Generate new 1d data, with one of (heavy tails, or skewed distributions).
+
+2. For each new dataset, calculate the cross-validated model.
+
+2. From these models, measure:
+
+  + Out-of-sample fit (NLL)
+
+  + Variable selection (P(correct nonzeroness) P(spurious nonzeroness))
+
+Heavy-tailed distributions look like this:
+
+```{r, fig.width=15, fig.height=5}
+pdf(file=file.path(figdir, "t-distribution.pdf"), width=10, height=3.33)
+x = seq(from = -10, to = 10,by = 0.01)
+par(mfrow  = c(1, 3), mar=c(3,3,2,1))
+dfs = c(3, 5, 10, 20, 40, 100)
+for(ii in 1:3){
+
+  ## Plot setup
+  log_axis = c("", "", "")[ii]
+
+  if(ii == 1){ xlim = c(-4, 4) } else if (ii==3){ xlim = c(5,10)} else {xlim = c(1, 3)}
+  cols = RColorBrewer::brewer.pal(6, "Set1")
+  xs = x[xlim[1]<x & x <xlim[2]]
+  densities = sapply(dfs, function(df) {
+    variance = df / (df - 2)
+    std = sqrt(variance)
+    dens = (xs * std) %>% dt(df = df)
+    dens * std
+  })
+
+  ## Make the plots
+  densities %>% matplot(x=xs, type = 'l', col = cols, lwd = 2, lty=1, ylab="", xlab="", xlim = xlim, log=log_axis)
+  xs %>% dnorm() %>% lines(x = xs, lwd = 2, col = 'black')
+
+  ## Embellish
+  abline(v = c(1, 3), col = "cyan", lwd = 2, lty = 2)
+  legend("topright", col = c(cols, "black"),
+         lwd = 2,
+         legend = c(paste0("df = ", dfs), "N(0,1)"),
+         bg="white")
+}
+graphics.off()
+```
+
+# Visualize heavy-tailed data
+Heavy-tailed 1d data looks like this:
+
+```{r, fig.width=20, fig.height=10}
+## 1. Generate fake 1d data
+dfs = c(2, 5, 10, 20, 40, 100)
+alphas = seq(from=0, to=3, by=0.5)
+par(mfcol=c(1,7), mar=c(3,3,1,1))
+## for(df in dfs){
+for(alpha in alphas){
+  obj = generate_data_1d_pseudoreal(bin = FALSE,
+                                    ## datadir = datadir,
+                                    nt = 200,
+                                    beta_par = 0.3,
+                                    p = 10,
+                                    noisetype = "skewed",
+                                    skew_alpha = alpha)
+                                    ## noisetype = "heavytail",
+                                    ## df = df)
+  set.seed(NULL)
+  X = obj$X
+  ylist = obj$ylist
+  countslist = obj$countslist
+  TT = length(ylist)
+
+  plot_1d(ylist=ylist, countslist=NULL, ylim=c(-3,7))
+  ## title(main=paste0("df=",df))
+  title(main=paste0("alpha=", alpha))
+  abline(h=seq(from=-100, to=100, by=1), lwd=.5, col=rgb(0, 0, 0, 0.1))
+
+  ## plot_1d(ylist=ylist, countslist=NULL, ylim=c(-10,10))
+  ## title(main = "Fixed range, -10 to 10")
+  ## abline(h=seq(from=-100, to=100, by=1), lwd=.5, col=rgb(0, 0, 0, 0.1))
+}
+graphics.off()
+```
+
+Here's one thing we didn't run into before: for an extreme datapoint
+(e.g. $-10000$), which occurs when df = 1, the density of a particle for all
+cluster $k=1,\cdots, K$ is all zero:
+
+$$\phi\left(y_{i}^{(t)} ; \mu_{k t}(\hat{\beta}), \hat{\Sigma}_{k}\right)$$
+
+I end up having to replace zeros by some small number:
+
+$$(10^{-50}) \vee \phi\left(y_{i}^{(t)} ; \mu_{k t}(\hat{\beta}), \hat{\Sigma}_{k}\right)$$
+
+```{r, fig.width=10, fig.height=5}
+par(mfrow=c(1,2))
+set.seed(10000)
+obj = generate_data_1d_pseudoreal(bin = FALSE,
+                                  nt = 200,
+                                  beta_par = 0.3,
+                                  p = 10,
+                                  noisetype = "heavytail",
+                                  df = 1)
+X = obj$X
+ylist = obj$ylist
+plot_ylist(ylist = ylist, countslist = NULL); axis(1);  axis(2);
+
+objlist = list()
+for(ii in 1:30){
+  res = flowmix_once(ylist = ylist, X = X, numclust = 2,
+                     mean_lambda = 1E-6, prob_lambda = 1E-6,
+                     verbose = FALSE)
+  objlist[[ii]] = res$objectives
+}
+plot(NA, xlim = c(0,20), ylim = range(unlist(objlist)), ylab = "Objectives", xlab = "Iterations")
+for(ii in 1:30){ objlist[[ii]] %>% lines(lwd=.5)}
+```
+
+# Visualize skewed data
+
+Skew-normal distribution with $\alpha$ parameters.
+
+https://en.wikipedia.org/wiki/Skew_normal_distribution
+
+```{r}
+pdf(file=file.path(figdir, "skew-normal-distribution.pdf"), width=10, height=3.33)
+par(mfrow  = c(1, 3), mar=c(3,3,2,1))
+x = seq(from = -10, to = 10,by = 0.01)
+skew_alphas = seq(from=0, to = 2, by = 0.5)##c(2, 5, 10, 20, 40, 100)
+for(ii in 1:3){
+
+  ## Plot setup
+  log_axis = c("", "", "")[ii]
+
+  if(ii == 1){ xlim = c(-4, 4)*2 } else if (ii==2){ xlim = c(-3,-1)} else {xlim = c(1, 3)}
+  cols = RColorBrewer::brewer.pal(6, "Set1")
+  xs = x[xlim[1]<x & x <xlim[2]]
+  densities = sapply(skew_alphas, function(skew_alpha) {
+    ## xs %>% sn::dsn(xi=0, omega=1, alpha=skew_alpha, log=FALSE)
+    omega = sqrt(1/(1 - 2 * (1/pi) * skew_alpha^2 / (1 + skew_alpha^2)))
+    xi = - omega * skew_alpha * (1 / sqrt(1+skew_alpha^2)) * sqrt(2/pi) 
+    xs %>% sn::dsn(xi=xi, omega=omega, alpha=skew_alpha, log=FALSE)
+  })
+
+  ## Make the plots
+  densities %>% matplot(x=xs, type = 'l', col = cols, lwd = 2, lty=1, ylab="", xlab="", xlim = xlim, log=log_axis)
+  xs %>% dnorm() %>% lines(x = xs, lwd = 2, col = 'black')
+
+  ## Embellish
+  ## if(ii==1){
+    abline(v = c(1, 3), col = "cyan", lwd = 2, lty=2)
+    abline(v = c(-3, -1), col = "orange", lwd = 2, lty=2)
+  ## }
+  legend("topright", col = cols,
+         lwd = 2,
+         ## legend = paste0("df = ", dfs),
+         legend = sapply(skew_alphas, function(a) eval(bquote(expression(alpha==.(a))))),
+         bg="white")
+}
+graphics.off()
+```
+
+# Various scripts
+
+Count files in the servers:
+
+```{sh, eval = FALSE}
+nsim=100
+for DF in  3 5 10 20 40 100 ; do
+  printf "DF: "
+  printf $DF
+  printf '\n'
+  for isim in $(seq 1 10 $nsim) ; do
+  	printf $isim:
+  	ls -f ~/scratchdir/output/heavytail-heavytail-df-"$DF"/sim-"$isim" | wc -l
+  done
+done
+
+nsim=100
+for ialpha in  $(seq 1 1 5) ; do
+  printf "ialpha: "
+  printf $ialpha
+  printf '\n'
+  for isim in $(seq 1 5 $nsim) ; do
+  	printf $isim:
+  	ls -f ~/scratchdir/output/heavytail-skewed-ialpha-"$ialpha"/sim-"$isim" | wc -l
+  done
+done
+
+ls -f ~/scratchdir/output/heavytail-skewed-ialpha-1/sim-"$isim"/summary.RDS | wc -l
+```
+
+
+Shell commands to summarize and download all the summary files.
+
+On the server side:
+
+```{sh, eval=FALSE}
+# Gaussian
+nsim=200
+mkdir ~/scratchdir/output/heavytail-gaussian/summaries
+for isim in $(seq 1 1 $nsim) ; do
+	echo $isim
+	from=~/scratchdir/output/heavytail-gaussian/sim-"$isim"/summary.RDS
+	to=~/scratchdir/output/heavytail-gaussian/summaries/summary-"$isim".RDS
+	scp $from $to
+done
+
+
+# Heavy tails
+nsim=200
+mkdir ~/scratchdir/output/heavytail-gaussian/heavytail/summaries
+for isim in $(seq 1 1 $nsim) ; do
+	echo $isim
+	from=~/scratchdir/output/heavytail-heavytail-df-2/sim-"$isim"/summary.RDS
+	to=~/scratchdir/output/heavytail-heavytail-df-2/summaries/summary-"$isim".RDS
+	cp $from $to
+done
+
+# Skewed
+nsim=100
+for ialpha in 1 2 3 4 5 ; do
+  mkdir ~/scratchdir/output/heavytail-skewed-ialpha-"$ialpha"/summaries
+  for isim in $(seq 1 1 $nsim) ; do
+  	echo isim
+  	echo $isim
+  	from=~/scratchdir/output/heavytail-skewed-ialpha-"$ialpha"/sim-"$isim"/summary.RDS
+  	to=~/scratchdir/output/heavytail-skewed-ialpha-"$ialpha"/summaries/summary-"$isim".RDS
+  	cp $from $to
+  done 
+done
+
+nsim=100
+for ialpha in 1 2 3 4 5 ; do
+  to=~/scratchdir/output/heavytail-skewed-ialpha-"$ialpha"/summaries/summary-*.RDS
+  ls $to | wc -l
+done
+
+```
+Then, from the client side (my laptop) download using one scp command.
+
+```{sh, eval=FALSE}
+mkdir /home/sangwonh/Dropbox/research/usc/hpc-output/heavytail-gaussian/summaries
+from=sangwonh@discovery.usc.edu:scratchdir/output/heavytail-gaussian/summaries/*.RDS
+to=/home/sangwonh/Dropbox/research/usc/hpc-output/heavytail-gaussian/summaries/.
+scp $from $to
+
+for DF in 3 5 10 20 40 100 ; do
+  mkdir /home/sangwonh/Dropbox/research/usc/hpc-output/heavytail-heavytail-df-"$DF"
+  mkdir /home/sangwonh/Dropbox/research/usc/hpc-output/heavytail-heavytail-df-"$DF"/summaries
+  from=sangwonh@discovery.usc.edu:scratchdir/output/heavytail-heavytail-df-"$DF"/summaries/*.RDS
+  to=/home/sangwonh/Dropbox/research/usc/hpc-output/heavytail-heavytail-df-"$DF"/summaries/.
+  scp $from $to
+done
+
+for ialpha in 1 2 3 4 5 ; do
+  mkdir /home/sangwonh/Dropbox/research/usc/hpc-output/heavytail-skewed-ialpha-"$ialpha"
+  mkdir /home/sangwonh/Dropbox/research/usc/hpc-output/heavytail-skewed-ialpha-"$ialpha"/summaries
+  from=sangwonh@discovery.usc.edu:scratchdir/output/heavytail-skewed-ialpha-"$ialpha"/summaries/*.RDS
+  to=/home/sangwonh/Dropbox/research/usc/hpc-output/heavytail-skewed-ialpha-"$ialpha"/summaries/.
+  scp $from $to
+done
+
+```
+
+Bonus script: see progress in simulations so far
+
+```{sh, eval=FALSE}
+nsim=500
+for isim in $(seq 1 1 $nsim) ; do
+	printf $isim:
+	ls -f ~/scratchdir/output/heavytail-heavytail-ialpha-2/sim-"$isim"/ | wc -l
+done
+
+nsim=200
+for isim in $(seq 1 1 $nsim) ; do
+	printf $isim:
+	ls -f ~/scratchdir/output/heavytail-gaussian/sim-"$isim"/ | wc -l
+done
+
+nsim=200
+for isim in $(seq 1 1 $nsim) ; do
+	printf $isim:
+	ls -f ~/scratchdir/output/heavytail-heavytail-df-5/sim-"$isim"/ | wc -l
+done
+
+isim=300
+ls -f ~/scratchdir/output/heavytail/heavytail-"$isim"/ | wc -l
+```
+
+First, visualize the estimated models.
+
+```{r}
+dfs = c(3,5,10,20,40,100) 
+library(flowmix)
+figdir = "~/repos/flowmix/paper-figures/revision/heavytail-skew"
+alphas = seq(from=0, to=2, by=.5) ##%>% rev()
+datobj_tdist_list = lapply(dfs, function(df){
+  generate_data_1d_pseudoreal(datadir="~/repos/cruisedat/export", nt = 200,
+                                                beta_par = .3, p = 10,
+                                                noisetype = "heavytail",
+                                                df = df)
+})
+tdist_means  <- lapply(1:length(dfs), function(idf){
+  print(idf)
+  df = dfs[idf]
+  mnslist = list()
+  for(isim in 1:nsim){
+    printprogress(isim, nsim)
+    filename= file.path(paste0("~/Dropbox/research/usc/hpc-output/heavytail-heavytail-df-", df, "/summaries/summary-", isim, ".RDS"))
+    if(!file.exists(filename)) next
+    cvres = readRDS(file = filename)
+    mnslist[[isim]] = cvres$bestres %>% reorder_clust() %>% .$mn %>% .[,1,]
+  }
+  return(mnslist)
+})
+
+pdf(file = file.path(figdir, "heavytail-data-model-example.pdf"), width=5, height=15)
+par(mfrow = c(6,1), mar=c(2,2,1,1))
+cols = RColorBrewer::brewer.pal(2, "Set2") %>% adjustcolor(alpha.f=0.7)
+for(ii in length(dfs):1){
+  print(ii)
+  df = dfs[ii]
+  datobj_tdist = datobj_tdist_list[[ii]]
+  plot_ylist(ylist = datobj_tdist$ylist, ylim=c(-5,8), 
+             countslist = NULL, main=paste0("Model estimated on t-dist with df=", df))
+  axis(1);axis(2)
+  tdist_means %>% .[[ii]] %>% sapply(., function(mn){
+    if(!is.null(mn)){
+      mn %>% matlines(col=cols %>% .[1:2] %>% rev(), lty=1, lwd=.3)
+    }
+  })
+}
+graphics.off()
+
+```
+
+
+Next, visualize performance.
+
+```{r heavytail-error}
+## Calculate the out-of-sample prediction ability.
+nsim = 100
+dfs = c(3,5,10,20,40,100)
+list_of_cvreslist = list()
+for(idf in 1:length(dfs)){
+  df = dfs[idf]
+  cvreslist = list()
+  printprogress(dfs[idf], dfs, "dfs", fill=TRUE)
+  for(isim in 1:nsim){
+    printprogress(isim, nsim, "isim")
+    folder = paste0("heavytail-heavytail-df-", df)
+    cvres = tryCatch({
+      readRDS(file.path("~/Dropbox/research/usc/hpc-output",
+                        folder, "summaries",
+                        paste0("summary-", isim, ".RDS")))
+    }, error=function(e){return(NULL)})
+    cvreslist[[isim]] = cvres
+  }
+  list_of_cvreslist[[idf]] = cvreslist
+  cat(fill=TRUE)
+}
+list_of_cvreslist_tdist = list_of_cvreslist
+
+## Calculate L2 error in estimated coefficients
+source("~/Dropbox/research/usc/flow-cytometry/science/bootstrap/subsample-helpers.R")
+numclust = 2
+l2_errs_beta = array(NA, dim=c(length(dfs), nsim))##, numclust))##ncol = length(dfs), nrow = nsim)
+l2_errs_alpha = array(NA, dim=c(length(dfs), nsim))##, numclust))##ncol = length(dfs), nrow = nsim)
+l2_errs_means = array(NA, dim=c(length(dfs), nsim))##, numclust))##ncol = length(dfs), nrow = nsim)
+beta_spurious_nonzero_mat = array(NA, dim=c(length(dfs), nsim))
+beta_par_nonzero_mat = array(NA, dim=c(length(dfs), nsim))
+beta_cp_nonzero_mat = array(NA, dim=c(length(dfs), nsim))
+
+for(ii in 1:length(dfs)){
+  df = dfs[ii]
+  datobj_tdist = generate_data_1d_pseudoreal(datadir="~/repos/cruisedat/export", nt = 2000,
+                                             beta_par = .3, p = 10,
+                                             noisetype = "heavytail",
+                                             df = df)
+  
+  ## printprogress(df, dfs, "df", fill=TRUE)
+  printprogress(df, dfs, "dfs", fill=TRUE)
+  for(isim in 1:nsim){
+    printprogress(isim, nsim, "isim")
+    cvres = tryCatch({
+    list_of_cvreslist_tdist[[ii]][[isim]]
+    }, error=function(e){return(NULL)})
+    if(is.null(cvres)) next
+    bestres = cvres$bestres 
+    bestres = bestres %>% reorder_kl(datobj_tdist, datobj_tdist$ylist)
+
+    ## Calculate error in beta
+    beta1 = bestres$beta %>% do.call(cbind,.)
+    beta2 = datobj_tdist$beta
+    l2_err_beta = sqrt(sum((beta1-beta2)^2))
+
+    ## Calculate error in alpha
+    alpha1 = bestres$alpha 
+    alpha2 = datobj_tdist$alpha %>% t()
+    l2_err_alpha = sqrt(sum((alpha1-alpha2)^2))
+
+    ## Calculate error in means
+    l2_err_means = sqrt(sum((bestres$mn[,1,]-datobj_tdist$mnmat)^2))
+
+    ## Calculate sparsity pattern
+    beta_par_nonzero = sum(beta1["par",] != 0)
+    beta_cp_nonzero = sum(beta1["cp",] != 0)
+    beta_spurious_nonzero = sum(beta1[4:10,] != 0)
+
+    alpha_par_nonzero = sum(alpha1[,"par"] != 0)
+    alpha_cp_nonzero = sum(alpha1[,"cp"] != 0)
+    alpha_spurious_nonzero = sum(alpha1[,4:10] != 0)
+
+    ## Save them
+    l2_errs_beta[ii, isim] = l2_err_beta
+    l2_errs_alpha[ii, isim] = l2_err_alpha
+    l2_errs_means[ii, isim] = l2_err_means
+    beta_par_nonzero_mat[ii,isim] = beta_par_nonzero
+    beta_cp_nonzero_mat[ii,isim] = beta_cp_nonzero 
+    beta_spurious_nonzero_mat[ii,isim] = beta_spurious_nonzero
+  }
+  cat(fill = TRUE)
+}
+l2_errs_list = list(##alpha = l2_errs_alpha,
+                    beta = l2_errs_beta,
+                    means = l2_errs_means,
+                    beta_par = beta_par_nonzero_mat, ## Correct
+                    beta_cp = beta_cp_nonzero_mat, ## Spuriousness
+                    beta_spurious = beta_spurious_nonzero_mat) ## Spurious
+saveRDS(l2_errs_list, file = file.path(figdir, "heavytail-simulation-results.RDS"))
+l2_errs_list = readRDS(file = file.path(figdir, "heavytail-simulation-results.RDS"))
+ 
+## Make error plot
+figdir = "~/repos/flowmix/paper-figures/revision/heavytail-skew"
+pdf(file = file.path(figdir, "heavytail-data-performance.pdf"), width=10, height=4)
+par(mfrow=c(1,3))
+par(cex.lab=1.5)
+ylab = "L2 estimation error"
+## xlab = expression(shape~parameter~(alpha))
+xlab = expression(Degrees~of~Freedom)
+lwd = 3
+ylims = NULL
+cex = 1.2
+for(ii in 1:5){
+
+  if(ii %in% c(1,2)){
+    l2_errs_list %>% .[[ii]] %>%  matplot(x = dfs, pch = 16, col = rgb(0, 0, 0, 0.1),
+                                          log = "x",
+                                          ylab = ylab, xlab = xlab,
+                                          axes = FALSE,
+                                          xlim = range(dfs) %>% rev())
+    axis(1, at = dfs); axis(2)##, at = seq(from=1,to=3.5, by=0.01))
+    l2_errs_list %>% .[[ii]]  %>% t() %>% apply(2, mean, na.rm = TRUE) %>% lines(x = dfs,
+                                                                                 lwd = lwd, col = 'black',
+                                                                                 type = 'l')
+  }
+  if(ii == 3){
+    (l2_errs_list %>% .[[ii]] / 2) %>% t() %>% apply(2, mean, na.rm = TRUE) %>%
+      plot(y=., x = dfs, type='l',
+           lwd = lwd,
+           ylab = "Avg. nonzero prob.",
+           xlab = xlab,
+           ylim = c(0,1),
+           axes = FALSE,
+           xlim = range(dfs) %>% rev(),
+           log="x")
+    axis(1, at = dfs); axis(2)
+  }
+  if(ii ==4){
+    (l2_errs_list %>% .[[ii]] / 2) %>% t() %>% apply(2, mean, na.rm = TRUE) %>%
+      lines(y=., x = dfs, type='l',lwd = lwd,
+            lty=2)
+  }
+  if(ii == 5){
+    (l2_errs_list %>% .[[ii]] / 16) %>% t() %>%  apply(2, mean, na.rm = TRUE) %>%
+      lines(y=., x = dfs, type='l', lwd = lwd, ylab = expression(average~of~nonzero~probability), xlim = range(dfs),ylim = c(0,1),
+            lty = 3)
+  }
+  text.font = 1.2
+  text.col = "darkblue"
+  if(ii %in% c(1,2,3)){
+    legend('left', bty = 'n', legend="Closer to \nGaussian", cex=cex, text.font = 2, text.col = text.col)
+    legend('right', bty = 'n', legend="Heavy\ntailed", cex=cex, text.font = 2, text.col = text.col)
+  }
+  if(ii %in% c(1,2)){
+    if(ii==1) lg = expression(beta~coefficients)
+    if(ii==2) lg = expression(Cluster~means)
+    legend("topleft", bty='n', cex=1.5, legend=lg)
+  }
+  if(ii == 3){
+    legend("bottomright", lwd=3, lty=c(1,2,3), legend=c("Sunlight covariate",
+                                                        "Changepoint covariate",
+                                                        "Spurious covariates"),
+           cex = 1.2)
+  }
+
+## ## Add legend
+## if(ii==1)legend("bottomright",
+##        col = c(rgb(0,0,0,0.1), "black"),
+##        lwd = c(NA, lwd),
+##        pch = c(16, NA),
+##        legend = c("L2 error in coefficients", "Average"),
+##        bty="o",
+##        border="white",
+##        bg="white",
+##        cex = 1.2)
+}
+graphics.off()
+
+```
+
+
+
+# Skewed data simulations
+
+```{r skewed-error}
+## Calculate the out-of-sample prediction ability.
+nsim = 100
+df = 2
+## dfs = c(2,5,10,20,40,100)
+alphas = seq(from=0, to =2, by = 0.5)
+list_of_cvreslist = list()
+for(ialpha in 1:length(alphas)){
+  cvreslist = list()
+  printprogress(alphas[ialpha], alphas, "alphas", fill=TRUE)
+  for(isim in 1:nsim){
+    printprogress(isim, nsim, "isim")
+    folder = paste0("heavytail-skewed-ialpha-", ialpha)
+    cvres = tryCatch({
+      readRDS(file.path("~/Dropbox/research/usc/hpc-output",
+                        folder, "summaries",
+                        paste0("summary-", isim, ".RDS")))
+    }, error=function(e){return(NULL)})
+    cvreslist[[isim]] = cvres
+  }
+  list_of_cvreslist[[ialpha]] = cvreslist
+  cat(fill=TRUE)
+}
+list_of_cvreslist_skewed = list_of_cvreslist
+
+## Calculate L2 error in estimated coefficients
+source("~/Dropbox/research/usc/flow-cytometry/science/bootstrap/subsample-helpers.R")
+numclust = 2
+l2_errs_beta = array(NA, dim=c(length(alphas), nsim))##, numclust))##ncol = length(dfs), nrow = nsim)
+l2_errs_alpha = array(NA, dim=c(length(alphas), nsim))##, numclust))##ncol = length(dfs), nrow = nsim)
+l2_errs_means = array(NA, dim=c(length(alphas), nsim))##, numclust))##ncol = length(dfs), nrow = nsim)
+beta_spurious_nonzero_mat = array(NA, dim=c(length(alphas), nsim))
+beta_par_nonzero_mat = array(NA, dim=c(length(alphas), nsim))
+beta_cp_nonzero_mat = array(NA, dim=c(length(alphas), nsim))
+
+for(ii in 1:length(alphas)){
+  alpha = alphas[ii]
+  datobj_skewed = generate_data_1d_pseudoreal(datadir="~/repos/cruisedat/export", nt = 2000,
+                                             beta_par = .3, p = 10,
+                                             noisetype = "skewed",
+                                             skew_alpha = alpha)
+  
+  ## printprogress(df, dfs, "df", fill=TRUE)
+  printprogress(alpha, alphas, "alphas", fill=TRUE)
+  for(isim in 1:nsim){
+    printprogress(isim, nsim, "isim")
+    cvres = tryCatch({
+    list_of_cvreslist_skewed[[ii]][[isim]]
+    }, error=function(e){return(NULL)})
+    if(is.null(cvres)) next
+    bestres = cvres$bestres 
+    bestres = bestres %>% reorder_kl(datobj_skewed, datobj_skewed$ylist)
+
+    ## Calculate error in beta
+    beta1 = bestres$beta %>% do.call(cbind,.)
+    beta2 = datobj_skewed$beta
+    l2_err_beta = sqrt(sum((beta1-beta2)^2))
+
+    ## Calculate error in alpha
+    alpha1 = bestres$alpha 
+    alpha2 = datobj_skewed$alpha %>% t()
+    l2_err_alpha = sqrt(sum((alpha1-alpha2)^2))
+
+    ## Calculate error in means
+    l2_err_means = sqrt(sum((bestres$mn[,1,]-datobj_skewed$mnmat)^2))
+
+    ## Calculate sparsity pattern
+    beta_par_nonzero = sum(beta1["par",] != 0)
+    beta_cp_nonzero = sum(beta1["cp",] != 0)
+    beta_spurious_nonzero = sum(beta1[4:10,] != 0)
+
+    alpha_par_nonzero = sum(alpha1[,"par"] != 0)
+    alpha_cp_nonzero = sum(alpha1[,"cp"] != 0)
+    alpha_spurious_nonzero = sum(alpha1[,4:10] != 0)
+
+    ## Save them
+    l2_errs_beta[ii, isim] = l2_err_beta
+    l2_errs_alpha[ii, isim] = l2_err_alpha
+    l2_errs_means[ii, isim] = l2_err_means
+    beta_par_nonzero_mat[ii,isim] = beta_par_nonzero
+    beta_cp_nonzero_mat[ii,isim] = beta_cp_nonzero 
+    beta_spurious_nonzero_mat[ii,isim] = beta_spurious_nonzero
+  }
+  cat(fill = TRUE)
+}
+l2_errs_list = list(##alpha = l2_errs_alpha,
+                    beta = l2_errs_beta,
+                    means = l2_errs_means,
+                    beta_par = beta_par_nonzero_mat, ## Correct
+                    beta_cp = beta_cp_nonzero_mat, ## Spuriousness
+                    beta_spurious = beta_spurious_nonzero_mat) ## Spurious
+
+saveRDS(l2_errs_list, file = file.path(figdir, "skewed-simulation-results.RDS"))
+l2_errs_list = readRDS(file = file.path(figdir, "skewed-simulation-results.RDS"))
+ 
+## Make error plot
+figdir = "~/repos/flowmix/paper-figures/revision/heavytail-skew"
+pdf(file = file.path(figdir, "skewed-data-performance.pdf"), width=10, height=4)
+par(mfrow=c(1,3))
+par(cex.lab = 1.5)
+ylab = "L2 estimation error"
+xlab = expression(Shape~parameter~(alpha))
+lwd = 3
+ylims = NULL
+cex = 1.2
+for(ii in 1:5){
+
+  if(ii %in% c(1,2)){
+    l2_errs_list %>% .[[ii]] %>%  matplot(x = alphas, pch = 16, col = rgb(0, 0, 0, 0.1),
+                                          ## log = "x",
+                                          ylab = ylab, xlab = xlab,
+                                          axes = FALSE,
+                                          xlim = range(alphas))
+    axis(1, at = alphas); axis(2)##, at = seq(from=1,to=3.5, by=0.01))
+    l2_errs_list %>% .[[ii]]  %>% t() %>% apply(2, mean, na.rm = TRUE) %>% lines(x = alphas,
+                                                                                 lwd = lwd, col = 'black',
+                                                                                 type = 'l')
+  }
+  if(ii == 3){
+    (l2_errs_list %>% .[[ii]] / 2) %>% t() %>% apply(2, mean, na.rm = TRUE) %>%
+      plot(y=., x = alphas, type='l',
+           lwd = lwd,
+           ylab = "Avg. nonzero prob.",
+           xlab = expression(Skew~Normal~alpha),
+           xlim = range(alphas),
+           ylim = c(0,1),
+           axes = FALSE)
+    axis(1); axis(2)
+  }
+  if(ii ==4){
+    (l2_errs_list %>% .[[ii]] / 2) %>% t() %>% apply(2, mean, na.rm = TRUE) %>%
+      lines(y=., x = alphas, type='l',lwd = lwd,
+            lty=2)
+  }
+  if(ii == 5){
+    (l2_errs_list %>% .[[ii]] / 16) %>% t() %>%  apply(2, mean, na.rm = TRUE) %>%
+      lines(y=., x = alphas, type='l', lwd = lwd, ylab = expression(average~of~nonzero~probability), xlim = range(alphas),ylim = c(0,1),
+            lty = 3)
+  }
+  text.font = 1.2
+  text.col = "darkblue"
+  if(ii %in% c(1,2,3)){
+    legend('left', bty = 'n', legend="Closer to \nGaussian", cex=cex, text.font = 2, text.col = text.col)
+    legend('right', bty = 'n', legend="Skewed", cex=cex, text.font = 2, text.col = text.col)
+  }
+  if(ii %in% c(1,2)){
+    if(ii==1) lg = expression(beta~coefficients)
+    if(ii==2) lg = expression(Cluster~means)
+    legend("topleft", bty='n', cex=1.5, legend=lg)
+  }
+  if(ii == 3){
+    legend("bottomright", lwd=3, lty=c(1,2,3), legend=c("Sunlight covariate",
+                                                        "Changepoint covariate",
+                                                        "Spurious covariates"))
+  }
+
+## ## Add legend
+## if(ii==1)legend("bottomright",
+##        col = c(rgb(0,0,0,0.1), "black"),
+##        lwd = c(NA, lwd),
+##        pch = c(16, NA),
+##        legend = c("L2 error in coefficients", "Average"),
+##        bty="o",
+##        border="white",
+##        bg="white")
+}
+graphics.off()
+
+```
+
+# Skewed data visualization
+
+Models estimated on skewed data look like this:
+
+```{r}
+library(flowmix)
+figdir = "~/repos/flowmix/paper-figures/revision/heavytail-skew"
+alphas = seq(from=0, to=2, by=.5) ##%>% rev()
+datobj_skewed_list = lapply(alphas, function(alpha){
+  generate_data_1d_pseudoreal(datadir="~/repos/cruisedat/export", nt = 200,
+                                                beta_par = .3, p = 10,
+                                                noisetype = "skewed",
+                                                skew_alpha = alpha)
+})
+skewed_means  <- lapply(1:length(alphas), function(ialpha){
+  print(ialpha)
+  mnslist = list()
+  for(isim in 1:nsim){
+    printprogress(isim, nsim)
+    filename= file.path(paste0("~/Dropbox/research/usc/hpc-output/heavytail-skewed-ialpha-", ialpha, "/summaries/summary-", isim, ".RDS"))
+    if(!file.exists(filename)) next
+    cvres = readRDS(file = filename)
+    mnslist[[isim]] = cvres$bestres %>% reorder_clust() %>% .$mn %>% .[,1,]
+  }
+  return(mnslist)
+})
+
+pdf(file = file.path(figdir, "skewed-data-model-example.pdf"), width=5, height=12)
+par(mfrow = c(5,1), mar=c(2,2,1,1))
+cols = RColorBrewer::brewer.pal(2, "Set2") %>% adjustcolor(alpha.f=0.7)
+for(ii in 1:length(alphas)){
+  print(ii)
+  alpha = alphas[ii]
+  datobj_skewed = datobj_skewed_list[[ii]]
+  plot_ylist(ylist = datobj_skewed$ylist, ylim=c(-5,8), 
+             countslist = NULL, main=paste0("Model estimated on alpha=", alpha))
+  axis(1);axis(2)
+  skewed_means %>% .[[ii]] %>% sapply(., function(mn){
+    if(!is.null(mn)){
+      mn %>% matlines(col=cols %>% .[1:2] %>% rev(), lty=1, lwd=.3)
+    }
+  })
+}
+graphics.off()
+```
+
+<!-- # Diagnostics -->
+
+<!-- Diagnostics: visualize heavy tailed and skewed data and overlay the estimated -->
+<!-- models, and see if they make sense. -->
+
+<!-- ```{r} -->
+<!-- source("~/Dropbox/research/usc/flow-cytometry/science/bootstrap/subsample-helpers.R") -->
+<!-- origres <-  readRDS(file = file.path("~/Dropbox/research/usc/hpc-output/heavytail-gaussian/summaries/summary-1.RDS"))$bestres -->
+
+<!-- ## Plot heavy-tailed data and models, by DF -->
+<!-- for(df in dfs){ -->
+<!--   png(file = paste0("~/all-heavytail-models-df-", df, ".png"), -->
+<!--       width = 1200, height = 1000) -->
+<!--   datobj2 = generate_data_1d_pseudoreal(bin = FALSE, -->
+<!--                                         ## datadir = datadir, -->
+<!--                                         nt = 200, -->
+<!--                                         beta_par = 0.3, -->
+<!--                                         p = 10, -->
+<!--                                         noisetype = "heavytail", -->
+<!--                                         df = df) -->
+<!--   par(mfrow=c(3,3), mar=c(4,4,1,1), oma = c(1,1,5,1)) -->
+<!--   for(isim in 1:(3^2)){ -->
+<!--     printprogress(isim, 100) -->
+<!--     folder = paste0("heavytail-heavytail-df-", df) -->
+<!--     cvres =  readRDS(file.path("~/Dropbox/research/usc/hpc-output", -->
+<!--                         folder, "summaries", -->
+<!--                         paste0("summary-", isim, ".RDS"))) -->
+<!--     bestres2 = cvres %>% .$bestres %>% reorder_kl(origres, datobj2$ylist, fac = 100, verbose=TRUE) -->
+<!--     bestres2 %>% plot_1d(res=., ylist=datobj2$ylist, countslist=NULL, mn.scale = 3, ylim = c(-4,6)) -->
+<!--     oos_score2 = objective_newdat(ylist = datobj2$ylist, -->
+<!--                                   countslist = datobj2$countslist, -->
+<!--                                  res = bestres2) -->
+
+<!--     matlines(origres$mn[,1,], col = 'yellow', lwd = 2, lty = 1) -->
+<!--     legend("topright", bty="n", legend = paste0("Out-of-sample NLL ", oos_score2 %>% round(3)), cex=2) -->
+<!--   } -->
+<!--   mtext(outer=TRUE, text=paste0("df=", df), side=3, cex=3) -->
+<!--   graphics.off() -->
+<!-- } -->
+
+<!-- ## Temp: playing around with the  -->
+<!-- alphas = c(0,0.5,1,1.5,2) -->
+<!-- dats = lapply(alphas, function(alpha){ -->
+<!--   omega = sqrt(1/(1 - 2 * (1/pi) * alpha^2 / (1 + alpha^2))) -->
+<!--   dat = sn::rsn(10000, omega = omega, alpha=alpha) -->
+<!-- }) -->
+<!-- sapply(dats, var)%>%plot(y=., x=alphas, type='l', lwd=3, ylim=c(0,1), xlab=expression(skew~normal~shape~paramter~(alpha))) -->
+
+<!-- dats = lapply(alphas, function(alpha){ -->
+<!--   omega = sqrt(1/(1 - 2 * (1/pi) * alpha^2 / (1 + alpha^2))) -->
+<!--   dat = sn::rsn(10000, omega = 1, alpha=alpha) -->
+<!-- }) -->
+<!-- sapply(dats, var)%>%lines(y=., x=alphas, lwd=3, col='red') -->
+<!-- legend("bottomleft", lwd=3, lty=1, col=c("black", "red"), legend=c("Adjusted skew normal variance", "Unadjusted skew normal variance")) -->
+
+
+<!-- ## Plot skewed data and models, by alpha -->
+<!-- for(ialpha in 1:length(alphas)){ -->
+<!--   alpha = alphas[ialpha] -->
+<!--   png(file = paste0("~/all-skewed-models-ialpha-", ialpha, ".png"), -->
+<!--       width = 1200, height = 1000) -->
+<!--   datobj2 = generate_data_1d_pseudoreal(bin = FALSE, -->
+<!--                                         ## datadir = datadir, -->
+<!--                                         nt = 200, -->
+<!--                                         beta_par = 0.3, -->
+<!--                                         p = 10, -->
+<!--                                         noisetype = "skewed", -->
+<!--                                         skew_alpha = alpha) -->
+<!--   par(mfrow=c(3,3), mar=c(4,4,1,1), oma = c(1,1,5,1)) -->
+<!--   for(isim in 1:(3^2)){ -->
+<!--     printprogress(isim, 25) -->
+<!--     ## bestres = list_of_cvreslist[[3]][[1]]$bestres -->
+<!--     folder = paste0("heavytail-skewed-ialpha-", ialpha) -->
+<!--     cvres =  readRDS(file.path("~/Dropbox/research/usc/hpc-output", -->
+<!--                         folder, "summaries", -->
+<!--                         paste0("summary-", isim, ".RDS"))) -->
+<!--     bestres = cvres %>% .$bestres -->
+<!--     bestres %>% plot_1d(res=., ylist=datobj2$ylist, countslist=NULL,mn.scale=3, ylim = c(-4,6)) -->
+<!--     oos_score = objective_newdat(ylist = datobj2$ylist, -->
+<!--                                  countslist = datobj2$countslist, -->
+<!--                                  res = bestres) -->
+<!--     ## matlines(datobj$mnmat, lwd=5, col = "yellow", lty=1) -->
+<!--     legend("topright", bty="n", legend = paste0("Out-of-sample NLL ", oos_score %>% round(3)), cex=2) -->
+<!--   } -->
+<!--   mtext(outer=TRUE, text=paste0("alpha=", alphas[ialpha]), side=3, cex=3) -->
+<!--   graphics.off() -->
+<!-- } -->
+<!-- ``` -->
+
+
+
+<!-- # Sparsity -->
+
+<!-- ```{r} -->
+<!-- ##' Plot power. -->
+<!-- plot_power <- function(res){  -->
+
+<!--   res %>% select(-datatypes) -> res -->
+<!--   res %>% select(sigma_add) %>%unlist -> sigmalist -->
+<!--   res %>% select(-sigma_add) -> res -->
+<!--   ## par(mar=c(3,3,3,3)) -->
+<!--   par(mar = c(4.1, 4.1, 1.1, 2.1)) -->
+<!--   par(mgp = c(2.5, 1, 0)) -->
+<!--   matplot(NA, ylim = c(0,1), xlim = range(sigmalist), -->
+<!--           ylab = expression(P(hat(beta)!=0)), -->
+<!--           xlab = expression(sigma["add"]), -->
+<!--           axes = FALSE) -->
+<!--   matlines(y = res %>% select(contains("beta_par")), -->
+<!--            x = sigmalist, -->
+<!--            type = 'l', col = c(1,1), -->
+<!--            lwd = 3, lty = c(1,2)) -->
+<!--   matlines(y = res %>% select(contains("beta_spurious_prob1")), x = sigmalist, -->
+<!--            type = 'l', lwd = 1, lty = 1, col=rgb(1,0,0,0.2)) -->
+<!--   matlines(y = res %>% select(contains("beta_spurious_prob1")) %>% rowMeans, x = sigmalist, -->
+<!--            type = 'l', lwd = 3, lty = 1, col='red') -->
+<!--   matlines(y = res %>% select(contains("beta_spurious_prob2")), x = sigmalist, -->
+<!--            type = 'l', lwd = 1, lty = 1, col=rgb(1,0,0,0.2)) -->
+<!--   matlines(y = res %>% select(contains("beta_spurious_prob2")) %>% rowMeans, x = sigmalist, -->
+<!--            type = 'l', lwd = 3, lty = 2, col='red') -->
+<!--   axis(2, at=seq(from=0,to=1, by=0.2)); axis(1, at=sigmalist)##, las=3)##[c(1,2*(1:5))]); -->
+<!--   legend(x=1.1, y=0.92,##"topright", -->
+<!--          lwd = c(3,3,3,3,1), -->
+<!--          lty = c(1,2,1,2,1), -->
+<!--          col=c("black","black","red","red",rgb(1,0,0,0.2)), -->
+<!--          legend=c("Sunlight, Clust 1", -->
+<!--              "Sunlight, Clust 2", -->
+<!--              "Avg Spurious, Clust 1", -->
+<!--              "Avg Spurious, Clust 2", -->
+<!--              "Each Spurious"), bty='n') -->
+<!--   return() -->
+<!-- } -->
+
+<!-- ##' Obtain P(nonzero), and return as a data frame whose rows are for different -->
+<!-- ##' additive noise, and the columns are different probabilities; probabilities -->
+<!-- ##' for coefficients of each cluster separately, and together. -->
+<!-- ##' -->
+<!-- ##' @param datatypes  -->
+<!-- ##' -->
+<!-- get_power <- function(list_of_cvreslist, -->
+<!--                       things, -->
+<!--                       origres, -->
+<!--                       dat_ylist, -->
+<!--                       thresh = 0){ -->
+
+<!--   beta_par_prob1 = beta_par_prob2 = c() -->
+<!--   beta_spurious_prob1 = beta_spurious_prob2 = matrix(NA, nrow = length(list_of_cvreslist), ncol = 8) -->
+<!--   for(ii in 1:length(list_of_cvreslist)){ -->
+
+<!--     bestreslist = lapply(list_of_cvreslist[[ii]], function(a)a$bestres) -->
+
+<!--     ## Obtain the beta coefficients from simulations -->
+<!--     betas = lapply(bestreslist, function(bestres){ -->
+
+<!--       ## Reorder the clusters  -->
+<!--       bestres = bestres %>% reorder_kl(origres, dat_ylist, fac = 100, verbose=TRUE) -->
+
+<!--       if(!is.null(bestres)){ -->
+<!--       beta = do.call(cbind, bestres$beta) -->
+<!--       ## order the two according to the intercept -->
+<!--       beta = beta[,order(beta[1,])] -->
+<!--       } else { return(NULL)} -->
+<!--     }) -->
+<!--     betas = betas[which(sapply(betas, length) > 0)] ## temporary handling -->
+  
+<!--     ## Count the interesting stuff (sunlight betas) -->
+<!--     thresh = 0 -->
+<!--     beta_par_prob1[ii] = sapply(betas, function(beta)abs(beta["par",1]) > thresh) %>% mean -->
+<!--     beta_par_prob2[ii] = sapply(betas, function(beta)abs(beta["par",2]) > thresh) %>% mean -->
+
+<!--     ## Count the interesting stuff (spurious betas) -->
+<!--     spurious_nonzero1 = sapply(betas, function(beta){ -->
+<!--       apply(beta[4:nrow(beta),], 1, function(myrow){ -->
+<!--       (abs(myrow[1])>thresh)}) -->
+<!--     }) -->
+<!--     spurious_nonzero2 = sapply(betas, function(beta){ -->
+<!--       apply(beta[4:nrow(beta),], 1, function(myrow){ -->
+<!--       (abs(myrow[2])>thresh)}) -->
+<!--     }) -->
+<!--     beta_spurious_prob1[ii,] = apply(spurious_nonzero1, 1, mean) -->
+<!--     beta_spurious_prob2[ii,] = apply(spurious_nonzero2, 1, mean) -->
+<!--   } -->
+<!--   res = data.frame(beta_par_prob1 = beta_par_prob1, -->
+<!--                    beta_par_prob2 = beta_par_prob2, -->
+<!--                    beta_spurious_prob1 = beta_spurious_prob1, -->
+<!--                    beta_spurious_prob2 = beta_spurious_prob2) -->
+<!--   rownames(res) = things -->
+<!--   return(res) -->
+<!-- } -->
+
+<!-- plot_power <- function(res, things, xlab=NULL, -->
+<!--                        legend_loc = "bottomright", -->
+<!--                        ...){  -->
+
+<!--   things = rownames(res) %>% as.numeric() -->
+<!--   par(mar = c(4.1, 4.1, 1.1, 2.1)) -->
+<!--   par(mgp = c(2.5, 1, 0)) -->
+<!--   matplot(NA, ylim = c(0,1), xlim = range(things), -->
+<!--           ylab = expression(P(hat(beta)!=0)), -->
+<!--           xlab = xlab, -->
+<!--           axes = FALSE, -->
+<!--           ...) -->
+<!--   matlines(y = res %>% select(contains("beta_par")), -->
+<!--            x = things, -->
+<!--            type = 'l', col = c(1,1), -->
+<!--            lwd = 3, lty = c(1,2)) -->
+<!--   matlines(y = res %>% select(contains("beta_spurious_prob1")), x = things, -->
+<!--            type = 'l', lwd = 1, lty = 1, col=rgb(1,0,0,0.2)) -->
+<!--   matlines(y = res %>% select(contains("beta_spurious_prob1")) %>% rowMeans, x = things, -->
+<!--            type = 'l', lwd = 3, lty = 1, col='red') -->
+<!--   matlines(y = res %>% select(contains("beta_spurious_prob2")), x = things, -->
+<!--            type = 'l', lwd = 1, lty = 1, col=rgb(1,0,0,0.2)) -->
+<!--   matlines(y = res %>% select(contains("beta_spurious_prob2")) %>% rowMeans, x = things, -->
+<!--            type = 'l', lwd = 3, lty = 2, col='red') -->
+<!--   axis(2, at=seq(from=0,to=1, by=0.2)); axis(1, at=things)##, las=3)##[c(1,2*(1:5))]); -->
+<!--   legend(legend_loc,##x=1.1, y=0.92,##"topright", -->
+<!--          lwd = c(3,3,3,3,1), -->
+<!--          lty = c(1,2,1,2,1), -->
+<!--          col=c("black","black","red","red",rgb(1,0,0,0.2)), -->
+<!--          legend=c("Sunlight, Clust 1", -->
+<!--              "Sunlight, Clust 2", -->
+<!--              "Avg Spurious, Clust 1", -->
+<!--              "Avg Spurious, Clust 2", -->
+<!--              "Each Spurious"), bty='n') -->
+<!--   return() -->
+<!-- } -->
+
+
+<!-- ## Setup -->
+<!-- ## origres = flowmix(ylist = datobj$ylist, X = datobj$X, countslist = NULL, numclust=2, verbose=TRUE) -->
+<!-- origres <-  readRDS(file = file.path("~/Dropbox/research/usc/hpc-output/heavytail-gaussian/summaries/summary-1.RDS"))$bestres -->
+
+<!-- pdf("~/sparsity-heavy-tail-skewed-ordered.pdf", width = 10, height = 5) -->
+<!-- par(mfrow = c(1, 2)) -->
+<!-- text.font = 1.2 -->
+<!-- text.col = "darkblue" -->
+<!-- cex = 1.5 -->
+<!-- list_of_cvreslist_skewed %>% get_power(things = alphas, origres = origres, -->
+<!--                                        dat_ylist = datobj$ylist) %>% -->
+<!--   plot_power(xlab = expression(shape~parameter~(alpha))) -->
+<!-- legend('left', bty = 'n', legend="Closer to \nGaussian", cex=cex, text.font = 2, text.col = text.col) -->
+<!-- legend('right', bty = 'n', legend="More\nskewed", cex=cex, text.font = 2, text.col = text.col) -->
+
+<!-- list_of_cvreslist_heavytail  %>% get_power(things = dfs, -->
+<!--                                            origres = origres, dat_ylist = datobj$ylist) %>% -->
+<!--   plot_power(xlab = "Degrees of freedom for t-distr.", log="x", legend_loc = "bottomleft") -->
+<!-- legend('right', bty = 'n', legend="Closer to \nGaussian", cex=cex, text.font = 2, text.col = text.col) -->
+<!-- legend('left', bty = 'n', legend="Heavier\ntails", cex=cex, text.font = 2, text.col = text.col) -->
+<!-- graphics.off() -->
+<!-- ``` -->
+
+
+<!-- # Better error metric -->
+
+<!-- I don't feel like the model fit is that meaningful. We can instead just measure -->
+<!-- the difference (L2 distance) in  -->
+
+<!-- - the estimated cluster means, and -->
+<!-- - the generating models actual cluster means. -->
+
+
+<!-- Let me try this: -->
+
+<!-- ```{r} -->
+<!-- ## Calculate out-of-sample scores (prediction ability) -->
+<!-- oos_scores = matrix(NA, ncol = length(dfs), nrow = nsim) -->
+<!-- for(df_ind in 1:length(dfs)){ -->
+<!--   df = dfs[df_ind] -->
+<!--   datobj_tdist = generate_data_1d_pseudoreal(datadir="~/repos/cruisedat/export", nt = 2000, -->
+<!--                                              beta_par = .3, p = 10, -->
+<!--                                              noisetype = "heavytail", -->
+<!--                                              df = df) -->
+
+<!--   printprogress(df, dfs, "df", fill=TRUE) -->
+<!--   for(isim in 1:(nsim-1)){ -->
+<!--     printprogress(isim, nsim, "isim") -->
+<!--     cvres = list_of_cvreslist_heavytail[[df_ind]][[isim]] -->
+<!--     if(is.null(cvres)) next -->
+<!--     bestres = cvres$bestres -->
+<!--     oos_score = objective_newdat(ylist = datobj_tdist$ylist, -->
+<!--                                  countslist = datobj_tdist$countslist, -->
+<!--                                  res = bestres) -->
+<!--     oos_scores[isim, df_ind] = oos_score -->
+<!--   } -->
+<!--   cat(fill = TRUE) -->
+<!-- } -->
+ 
+<!-- ## list_of_cvreslist_heavytail = list_of_cvreslist -->
+<!-- oos_scores_heavytail = oos_scores -->
+
+
+<!-- ## Make error plot -->
+<!-- figdir = "~" -->
+<!-- pdf(file = file.path(figdir, "heavytail-errors-new.pdf"), width=10, height=5) -->
+<!-- ylab = "Out-of-sample NLL" -->
+<!-- xlab = "Degrees of freedom for t-distr." -->
+<!-- lwd = 3 -->
+<!-- ylims = list(NULL, c(1.627, 1.67)) -->
+<!-- par(mfrow = c(1,2)) -->
+<!-- for(ii in 1:2){ -->
+<!--   ylim = ylims[[ii]] -->
+<!--   oos_scores_heavytail %>% t() %>% matplot(x = dfs, pch = 16, col = rgb(0, 0, 0, 0.1), -->
+<!--                                  log = "x", ylim = ylim, ylab = ylab, xlab = xlab, -->
+<!--                                  axes=FALSE) -->
+<!--   if(ii==1){axis(1, at = dfs); axis(2, at = seq(from=1,to=3.5, by=0.2))} -->
+<!--   if(ii==2){axis(1, at = dfs); axis(2, at = seq(from=1,to=3.5, by=0.01))} -->
+<!--   oos_scores_heavytail %>% apply(2, mean, na.rm = TRUE) %>% lines(x = dfs, -->
+<!--                                                         lwd = lwd, col = 'black', -->
+<!--                                                         type = 'l') -->
+<!--   if(ii == 1) abline(h = seq(from = 0, to = 10, by = 0.05), col = rgb(0,0,0,0.3), lwd = 1, lty = 3) -->
+<!--   if(ii == 2) abline(h = seq(from = 0, to = 10, by = 0.01), col = rgb(0,0,0,0.3), lwd = 1, lty = 3) -->
+
+<!--   ## Add yellow rectangle -->
+<!--   rect(xleft=min(dfs)*.95, xright=max(dfs)*1.03, -->
+<!--        ybottom=ylims[[2]][1], ytop=ylims[[2]][2], lwd=2, border='yellow'%>%adjustcolor(alpha=.5),col=NA, lty=1) -->
+
+<!--   ## Add legend -->
+<!--   if(ii==1)legend("topright", -->
+<!--                   col = c(rgb(0,0,0,0.1), "black"), -->
+<!--                   lwd = c(NA, lwd), -->
+<!--                   pch = c(16, NA), -->
+<!--                   legend = c("NLL (Neg. log-likelihood)", "Average NLL"), -->
+<!--                   bty="o", -->
+<!--                   border="white", -->
+<!--                   bg="white") -->
+<!--   if(ii == 1){ -->
+<!--     text.font = 1.2 -->
+<!--     text.col = "darkblue" -->
+<!--     legend('right', bty = 'n', legend="Closer to \nGaussian", cex=cex, text.font = 2, text.col = text.col) -->
+<!--     legend('left', bty = 'n', legend="Heavier\ntails", cex=cex, text.font = 2, text.col = text.col) -->
+<!--   } -->
+<!-- } -->
+<!-- graphics.off() -->
+<!-- ``` -->
