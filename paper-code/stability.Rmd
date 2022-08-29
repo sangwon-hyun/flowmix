@@ -11,9 +11,9 @@ output:
 
 # Setup
 
-This script uses the flowmix package from github repository
-commit number `251b669443e77c30a4519ce25add277fb46718d4`.
-(https://github.com/sangwon-hyun/flowmix/commit/251b669443e77c30a4519ce25add277fb46718d4)
+This script uses the flowmix package from github repository commit number
+`206aa0575ea2df56f168f42dc335acf002aed458`
+(https://github.com/sangwon-hyun/flowmix/commit/206aa0575ea2df56f168f42dc335acf002aed458).
 
 ```{r setup, eval = TRUE, echo = FALSE, message = FALSE, warning = FALSE}
 knitr::opts_chunk$set(fig.width=14, fig.height=8, echo=TRUE, eval=TRUE,
