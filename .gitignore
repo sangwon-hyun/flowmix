@@ -1,3 +1,13 @@
 .Rproj.user
 inst/doc
 output
+
+paper-data/*.rds
+paper-data/*.Rdata
+paper-data/*.RDS
+paper-data/*.zip
+!paper-data/
+paper-data/*
+paper-figures
+paper-code/aoas-revision
+misc-code
