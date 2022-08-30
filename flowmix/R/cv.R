@@ -1,6 +1,12 @@
-##' Define the time folds cross-validation.
+##' Define the time folds for cross-validation.
 ##'
 ##' @param blocksize Size (number of time indices) of one block.
+##' @param ylist Data.
+##' @param nfold Number of CV folds.
+##' @param blocksize Size of time blocks for forming groups of time points
+##'   (cross-validation folds).
+##' @param TT Number of time points in total.
+##'
 ##' @return List of fold indices.
 ##' @export
 ##'
@@ -34,8 +40,11 @@ make_cv_folds <- function(ylist=NULL, nfold, blocksize = 20, TT=NULL){
     return(test.ii)
   })
 
-  ## plot(NA, xlim = c(0,TT), ylim=1:2)
-  ## lapply(1:nfold, function(ifold){a = test.ii.list[[ifold]]; abline(v=a, col=ifold)})
+  ## Useful plotting code showing the plots.
+  if(FALSE){
+    plot(NA, xlim = c(0,TT), ylim=1:2)
+    lapply(1:nfold, function(ifold){a = test.ii.list[[ifold]]; abline(v=a, col=ifold)})
+  }
 
   return(test.ii.list)
 }
@@ -107,6 +116,7 @@ make_cv_folds_subsample_with_original_membership <- function(nfold, blocksize, o
 ##' @param sim Set to \code{TRUE} if this is a simulation; the file name
 ##'   containing results for, say `isim=3`, has "3-" appended to the beginning.
 ##' @param isim Simulation number.
+##' @param seedtab A table containing seeds (7 columns)
 ##' @param ... Rest of arguments for \code{flowmix_once()}.
 ##'
 ##' @return Nothing is returned. Instead, a file named "1-1-1-1-cvscore.Rdata"
@@ -125,6 +135,9 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
                     ylist, countslist,
                     X,
                     ...){
+
+  ## Solving warning from devtools::check()
+  seed1 = seed2 = seed3 = seed4 = seed5 = seed6 = seed7 = NULL
 
   ## Get the train/test data
   test.inds = unlist(folds[ifold])
@@ -252,6 +265,9 @@ one_job_refit <- function(ialpha, ibeta, destin,
                           sim = FALSE, isim = 1,
                           ...){
 
+  ## Solving warning from devtools::check()
+  seed1 = seed2 = seed3 = seed4 = seed5 = seed6 = seed7 = NULL
+
   args = list(...)
   nrep = args$nrep
   for(irep in 1:nrep){
@@ -312,6 +328,7 @@ one_job_refit <- function(ialpha, ibeta, destin,
 ##'  60      4     2     2    1
 ##' @param cv_gridsize CV grid size.
 ##' @param nfold Number of of CV folds.
+##' @param nrep Number of repetitions.
 ##'
 ##' @return Integer matrix.
 ##'
@@ -349,6 +366,7 @@ make_iimat_small <- function(cv_gridsize){
 
 
 ##' Create file name (a string) for cross-validation results.
+##' @noRd
 make_cvscore_filename <- function(ialpha, ibeta, ifold, irep,
                                   ## If simulations, then additional file names
                                   sim = FALSE, isim = 1){
@@ -360,6 +378,7 @@ make_cvscore_filename <- function(ialpha, ibeta, ifold, irep,
 
 ##' Create file name (a string) for re-estimated models for the lambda values
 ##' indexed by \code{ialpha} and \code{ibeta}.
+##' @noRd
 make_refit_filename <- function(ialpha, ibeta, irep,
                                   ## If simulations, then additional file names
                                 sim = FALSE, isim = 1){
@@ -383,6 +402,16 @@ make_refit_filename <- function(ialpha, ibeta, irep,
 ##' @param blocksize Contiguous time blocks from which to form CV time folds.
 ##' @param refit If TRUE, estimate the model on the full data, for each pair of
 ##'   regularization parameters.
+##' @param iimat Indices for the cross validation jobs -- made using
+##'   \code{make_iimat()}.
+##' @param maxdev Maximum deviation of cluster means across time.
+##' @param seedtab A table containing seeds (7 columns)
+##' @param verbose TRUE for loudness.
+
+##' @param flatX_thresh Threshold for detecting if any covariates are flat (low
+##'   variance). These flat coefficients will have be set to zero and excluded
+##'   from estimation altogether.
+##'
 ##' @param ... Additional arguments to flowmix().
 ##' @inheritParams flowmix_once
 ##'

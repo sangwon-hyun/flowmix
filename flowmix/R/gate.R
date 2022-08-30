@@ -53,6 +53,7 @@ gate_plot <- function(tt, dims, y, counts, memberships, datetime = "",
                                top_clusters, top_cluster_names = NULL){
 
   ## Setup
+  mem = NULL
   dimdat = ncol(y)
   varnames = colnames(y)[dims]
 
@@ -75,8 +76,8 @@ gate_plot <- function(tt, dims, y, counts, memberships, datetime = "",
   ## Gather the data
   y_aug = y %>% as_tibble() %>%
     dplyr::select(!!!varnames) %>%
-    add_column(counts = counts) %>%
-    add_column(mem = as.factor(memberships))
+    tibble::add_column(counts = counts) %>%
+    tibble::add_column(mem = as.factor(memberships))
 
 
   ## Create ggplot

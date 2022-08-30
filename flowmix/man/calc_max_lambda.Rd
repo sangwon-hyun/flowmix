@@ -26,6 +26,8 @@ calc_max_lambda(
 \arguments{
 \item{ylist}{List of responses.}
 
+\item{countslist}{Multiplicity for particles in \code{ylist}.}
+
 \item{X}{Covariates.}
 
 \item{numclust}{Number of clusters.}
@@ -33,6 +35,8 @@ calc_max_lambda(
 \item{max_mean_lambda}{Defaults to 4000.}
 
 \item{max_prob_lambda}{Defaults to 1000.}
+
+\item{verbose}{TRUE for loudness.}
 
 \item{iimax}{Maximum value of x for 2^{-x} factors to try.}
 

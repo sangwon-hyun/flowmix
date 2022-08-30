@@ -6,6 +6,13 @@
 \usage{
 generate_1d_data(TT, sigma1 = NULL, sigma2 = NULL)
 }
+\arguments{
+\item{TT}{Number of time points.}
+
+\item{sigma1}{variance of cluster 1.}
+
+\item{sigma2}{variance of cluster 2.}
+}
 \description{
 Function to create 1d simulated data.
 }

@@ -28,6 +28,10 @@ loglikelihood_tt(
 \item{prob}{Population proportions.}
 
 \item{countslist}{(Optional) Counts corresponding to \code{ylist}.}
+
+\item{numclust}{Number of clusters.}
+
+\item{sep}{if TRUE, return separate log likelihood contributions for each particle.}
 }
 \value{
 Log likelihood.

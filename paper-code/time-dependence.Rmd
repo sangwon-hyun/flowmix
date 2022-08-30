@@ -32,9 +32,6 @@ figdir = "figures"
 ## This is where the data is
 datadir = "../paper-data" 
 
-## Temporarily load the latest flowmix package.
-la('flowmix')
-
 ##' @param bin1 bin centers of 1 deconvolved distribution.
 ##' @param count1 counts in each bins.
 ##' @param bin2 counterpart to bin1

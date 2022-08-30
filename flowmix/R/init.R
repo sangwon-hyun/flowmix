@@ -4,10 +4,17 @@
 ##'   such datasets. 3 is actually \code{mulen}.
 ##' @param numclust Number of clusters (M).
 ##' @param TT total number of (training) time points.
+##' @param dimdat Data dimension.
+##' @param countslist Multiplicity for particles in \code{ylist}.
+##' @param seed Seven integers that is called at the beginning of \code{init_mn()}
+##'   so it can be assigned to \code{.Random.seed} for setting the random state
+##'   for the initial mean generation.
 ##'
 ##' @return An array of dimension (T x dimdat x M).
 init_mn <- function(ylist, numclust, TT, dimdat, countslist = NULL, seed=NULL){
 
+
+  . = NULL ## Fixing check()
 
   if(!is.null(seed)){
     assertthat::assert_that(all((seed %>% sapply(., class)) == "integer"))
@@ -134,10 +141,17 @@ init_mn <- function(ylist, numclust, TT, dimdat, countslist = NULL, seed=NULL){
 ##'   such datasets. 3 is actually \code{mulen}.
 ##' @param numclust Number of clusters (M).
 ##' @param TT total number of (training) time points.
+##' @param countslist Multiplicity for particles in \code{ylist}.
+##' @param seed Seven integers that is called at the beginning of \code{init_mn()}
+##'   so it can be assigned to \code{.Random.seed} for setting the random state
+##'   for the initial mean generation.
+##' @param dimdat Dimension of data.
 ##'
 ##' @return An array of dimension (T x dimdat x M).
+##' @export
 init_mn_temp <- function(ylist, numclust, TT, dimdat, countslist = NULL, seed=NULL){
 
+  . = NULL ## Fixing check()
 
   if(!is.null(seed)){
     assertthat::assert_that(all((seed %>% sapply(., class)) == "integer"))
@@ -164,7 +178,7 @@ init_mn_temp <- function(ylist, numclust, TT, dimdat, countslist = NULL, seed=NU
 
     yy = do.call(rbind, ylist_downsampled)
     new_means = yy[sample(1:nrow(yy), numclust),, drop=FALSE]
-    jitter_sd = apply(yy, 2, sd) / 100
+    jitter_sd = apply(yy, 2, stats::sd) / 100
     jitter_means = MASS::mvrnorm(n = nrow(new_means),
                                  mu = rep(0, dimdat),
                                  Sigma = diag(jitter_sd, ncol = dimdat))

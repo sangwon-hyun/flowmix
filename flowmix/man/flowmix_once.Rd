@@ -19,11 +19,7 @@ flowmix_once(
   maxdev = NULL,
   countslist_overwrite = NULL,
   zero_stabilize = FALSE,
-  init_mn_flatten = FALSE,
-  mstep_cvxr_ecos_thresh = 1e-08,
-  mstep_cvxr_scs_eps = 1e-05,
   zerothresh = 1e-06,
-  admm = TRUE,
   admm_rho = 0.01,
   admm_err_rel = 0.001,
   admm_err_abs = 1e-04,
@@ -46,20 +42,56 @@ time (T) and with (nt) particles at every time point.}
 
 \item{numclust}{Number of clusters}
 
+\item{niter}{Number of EM iterations.}
+
+\item{mn}{Initial means to use. Defaults to NULL.}
+
 \item{prob_lambda}{lambda for lasso for probabilities.}
 
 \item{mean_lambda}{lambda for lasso for the mean.}
 
+\item{verbose}{TRUE for loudness (e.g. printing EM iterations).}
+
+\item{sigma_fac}{Defaults to 1, and governs how big the initial covariance
+matrices should be in size.}
+
 \item{tol_em}{Relative tolerance for EM convergence. Defaults to 1E-4.}
 
+\item{maxdev}{Radius for maximum deviation of cluster means over time.}
+
+\item{countslist_overwrite}{Mainly used by \code{cv.flowmix()}; not to be
+modified by user.}
+
 \item{zero_stabilize}{Defaults to FALSE. If TRUE, the EM is only run until
-the zero pattern in the coefficients stabilize.}
+the pattern of zeros in the coefficients stabilizes over EM iterations.}
+
+\item{zerothresh}{Alpha coefficient values below \code{zerothresh} are set
+to zero.}
+
+\item{admm_rho}{Step size for ADMM}
+
+\item{admm_err_rel}{Relative error threshold for stopping ADMM.}
+
+\item{admm_err_abs}{Absolute error threshold for stopping ADMM.}
+
+\item{admm_local_adapt}{TRUE if locally adaptive ADMM (LA-ADMM) is to be used. If
+so, \code{admm_niter} becomes the inner number of iterations, and
+\code{admm_local_adapt_niter} becomes the number of outer iterations.}
+
+\item{admm_local_adapt_niter}{Number of inner iterations in LA ADMM.}
+
+\item{admm_niter}{Number of ADMM iterations.}
+
+\item{CVXR}{If TRUE, use CVXR instead of ADMM. Slow, and meant to be used
+only for sanity checking during code development.}
 
 \item{seed}{Seven integers that is called directly before \code{init_mn()}
 so it can be assigned to \code{.Random.seed} for setting the random state
 for the initial mean generation.}
 
-\item{prob.list}{(T by K)}
+\item{flatX_thresh}{Threshold for detecting if any covariates are flat (low
+variance). These flat coefficients will have be set to zero and excluded
+from estimation altogether.}
 }
 \value{
 List containing fitted parameters and means and mixture weights,

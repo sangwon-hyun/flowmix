@@ -203,13 +203,3 @@ choldecomp_sigma_array <- function(sigma_array){
   })
   return(chol_by_clust)
 }
-
-
-##' Helper for sweep
-fastsweep <- function(y, mu){
-  mumat = matrix(mu,
-                 ncol=ncol(y),
-                 nrow=nrow(y),
-                 byrow=TRUE)
-  y - mumat
-}

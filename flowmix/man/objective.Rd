@@ -20,19 +20,29 @@ objective(
 )
 }
 \arguments{
-\item{mu}{array of dimension (T x dimdat x numclust ) ; old: T by M by p.}
+\item{mu}{Array of dimension (T x dimdat x numclust ) ; old: T by M by p.}
 
-\item{prob}{matrix of mixture proportions, T by M.}
+\item{prob}{Matrix of mixture proportions, T by M.}
 
-\item{sigma}{array of dimension T by M by p by p.}
+\item{sigma}{Array of dimension T by M by p by p.}
 
-\item{alpha}{linear coefficients for regression on (log ratio of) prob.}
+\item{ylist}{Data.}
 
-\item{beta}{linear coefficients for regression on mean.}
+\item{prob_lambda}{lambda for lasso for probabilities.}
 
-\item{data}{TT lengthed list of data}
+\item{mean_lambda}{lambda for lasso for the mean.}
 
-\item{N}{Sum of the counts/biomass across all cytograms.}
+\item{alpha}{Alpha coefficients.}
+
+\item{beta}{Beta coefficients.}
+
+\item{denslist_by_clust}{Pre-calculated densities.}
+
+\item{countslist}{(Optional) Counts corresponding to \code{ylist}.}
+
+\item{each}{if TRUE, return separate log likelihood contributions for each cytogram.}
+
+\item{sep}{if TRUE, return separate log likelihood contributions for each particle.}
 }
 \value{
 Either the original objective value or, T-lengthed vector of

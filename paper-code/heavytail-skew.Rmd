@@ -11,6 +11,8 @@ output:
 
 ```{r}
 library(flowmix)
+source("simulation-helpers.R")
+source("gradients2-helpers.R")
 ```
 
 

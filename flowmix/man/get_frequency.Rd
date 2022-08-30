@@ -15,6 +15,8 @@ get_frequency(
 )
 }
 \arguments{
+\item{nsim}{Number of simulations.}
+
 \item{outputdir}{Contains files named "summary-(isim).RDS".}
 
 \item{origres}{Model estimated from the entire dataset.}

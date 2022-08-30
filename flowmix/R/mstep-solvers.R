@@ -19,6 +19,9 @@
 ##' @param maxdev Radius of ball constraint. Defaults to NULL.
 ##'
 ##' @return Fitted beta matrix.
+##' @noRd
+##'
+##' @importFrom CVXR Variable sum_squares vec square Minimize solve
 cvxr_lasso <- function(y, X,  lambda, Xorig=NULL,
                        exclude.from.penalty = NULL,
                        thresh = 1E-8,
@@ -35,8 +38,8 @@ cvxr_lasso <- function(y, X,  lambda, Xorig=NULL,
   pp = p/dimdat - 1 ## The minus 1 is for the intercept
 
   ## Define the parameter
-  betamat <- CVXR::Variable(rows=pp+1,
-                            cols=dimdat)
+  betamat <- CVXR::Variable(rows = pp+1,
+                            cols = dimdat)
 
   ## Set up exclusion from penalty, if applicable.
   if(is.null(exclude.from.penalty)){
@@ -60,8 +63,8 @@ cvxr_lasso <- function(y, X,  lambda, Xorig=NULL,
   prob <- CVXR::Problem(CVXR::Minimize(obj), constraints)
   result = NULL
   result <- tryCatch({
-     solve(prob, solver="ECOS",
-                    FEASTOL = ecos_thresh, RELTOL = ecos_thresh, ABSTOL = ecos_thresh)
+     CVXR::solve(prob, solver="ECOS",
+                 FEASTOL = ecos_thresh, RELTOL = ecos_thresh, ABSTOL = ecos_thresh)
   }, error=function(err){
     err$message = paste(err$message,
                         "\n", "Lasso solver using ECOS has failed." ,sep="")
@@ -79,7 +82,7 @@ cvxr_lasso <- function(y, X,  lambda, Xorig=NULL,
 
   ## Use the SCS solver
   if(scs){
-    result = solve(prob, solver="SCS", eps = scs_eps)
+    result = CVXR::solve(prob, solver="SCS", eps = scs_eps)
     if(any(is.na(result$getValue(betamat)))){ ## A clumsy way to check.
       stop("Lasso solver using both ECOS and SCS has failed.", sep="")
     }
@@ -111,6 +114,7 @@ cvxr_lasso <- function(y, X,  lambda, Xorig=NULL,
 ##'   values, whose last entry is \code{lambda}.
 ##'
 ##' @return A (p+1) by (numclust) matrix.
+##' @noRd
 solve_multinom <- function(y, X, lambda, lambda_max = 10){
 
   ## Basic check

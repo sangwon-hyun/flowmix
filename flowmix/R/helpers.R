@@ -74,34 +74,6 @@ reformat_coef <- function(alpha, beta,
 }
 
 
-##' Inverse Value Matching; Negation of \code{%in%}. Returns the elements of
-##' \code{x} that are not in \code{y}.
-##'
-##' @param x a vector
-##' @param y a vector
-##'
-##' @return Elements of \code{x} that are not in \code{y}.
-##' @noRd
-'%ni%' <- function(x, y){
-  ## return(Negate('%in%')(x))
-  return( !(x %in% y) )
-}
-
-
-##' Helper function to lag a vector
-##' @param x Numeric vector.
-##' @param k Number of lags.
-##'
-##' @return Lag-padded numeric vector.
-##'
-lagpad <- function(x, k) {
-  if (k>0) {
-    return (c(rep(NA, k), x)[1 : length(x)] );
-  }
-  else {
-    return (c(x[(-k+1) : length(x)], rep(NA, -k)));
-  }
-}
 
 ##' Symmetric difference.
 ##'

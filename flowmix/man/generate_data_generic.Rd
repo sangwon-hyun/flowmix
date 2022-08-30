@@ -2,7 +2,7 @@
 % Please edit documentation in R/generate-data.R
 \name{generate_data_generic}
 \alias{generate_data_generic}
-\title{Generic 2d or 3d data generation.}
+\title{Generic 2d or 3d synthetic data generation.}
 \usage{
 generate_data_generic(
   p = 5,
@@ -14,9 +14,27 @@ generate_data_generic(
   prob1 = 3/4
 )
 }
+\arguments{
+\item{p}{Number of covariates.}
+
+\item{TT}{Number of timepoints.}
+
+\item{fac}{Defaults to 1, and determines size of covariance matrix.}
+
+\item{nt}{Number of particles in each time point.}
+
+\item{dimdat}{Dimension of data.}
+
+\item{seed}{Random seed.}
+
+\item{prob1}{Relative abundance for cluster 1 in the first half of the time
+points. Defaults to 3/4, in which case the first half of the time points
+have cluster relative abundances have a ratio of 6:1:1:0. In the later
+half, the fourth cluster appears, and the ratio becomes 6:1:1:1.}
+}
 \value{
 list containing ylist, X
 }
 \description{
-Generic 2d or 3d data generation.
+Generic 2d or 3d synthetic data generation.
 }

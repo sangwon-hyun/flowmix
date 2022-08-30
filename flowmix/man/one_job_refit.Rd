@@ -32,6 +32,8 @@ one_job_refit(
 
 \item{prob_lambdas}{List of regularization parameters for prob model.}
 
+\item{seedtab}{A table containing seeds (7 columns)}
+
 \item{ylist}{Data.}
 
 \item{countslist}{Counts or biomass.}

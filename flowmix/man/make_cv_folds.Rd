@@ -2,16 +2,23 @@
 % Please edit documentation in R/cv.R
 \name{make_cv_folds}
 \alias{make_cv_folds}
-\title{Define the time folds cross-validation.}
+\title{Define the time folds for cross-validation.}
 \usage{
 make_cv_folds(ylist = NULL, nfold, blocksize = 20, TT = NULL)
 }
 \arguments{
-\item{blocksize}{Size (number of time indices) of one block.}
+\item{ylist}{Data.}
+
+\item{nfold}{Number of CV folds.}
+
+\item{blocksize}{Size of time blocks for forming groups of time points
+(cross-validation folds).}
+
+\item{TT}{Number of time points in total.}
 }
 \value{
 List of fold indices.
 }
 \description{
-Define the time folds cross-validation.
+Define the time folds for cross-validation.
 }

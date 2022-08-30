@@ -1,29 +1,58 @@
 ---
-title: "An introduction to `flowmix`"
-output:   rmarkdown::html_vignette
+title: "Using flowmix to analyze flow cytometry data"
+output: 
+  BiocStyle::html_document:
+    toc: yes
 vignette: >
-  %\VignetteIndexEntry{flowmix}
+  %\VignetteIndexEntry{Using flowmix to analyze flow cytometry data}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 
 ---
 
+<!-- I used to use: -->
+<!-- output:  -->
+<!--   prettydoc::html_pretty: -->
+<!--     theme: architect -->
+<!--     highlight: github -->
+
+
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  eval = TRUE
+  eval = TRUE,
+  cache = FALSE,
+  cache.lazy = FALSE
 )
 options(rmarkdown.html_vignette.check_title = FALSE)
 ```
 \def\cN{\mathcal{N}}
 \def\R{\mathbb{R}} 
 
+# Introduction
+
+`flowmix` is an R package containing code for analyzing flow cytometry data
+using the "flowmix" model -- a sparse constrained multivariate mixture of
+regressions model. this model is appropriate to use when you have a collection
+of flow cytometry datasets $y^{(t)}$ *and* p-variate *covariates* $X^{(t)} \in
+\R^p$ -- more about this notation and setup is shown below in the "Model"
+section.
 
 
-`flowmix` is a package that estimates a sparse mixture of regressions model
-using an expectation-maximization (EM) algorithm. 
+The original paper can be found here:
+https://arxiv.org/abs/2008.11251
+(Accepted to the Annals of Applied Statistics).
 
+# Installation 
+
+Simple installation instructions go here.
+
+```{r installation, eval = FALSE}
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("BiocStyle")
+```
 
 # Model
 
@@ -38,7 +67,7 @@ cytograms.
 Now, conditional on covariate $X^{(t)}$ at time $t$, each particle is modeled to
 come from a probabilistic mixture of $K$ different d-variate Gaussians:
 
-$$  y^{(t)}_i | X^{(t)} \sim \cN_d \left(\mu_{kt}, \Sigma_k\right)
+$$y^{(t)}_i | X^{(t)} \sim \cN_d \left(\mu_{kt}, \Sigma_k\right)
   \text{ with probability } \pi_{kt},$$
 
 where $\pi_{kt}$ is the $k$'th cluster's relative abundance at time $t$, and
@@ -57,21 +86,20 @@ for regression coefficients $\beta_{0k} \in \R^d$, $\beta_{k} \in \R^{p \times
 d}$, $\alpha_k \in \R^p$, and $\alpha_{0k} \in \R$ The covariance
 $\Sigma_k$ determines shape of $k$'th Gaussian cluster, and is assumed to be
 constant over time, and not determined by covariates.
+
 <!-- ; $\beta$ and $\alpha$ are -->
 <!-- used as shorthand for the collection of all coefficients. -->
 
-**Sparse estimation.** In practice, there are a large number of covariates
-$X^{(t)}$ that may in principle be predictive of $y^{(t)}$. Also, the number of
-regression parameters is $(p+1)(d+1)K$, which can be large relative to the
-number of cytograms $T$. Furthermore, we would prefer models in which only a
-small number of parameters is nonzero. Therefore, we penalize the log-likelihood
-with lasso penalties \citep{orig-lasso-paper} on $\alpha$ and $\beta$.
+**Sparse coefficient estimation.** The aforementioned model has $(p+1)(d+1)K$
+regression coefficients, which can be large compared to the number of cytograms
+$T$. So we penalize the log-likelihood with lasso penalties
+\citep{orig-lasso-paper} on $\alpha$ and $\beta$, which induce sparsity on these
+coefficients, thus enhancing interpretation and making the model
+identifiable. The two regularization parameters are $\lambda_{\alpha}$ and
+$\lambda_{\beta}$ govern the level of sparsity, and are estimated using
+cross-validation.
 
-The two regularization parameters are $\lambda_{\alpha}$ and $\lambda_{\beta}$
- govern the amount of sparsity in the regression parameters, and are estimated
- using cross-validation.
-
-**Limit cluster mean movement.** Also, in our ocean application, each cell
+**Limiting cluster mean movement.** Also, in our ocean application, each cell
 population has a limited range in optical properties, due to biological
 constraints. We incorporate this domain knowledge into the model by constraining
 the range of $\mu_{k1}, \cdots, \mu_{kT}$ over time. Since $\beta_k^TX^{(t)} =
@@ -87,10 +115,8 @@ all time. When a cell population vanishes we would like $\pi_{kt}$ to go to zero
 rather than for $\mu_{kt}$ to move to an entirely different place in cytogram
 space.
 
-
-Lastly, the model estimates are obtained using an expectation-maximization (EM)
-algorithm, which uses Rcpp and some clever matrix algebra and is optimized to be
-fast.
+Lastly, the model estimates are obtained using a penalized
+expectation-maximization (EM) algorithm, which is optimized to be fast.
 
 For more details about the model and algorithm, please refer to the full paper:
 [link](https://arxiv.org/abs/2008.11251).
@@ -113,7 +139,7 @@ First, generate data:
 
 ```{r generate-data, echo=TRUE}
 set.seed(0)
-datobj = generate_data_generic(p=5, TT=300, fac=.5, nt=2000, dimdat = 1)
+datobj = generate_data_generic(p = 5, TT = 300, fac = .2, nt = 2000, dimdat = 3) #
 ylist = datobj$ylist
 X = datobj$X
 ```
@@ -125,27 +151,39 @@ This produces three dimensional cytograms `ylist` and covariates `X`.
   cytogram) and $n_t$ columns. The number of columns $n_t$ of each element in
   `ylist` can be different.
 
-* `X` is a $T \times d$ matrix, whose $t$'th rows contain the relevant
+* `X` is a $T \times p$ matrix, whose $t$'th rows contain the relevant
   (environmental) covariates of the $t$'th cytogram.
 
-The first cytogram $y^{(1)}$ looks like this.
+The first cytogram $y^{(1)}$ looks like this (only plotting the first two
+dimensions, out of three).
 
 ```{r viz-one-cytogram, fig.width=5, fig.height=5}
-plot(ylist[[1]][,1:2], ylab="", xlab="", pch=16, col=rgb(0,0,1,0.2), cex=.5)
+y = ylist[[1]][,1:2]
+colnames(y) = c("dim1", "dim2")
+as_tibble(y) %>%
+  ggplot() + geom_point(aes(x=dim1, y = dim2), alpha = .3) +
+  coord_fixed()
 ```
 
 Especially if your data is a time series, it could be useful to plot the
 covariates $X^{(t)}$ once across time $t=1,\cdots, T$.
 
-```{r viz-covariates, fig.width=7, fig.height=5}
-matplot(X, type = 'l')
+```{r viz-covariates, fig.width=10, fig.height=3}
+colnames(X) = c("sinewave", "changepoint", "other1", "other2", "other3")
+as_tibble(X) %>%
+  add_column(time = 1:nrow(X)) %>% 
+  pivot_longer(cols = !time)  %>%
+  ggplot(aes(x=time, y=value)) +
+  facet_grid(.~name) +
+  geom_point()
 ```
 
 Now, we estimate the data with *fixed* regularization parameters
 $\lambda_\alpha=0.01$ and $\lambda_\beta=0.01$, and $K=10$ clusters.
 
-Internally, `flowmix()` repeats the estimation five times (the default), and
-returns the estimated model out of five runs with the best data fit.
+Internally, `flowmix()` repeats the estimation five times (five is the default)
+with different random restarts, and returns the estimated model out of five runs
+with the best data fit.
 
 ```{r fit-model}
 numclust = 4
@@ -160,28 +198,54 @@ print(res)
 The cluster probabilities over time look like this:
 
 ```{r plot-prob, fig.width=7, fig.height=5}
-## plot_prob(res)
-cols = RColorBrewer::brewer.pal(numclust, "Set2")
-res$prob %>% matplot(type = 'l', lwd = 2, col = cols, xlab = "Time", ylab = "Cluster probabilities")
-res$prob %>% .[1,] %>% text(x=10, y=., label=paste0("Cluster", 1:numclust))
+prob = res$prob
+colnames(prob) = paste0("Cluster", 1:numclust)
+
+as_tibble(prob) %>% 
+  add_column(time = 1:nrow(prob)) %>% 
+  pivot_longer(cols = !time)  %>%
+  ggplot(aes(x=time, y=value)) +
+  facet_grid(.~name) +
+  geom_line() +
+  ylab("Estimated cluster probability")
 ```
 
-Showing the model across time, in an animation (`scatterplot_2d()` being the
-main data plotter for 2-dimensional data):
+Showing the model estimates across time, in an animation. 
 
-```{r, animation.hook='ffmpeg', dev='jpeg', interval=0.2, ffmpeg.format="gif", fig.width=15, fig.height=6}
-par(mfrow = c(1,3), oma = c(2,2,2,2))
+```{r make-gif, animation.hook='ffmpeg', dev='jpeg', interval=0.1, ffmpeg.format="gif", fig.width=10, fig.height=3.3, message = FALSE, warning = FALSE}
+## Make all 2d plots
 ylim = c(-3,8)
 xlim = c(-5,8)
-for(tt in 1:res$TT){
-  for(dims in list(c(1,2), c(2,3), c(3,1))){
-    scatterplot_2d(ylist, res, tt, dims = dims, cex_fac=1, ylim=ylim, xlim=xlim)
-  }
-  mtext(outer = TRUE,
-        text = paste0("t = ", tt, " out of ", res$TT),
-        cex = 2)
+for(tt in seq(from=1, to = 300, by = 30)){
+  plist = lapply(list(c(1,2), c(2,3), c(3,1)), function(dims){
+
+    ## Take the model estimates for dimensions in \code{dims}
+    mn = res$mn[tt,dims,]
+    sigma = res$sigma[,dims,dims]
+    prob = res$prob[tt,]
+
+    ## Plot them in a figure
+    y = ylist[[tt]][,dims] 
+    varnames = paste0("dim", dims)
+    varname1 = varnames[1]
+    varname2 = varnames[2]
+    colnames(y) = varnames
+    y = y %>% as_tibble()
+    p = ggplot(y, aes(x = !!sym(varname1), y = !!sym(varname2))) +
+      geom_point(alpha = 0.2) +
+      ylim(ylim) +
+      xlim(xlim)
+
+    ## Add model
+    p1 = add_model_2d(p, mn, sigma, prob)
+    return(p1)
+  })
+  
+  gridExtra::grid.arrange(plist[[1]], plist[[2]], plist[[3]], nrow = 1,
+                          top = paste0("t = ", tt, " out of ", res$TT))
 }
 ```
+
 
 ## Cross-validation
 
@@ -190,12 +254,12 @@ parameters in numeric vectors `prob_lambdas` and `mean_lambdas`
 ($\lambda_\alpha$ and $\lambda_\beta$). These can be obtained numerically like
 this:
 
-```{r}
+```{r cv, eval = TRUE}
 ## Define the locations to save the CV results.
 destin = "." 
 
 ## Define the CV folds (as every fifth, nfold-sized, block of indices)
-folds = make_cv_folds(ylist, nfold = 5, verbose = FALSE, blocksize = 20) 
+folds = make_cv_folds(ylist, nfold = 5, blocksize = 20) 
 
 ## This saves to a file `maxres.Rdata` under the |destin| directory.
 maxres = get_max_lambda(destin,
@@ -213,17 +277,21 @@ prob_lambdas =  logspace(min = 0.0001, max = maxres$alpha, length = cv_gridsize)
 mean_lambdas = logspace(min = 0.0001, max = maxres$beta, length = cv_gridsize)
 ```
 
+```{r remove-maxres-file, eval = TRUE, echo = FALSE}
+file.remove(file = file.path("maxres.Rdata"))
+```
+
 Also define the CV folds. You can choose not to, by setting `folds=NULL`, in
 which case the default folds are used.
 
-```{r}
+```{r cv-folds}
 ## Define the CV folds (as every fifth, nfold-sized, block of indices)
-folds = make_cv_folds(ylist, nfold = 5, verbose = FALSE, blocksize = 20) 
+folds = make_cv_folds(ylist, nfold = 5, blocksize = 20) 
 ```
 
 Now, run the cross-validation using `cv.flowmix()`.
 
-```{r eval=FALSE}
+```{r cv-main, eval = FALSE}
 cvres = cv.flowmix(ylist = ylist,
                    countslist = NULL,
                    X = X,
@@ -238,16 +306,16 @@ cvres = cv.flowmix(ylist = ylist,
 ```
 
 (This code takes long, so it's recommended that you run it separately in a
-script; use `mc.cores` option to run the jobs on multiple cores):
+script; use the `mc.cores` option to run the jobs on multiple cores):
 
-Then, the results are saved into separate files whose names follow these rules:
+The results are saved into separate files whose names follow these rules:
 - "1-1-1-1.Rdata" for `ialpha`-`ibeta`-`irep`-`ifold`.Rdata, having run the CV.
 - "1-1-1-cvres.Rdata" for having estimated the model in the full data
 
 After the cross-validation is finished, the final selected model is summarized
 from these files, and optionally saved to a file `summary.RDS` (if `save=TRUE`):
 
-```{r eval=FALSE}
+```{r cv-summary, eval=FALSE}
 cvres = cv_summary(destin = destin,
                    cv_gridsize = 5,
                    nrep = 10,
@@ -258,20 +326,19 @@ cvres = cv_summary(destin = destin,
 
 We can see the final model chosen by cross-validation like this:
 
-```{r eval=FALSE}
+```{r cv-print, eval=FALSE}
 print(cvres$bestres)
 ```
 
 ## Real data
 
-Now, trying this on real data:
+Now, trying this on real (binned) data:
 
 ```{r real-data}
 ## Load data
-load(file = "~/repos/flowmix/demo-MGL1704.Rdata")
-X = X %>% select(-time, -lat, -lon) %>% as.matrix()
-ylist = ybin_list
-countslist = biomass_list
+## datobj = readRDS(file = "~/repos/flowmix/paper-data/MGL1704-hourly-paper.RDS")
+datobj = readRDS(file = "../inst/extdata/MGL1704-hourly-paper.RDS") ## change to readRDS(system.file("extdata", "MGL1704-hourly-paper.RDS"))
+datobj %>% list2env(envir = .GlobalEnv) %>% invisible()
 
 ## Estimate model
 set.seed(1)
@@ -284,53 +351,81 @@ res = flowmix(ylist, X, numclust = 10,
               verbose = FALSE)
 ```
 
-We can visualize the model in several ways.
+See the appendix below for more about binning data.
 
-```{r}
-## Default print
+Also, here we have used a fixed, hand-picked pair of regularization parameter
+values `mean_lambda` and `prob_lambda`. In practice, you'll want to
+cross-validate.
+
+We can visualize the estimated model in several ways. First, the default
+`print()` gives a summary about the coefficients' sparseness.
+
+```{r real-print}
 print(res)
 ```
 
+The probabilities in `res$prob` can be visualized as follows.
 
-```{r fig.width=10, fig.height=5}
-## Plot estimated probabilities
-cols = RColorBrewer::brewer.pal(numclust, "Set2")
-res$prob %>% matplot(type = 'l', lwd = 2, col = cols, xlab = "Time", ylab = "Cluster probabilities")
-res$prob %>% .[1,] %>% text(x=10, y=., label=paste0("Cluster", 1:numclust))
+```{r real-prob-plot, fig.width = 10, fig.height = 6}
+numclust = 10
+prob = res$prob
+colnames(prob) = paste0("Cluster ", 1:numclust)
+prob_long = as_tibble(prob) %>% 
+  add_column(time = 1:nrow(prob)) %>% 
+  pivot_longer(cols = !time) 
+prob_long$name = factor(prob_long$name, paste0("Cluster ", 1:numclust))
+
+prob_long %>%
+  ggplot(aes(x = time, y = value)) +
+  facet_wrap(~name, ncol = 5) +
+  geom_line() +
+  ylab("Estimated cluster probability")
 ```
 
 
-```{r, animation.hook='ffmpeg', dev='jpeg', interval=0.2, ffmpeg.format="gif", fig.width=15, fig.height=6}
-## Three scatterplots of one time point
-par(mfrow = c(1,3))
-ylim = c(-3,8)
-xlim = c(-5,8)
+Lastly, the model means and 95\% confidence regions in `res$mn` can be
+visualized -- two dimensions at a time, overlaid with data -- as follows.
+
+<!-- {r real-gif, animation.hook = 'ffmpeg', dev = jpeg, interval = 0.1, ffmpeg.format = "gif", fig.width = 10, fig.height = 3.3, message=FALSE, warning=FALSE} -->
+
+```{r real-data-plot, fig.width = 10, fig.height = 3.3, message=FALSE, warning=FALSE}
 dimnames = c("diam", "red", "orange")
-par(mfrow = c(1,3), oma = c(2,2,2,2))
-for(tt in 1:50){
-  for(dims in list(c(1,2), c(2,3), c(3,1))){
-    scatterplot_2d(ylist = ylist,
-                   countslist = countslist,
-                   obj = res,
-                   tt,
-                   dims = dims, cex_fac=8,
-                   pt_col = rgb(0 ,0, 1, 0.1),
-                   xlab = dimnames[dims[1]],
-                   ylab = dimnames[dims[2]])
-  }
-  mtext(outer = TRUE,
-        text = paste0("t = ", tt, " out of ", res$TT),
-        cex = 2)
+## for(tt in seq(from=1, to = 296, by = 10)){
+for(tt in c(50,100,150,200)){
+  plist = lapply(list(c(1,2), c(2,3), c(3,1)), function(dims){
+
+    ## Take the model estimates for dimensions in \code{dims}
+    mn = res$mn[tt,dims,]
+    sigma = res$sigma[,dims,dims]
+    prob = res$prob[tt,]
+
+    ## Plot them in 2d 
+    y = ylist[[tt]][,dims] 
+    varnames = dimnames[dims] ##paste0("dim", dims)
+    varname1 = varnames[1]
+    varname2 = varnames[2]
+    colnames(y) = varnames
+    y = y %>% as_tibble()
+    p = ggplot(y, aes(x = !!sym(varname1), y = !!sym(varname2))) +
+      geom_tile(alpha = 0.2) +
+      ylim(c(0,8)) +  xlim(c(0,8))
+
+    ## Add model
+    p = add_model_2d(p, mn, sigma, prob)
+    return(p)
+  })
+  gridExtra::grid.arrange(plist[[1]], plist[[2]], plist[[3]], nrow = 1,
+                          top = paste0("t = ", tt, " out of ", res$TT))
 }
 ```
 
 
-## Appendix
+# Appendix
 
-### Binning data
+## Binning data
 
-If the data contains too many particles, we can reduce the size of `ylist` and
-instead deal with binned counts.
+If the data contains too many particles, it is better to reduce the size of
+`ylist` and instead deal with binned counts.
 
 The new object `countslist` can be *additionally* input to `flowmix()`.
 
@@ -340,17 +435,70 @@ places the particles in `ylist` in each of these bins. The resulting object is a
 list which contains the grid centers `ybin_list` and the counts in each
 `counts_list`.
 
-(Not used here, but optionally, you can also upweight each particle, e.g. using
-the biomass of each particle.)
+(It's not demonstrated here, but apart from binning data, another use for
+`countslist` is to describe the biomass of each particle.)
 
-```{r}
+```{r bin-data, fig.width = 5}
+## Generate synthetic particle-level (non-binned) data
+set.seed(0)
+datobj = generate_data_generic(p = 5, TT = 100, fac = .2, nt = 2000, dimdat = 3)
+ylist = datobj$ylist
+X = datobj$X
+y = ylist %>% .[[1]] %>% as_tibble()
+colnames(y) = c("dim1", "dim2", "dim3")
+
+## Plot data before binning
+p = ggplot(y) +
+  geom_point(aes(x=dim1, y=dim2), alpha = .1, size = rel(1)) +
+  coord_fixed()
+plot(p)
+```
+
+Then, bin the particle-level data using `bin_many_cytograms()`.
+
+```{r do-the-binning}
 ## Bin this data
 grid = make_grid(ylist, gridsize = 30)
-obj = bin_many_cytograms(ylist, grid, mc.cores = 8, verbose=FALSE)  
+obj = bin_many_cytograms(ylist, grid, mc.cores = 4, verbose=FALSE)  
 ylist = obj$ybin_list
 countslist = obj$counts_list
 
+ylist[[1]] %>% head(15) %>% round(3) %>% print()
+countslist[[1]] %>% head(15) %>% print()
+```
+
+Here is what the binned data looks like (focusing on the first two dimensions).
+
+```{r bin-plot, fig.width = 5}
+## Just look at one time point
+tt = 10
+dims = c(1,2)
+y = ylist[[tt]]##[,dims] 
+counts = countslist[[tt]]
+
+## Collapse the binned 3d data to 2d
+y = flowmix::collapse_3d_to_2d(y, counts, dims = 1:2) %>% as_tibble()
+y %>% head(15) %>% round(3) %>% print()
+
+## Plot it
+varname1 = colnames(y)[1]
+varname2 = colnames(y)[2]
+colours = c("white", "blue")
+p = ggplot(y) +
+  geom_tile(aes(x = !!sym(varname1), y = !!sym(varname2), fill = counts)) +
+  theme_grey() +
+  scale_fill_gradientn(colours = colours, guide="colorbar") +
+  theme(legend.position = "none") +
+  coord_fixed() +
+  ggtitle(paste0(tt, " out of ", 100))
+plot(p)
+```
+
+Now, estimating a model on the binned data: 
+
+```{r bin-model}
 ## Run the algorithm on binned data
+numclust = 4
 res = flowmix(ylist = ylist,
               X = X,
               countslist = countslist,
@@ -359,17 +507,28 @@ res = flowmix(ylist = ylist,
               prob_lambda = 0.001,
               verbose = FALSE,
               maxdev = 0.5)
+print(res)
 ```
 
+And finally overlaying the model on the binned data: 
 
-### EM algorithm = one job
+```{r bin-model-plot, fig.width = 5}
+## Add model
+mn = res$mn[tt,dims,]
+sigma = res$sigma[,dims, dims]
+prob = res$prob[tt,]
+p = add_model_2d(p, mn, sigma, prob)
+plot(p)
+```
 
-It's useful to understand how the cross-validation is done. The key is that it
-is embarassingly parallel, and can be parallelized into multiple CPU cores on a
-single computer, or among many different computers.
+## EM algorithm = one job
 
-Next, one "job" (using the function `one_job(ialpha, ibeta, ifold, irep)`) is to
-run the EM algorithm once, for:
+It's useful to understand how the cross-validation is done. The key is to
+parallelize into multiple CPU cores on a single computer, or even among many
+different computers or servers.
+
+One "job" (using the function `one_job(ialpha, ibeta, ifold, irep)`) is to run
+the EM algorithm once, for:
 
 - the `ialpha`-th $\lambda_\alpha$ value (out of `prob_lambdas`).
 - the `ibeta`-th $\lambda_\alpha$ value (out of `mean_lambdas`).
@@ -379,14 +538,14 @@ run the EM algorithm once, for:
 After each job is run, the result is saved in a file named like
 `[ialpha]-[ibeta]-[ifold]-[irep]-cvscore.Rdata`.
 
-The cross-validation is designed this way because (1) it is clearly and
-conveniently parallelizable, and (2) a large amount of computation is required
-for even a normal-sized job, using a 5-fold cross-validation with 10 restarts,
-over a 10 x 10 grid of regularization values. Running each job and saving them
-to separate files, allows the user to parallelize, and save and restart jobs
-conveniently.
+The cross-validation is designed to maximally allow for parallel computations.
+(Notice how even a normal-sized using a 5-fold cross-validation with 10
+restarts, over a 10 x 10 grid of $(\lambda_\alpha, \lambda_\beta)$ takes $6,000$
+separate "jobs", or EM algorithm runs). A design that separates each job -- and
+saves each result to separate files -- allows the user to parallelize as they
+wish, and if necessary, save and restart jobs conveniently.
 
-```{r, eval=FALSE}
+```{r one-job, eval=FALSE}
 ## Example of one CV job for one pair of regularization parameters (and CV folds
 ## and EM replicates)
 ialpha = 1
@@ -406,16 +565,17 @@ one_job(ialpha = ialpha,
         countslist = NULL,
         X = X,
         numclust = 4,
-        maxdev = 0.5,
-        ## verbose = TRUE
-        )
+        maxdev = 0.5)
 ```
 
-Also, the `nrep` estimated models for any given `ialpha` and `ibeta` in the full
-data are obtained using `one_job_refit()` (again, saving to files named
-`[ialpha]-[ibeta]-[irep]-cvscore.Rdata`):
+The above call to `one_job()` saves one file to `1-1-1-1-cvscore.Rdata` to
+`destin = "~/Desktop"`.
 
-```{r, eval=FALSE}
+Next, the `nrep` estimated models for any given `ialpha` and `ibeta` --
+estimated in the full data -- are obtained using `one_job_refit()` (again,
+saving to files named `[ialpha]-[ibeta]-[irep]-cvscore.Rdata`):
+
+```{r one-job-refit, eval=FALSE}
 ## Example of one replicate of model estimation (in the full data) for one pair
 ## of regularization parameters.
 ialpha = 1
@@ -436,11 +596,5 @@ one_job_refit(ialpha = ialpha,
               )
 ```
 
-As we've mentioned above, since all of this is clearly parallelizable, it's
-recommended to use multiple computers or servers for the full cross-validation.
-
-<!-- # Advanced usage -->
-
-<!-- * Match clusterings from two different models on the same data. -->
-
-<!-- * See the objective values ? -->
+It's recommended to use multiple computers or servers for the full
+cross-validation, e.g. using `parallel::mclapply()`.

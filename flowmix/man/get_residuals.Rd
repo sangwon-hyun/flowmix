@@ -10,6 +10,8 @@ get_residuals(ylist, countslist = NULL, res, drawslist, mc.cores = 1)
 \arguments{
 \item{ylist}{Data.}
 
+\item{countslist}{Multiplicity for particles in \code{ylist}.}
+
 \item{res}{Model; \code{flowmix} class object.}
 
 \item{drawslist}{Membership draws, from \code{draw_membership()}.}

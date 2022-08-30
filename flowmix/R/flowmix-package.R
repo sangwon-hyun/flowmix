@@ -1,4 +1,4 @@
-##' flowmix: computating sparse mixture of regressions for flow cytometry data.
+##' flowmix: computing sparse mixture of regressions for flow cytometry data.
 ##'
 ##' The main function for conducting analyses is \code{flowmix()}.
 ##'
@@ -10,15 +10,14 @@
 ##' @useDynLib flowmix, .registration = TRUE
 ##' @importFrom glmnet glmnet
 ##' @importFrom glmnet coef.glmnet
-##' @import CVXR
 ##' @import dplyr
 ##' @importFrom ellipse ellipse
-##' @importFrom sn rsn
 ##' @importFrom MASS mvrnorm
 ##' @importFrom abind abind
 ##' @useDynLib flowmix
 ##' @import Rcpp
 ##' @importFrom Rcpp sourceCpp
+##' @importFrom grDevices rgb
 ##' @import RcppArmadillo
 ##' @import RcppEigen
 NULL

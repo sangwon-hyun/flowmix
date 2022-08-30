@@ -94,9 +94,11 @@ reorder_clust <- function(res, ord = NULL){
 ##'   match with the i'th cluster of the original model.
 ##'
 ##' @export
+##' @importFrom clue solve_LSAP
 get_best_match_from_kl <- function(resp_new, resp_orig){
 
   ## Basic checks
+  . = NULL ## Fixing check()
   assertthat::assert_that(all(sapply(resp_new, dim) == sapply(resp_orig , dim)))
 
   ## Row-bind all the responsibilities to make a long matrix

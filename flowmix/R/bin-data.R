@@ -73,6 +73,8 @@ bin_one_cytogram <- function(y, manual.grid, qc=NULL){
 ##'   matrices.
 ##' @param manual.grid grid, produced using \code{make_grid()}.
 ##' @param qclist Biomass (Qc) of each particle. Defaults to NULL.
+##' @param mc.cores Use for multiple-core calculations.
+##' @param verbose TRUE for loudness.
 ##'
 ##' @return List containing *trimmed* ybin (a x 3) and counts (a).
 ##'
@@ -120,7 +122,22 @@ bin_many_cytograms <- function(ylist, manual.grid, verbose = FALSE, mc.cores = 1
 
 
 ##' Get the midpoints in the a grid
+##'
+##' @param grid grid from \code{make_grid()}.
+##'
+##' @noRd
 make_midpoints <- function(grid){
+
+  ## Helper function to lag a vector
+  lagpad <- function(x, k) {
+    if (k>0) {
+      return (c(rep(NA, k), x)[1 : length(x)] );
+    }
+    else {
+      return (c(x[(-k+1) : length(x)], rep(NA, -k)));
+    }
+  }
+
   midpoints = lapply(grid, function(x){
     midpts = apply(cbind(x, lagpad(x,-1)),1,mean)
     midpts = midpts[-which(is.na(midpts))]
@@ -129,6 +146,13 @@ make_midpoints <- function(grid){
 }
 
 
+##' Binning helper.
+##' @param counts d x d x d array containing counts. If this is NULL, then dummy
+##'   counts of -100 are added.
+##' @param midpoints midpoints of each bin.
+##' @param names Names of the data columns.
+##' @param dimdat Dimension of data (one of 1, 2 or 3).
+##' @noRd
 make_ybin <- function(counts, midpoints, names=NULL, dimdat = 3){
   ## if(!(dimdat %in% c(2,3))){
   ##   stop("Dimension of data needs to be 2d or 3d.")
@@ -243,8 +267,10 @@ make_ybin_1d <- function(counts, midpoints, names=NULL){
 ##'
 ##' @param y Single cytogram.
 ##' @param grid Grid, created using \code{make_grid()}.
+##' @param qc Biomass.
 ##'
 ##' @return All counts, as a 3-dimensional array.
+##' @noRd
 make_counts <- function(y, grid, qc=NULL){
 
   ## Go through y_list, identify the closest box, add a count to the midpoint of

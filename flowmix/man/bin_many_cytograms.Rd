@@ -19,6 +19,10 @@ matrices.}
 
 \item{manual.grid}{grid, produced using \code{make_grid()}.}
 
+\item{verbose}{TRUE for loudness.}
+
+\item{mc.cores}{Use for multiple-core calculations.}
+
 \item{qclist}{Biomass (Qc) of each particle. Defaults to NULL.}
 }
 \value{

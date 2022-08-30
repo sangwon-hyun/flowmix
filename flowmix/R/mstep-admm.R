@@ -216,6 +216,7 @@ Mstep_beta_admm <- function(resp,
 ##'
 ##' @param K Number of outer iterations.
 ##'
+##' @noRd
 la_admm_oneclust <- function(K,
                              ...){
 
@@ -281,7 +282,7 @@ la_admm_oneclust <- function(K,
     objectives = objectives + padding
 
     ## See if outer iterations should terminate
-    if(outer_converge(na.omit(objectives)) | res$converge){
+    if(outer_converge(stats::na.omit(objectives)) | res$converge){
       break
     }
 
@@ -327,6 +328,7 @@ outer_converge <- function(objectives){
 ##' @param local_adapt TRUE if locally adaptive ADMM is to be used.
 ##'
 ##' @return List containing |beta|, |yhat|, |resid_mat|, |fits|.
+##' @noRd
 admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
                           TT, N, dimdat, maxdev,
                           Xa,
@@ -504,17 +506,20 @@ admm_oneclust <- function(iclust, niter, Xtilde, yvec, p,
 }
 
 
-##' Update U in the new ADMM
+##' Update U in the ADMM.
+##' @noRd
 U_update <- function(U, rho, Xaug, beta, Z, W){
   (U + rho * (Xaug %*% beta - rbind(Z, W)) )
 }
 
 ##' Update U in the new ADMM
+##' @noRd
 W_update  <- function(beta, Uw, lambda, rho){
   soft_thresh(beta + Uw/rho, lambda/rho)
 }
 
 ##' (Helper) Soft thresholding of |a| at radius of |b|.
+##' @noRd
 ##'
 ##' @param a Numeric vector.
 ##' @param b Numeric vector of same length as \code{length(b)}.
@@ -533,6 +538,9 @@ soft_thresh <- function(a, b){
 }
 
 
+##' Obtain intercept estimate beta0.
+##'
+##' @noRd
 intercept <- function(resp, resp.sum, ylist, beta, X, N, iclust, ybar){
   dimdat = ncol(ylist[[1]])
   TT = length(ylist)
@@ -543,12 +551,15 @@ intercept <- function(resp, resp.sum, ylist, beta, X, N, iclust, ybar){
   return(ybar - colSums(yhat))
 }
 
-
+##' Update Z in the ADMM.
+##' @noRd
 Z_update  <- function(Xbeta, Uz, C, rho){
   mat = Xbeta + Uz/rho
   Z = projCmat(mat, C)
 }
 
+##' Ball projection.
+##' @noRd
 projCmat <- function(mat, C){
   if(!is.null(C)){
     vlens = sqrt(rowSums(mat * mat))
@@ -564,6 +575,7 @@ projCmat <- function(mat, C){
 ###### All helpers for main ADMM function, prepping for sylvester solver ###
 
 
+##' @noRd
 center_X <- function(iclust, resp.sum, X){
   resp.sum.thisclust = sum(resp.sum[,iclust])
   Xtilde = colSums(resp.sum[,iclust] * X) / resp.sum.thisclust
@@ -572,19 +584,7 @@ center_X <- function(iclust, resp.sum, X){
 }
 
 
-##' Not used anymore; erase soon
-center_y <- function(iclust, ylist, resp, resp.sum){
-  resp.sum.thisclust = sum(resp.sum[,iclust])
-  ybar = Reduce("+", Map(function(y, myresp){
-    myresp[,iclust, drop = TRUE] %*% y
-  }, ylist, resp)) / resp.sum.thisclust
-  ycentered_list = Map(function(y, myresp){
-    colSums(myresp[,iclust] * sweep(y, 2, ybar, check.margin=FALSE))
-  }, ylist, resp) ##/ resp.sum.thisclust
-  ycentered = do.call(cbind, ycentered_list)
-  return(ycentered)
-}
-
+##' @noRd
 weight_ylist <- function(iclust, resp, resp.sum, ylist){
 
   ## Setup
@@ -618,6 +618,7 @@ weight_ylist <- function(iclust, resp, resp.sum, ylist){
 ##' @param mat Numeric matrix.
 ##'
 ##' @return List.
+##' @noRd
 myschur <- function(mat){
   stopifnot(nrow(mat) == ncol(mat))
   if(is.numeric(mat) & length(mat)==1) mat = mat %>% as.matrix()
@@ -634,7 +635,7 @@ myschur <- function(mat){
 ##' @param err_rel = 1E-3
 ##' @param inheritParams Mstep_beta_admm
 ##'
-##'
+##' @noRd
 converge <- function(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX, Xbeta1,
                      err_rel = 1E-4,
                      err_abs = 0
@@ -683,6 +684,7 @@ converge <- function(beta1, rho, w, Z, w_prev, Z_prev, Uw, Uz, tX, Xbeta1,
 ##' @param beta p x d matrix
 ##' @inheritParams Mstep_beta_admm
 ##'
+##' @noRd
 objective_per_cluster <- function(beta, ylist, Xa, resp, lambda, N, dimdat,
                                   iclust, sigma, iter, zerothresh, first_iter,
                                   sigma_eig_by_clust=NULL, rcpp = FALSE){

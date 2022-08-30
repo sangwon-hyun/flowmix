@@ -9,6 +9,8 @@ draw_membership(resp, verbose = FALSE)
 \arguments{
 \item{resp}{Posteerior cluster probabilities, or responsibilities, from
 \code{Estep()}.}
+
+\item{verbose}{Loud or not?}
 }
 \value{
 List containing cluster membership draws.

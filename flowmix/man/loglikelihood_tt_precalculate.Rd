@@ -15,11 +15,17 @@ loglikelihood_tt_precalculate(
 )
 }
 \arguments{
+\item{ylist}{Response data.}
+
 \item{tt}{Time point of interest.}
 
 \item{denslist_by_clust}{Pre-calculated densities.}
 
 \item{prob}{Population proportions.}
+
+\item{countslist}{(Optional) Counts corresponding to \code{ylist}.}
+
+\item{numclust}{Number of clusters.}
 }
 \value{
 Log likelihood.

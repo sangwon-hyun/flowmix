@@ -31,6 +31,7 @@ datadir = "../paper-data"
 
 ## Load some helpers
 source("gradients2-helpers.R")
+source("simulations-helpers.R")
 ```
 
 # Simulation examples

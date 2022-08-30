@@ -8,7 +8,7 @@
 collapse_3d_to_2d(y, counts, dims = 1:2)
 }
 \arguments{
-\item{y}{3d cytogram.}
+\item{y}{3d cytogram (a 3-column matrix).}
 
 \item{counts}{The multiplicity for each of the particles in \code{y}.}
 

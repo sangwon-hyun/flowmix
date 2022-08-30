@@ -2,12 +2,17 @@
 % Please edit documentation in R/generate-data.R
 \name{add_transition}
 \alias{add_transition}
-\title{(to add to package) Add step function bases demarcated by transition region
-crossings.}
+\title{Add a column of 0's and 1's with one changepoint, demarcated by transition
+region crossings.}
 \usage{
 add_transition(X, lat)
 }
+\arguments{
+\item{X}{Covariates.}
+
+\item{lat}{Latitude.}
+}
 \description{
-(to add to package) Add step function bases demarcated by transition region
-crossings.
+Add a column of 0's and 1's with one changepoint, demarcated by transition
+region crossings.
 }

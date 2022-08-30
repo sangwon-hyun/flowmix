@@ -8,11 +8,13 @@
 ##' stabilizes.
 ##'
 ##' @param ylist List of responses.
+##' @param countslist Multiplicity for particles in \code{ylist}.
 ##' @param X Covariates.
 ##' @param numclust Number of clusters.
 ##' @param max_mean_lambda Defaults to 4000.
 ##' @param max_prob_lambda Defaults to 1000.
 ##' @param iimax Maximum value of x for 2^{-x} factors to try.
+##' @param verbose TRUE for loudness.
 ##' @param ... Other arguments to \code{flowmix_once()}.
 ##' @return list containing the two maximum values to use.
 ##' @examples
@@ -39,6 +41,7 @@
 ##'                             )
 ##'
 ##' }
+##' @export
 calc_max_lambda <- function(ylist, countslist = NULL, X, numclust,
                             max_mean_lambda = 4000,
                             max_prob_lambda = 1000,
@@ -119,6 +122,7 @@ calc_max_lambda <- function(ylist, countslist = NULL, X, numclust,
 ##' @param destin Where to save the output (A two-lengthed list called
 ##'   "maxres").
 ##' @param maxres_file Filename for output. Defaults to maxres.Rdata.
+##' @param maxdev Maximum value of lambda.
 ##' @param ... Additional arguments to \code{flowmix()}.
 ##' @inheritParams calc_max_lambda
 ##'

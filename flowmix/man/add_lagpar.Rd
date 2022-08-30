@@ -13,6 +13,8 @@ add_lagpar(X, lags)
 }
 \value{
 Transformed X.
+
+Helper function to lag a vector
 }
 \description{
 (To add to package) add step function to the lags

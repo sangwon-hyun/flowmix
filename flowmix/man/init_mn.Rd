@@ -13,6 +13,14 @@ such datasets. 3 is actually \code{mulen}.}
 \item{numclust}{Number of clusters (M).}
 
 \item{TT}{total number of (training) time points.}
+
+\item{dimdat}{Data dimension.}
+
+\item{countslist}{Multiplicity for particles in \code{ylist}.}
+
+\item{seed}{Seven integers that is called at the beginning of \code{init_mn()}
+so it can be assigned to \code{.Random.seed} for setting the random state
+for the initial mean generation.}
 }
 \value{
 An array of dimension (T x dimdat x M).

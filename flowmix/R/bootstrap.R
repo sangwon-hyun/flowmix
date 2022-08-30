@@ -3,19 +3,20 @@
 ##'
 ##' @param resp Posteerior cluster probabilities, or responsibilities, from
 ##'   \code{Estep()}.
+##' @param verbose Loud or not?
 ##'
 ##' @return List containing cluster membership draws.
 ##'
 ##' @export
 draw_membership <- function(resp, verbose = FALSE){
 
+  . = NULL ## Fixing check()
   TT = length(resp)
 
   drawslist = list()
   for(tt in 1:TT){
     if(verbose) print_progress(tt, TT, "Membership draw, time point = ")
-    draws = resp[[tt]] %>% apply(., 1, function(p){
-     rmultinom(1, 1, p)}) %>% t()
+    draws = resp[[tt]] %>% apply(., 1, function(p){stats::rmultinom(1, 1, p)}) %>% t()
     drawslist[[tt]] = draws
   }
   cat(fill = TRUE)
@@ -32,6 +33,7 @@ draw_membership <- function(resp, verbose = FALSE){
 ##' @param res Model; \code{flowmix} class object.
 ##' @param drawslist Membership draws, from \code{draw_membership()}.
 ##' @param mc.cores Number of cores, to be used by \code{parallel::mclapply()}.
+##' @param countslist Multiplicity for particles in \code{ylist}.
 ##'
 ##' @export
 get_residuals <- function(ylist, countslist = NULL, res, drawslist, mc.cores = 1){
@@ -58,7 +60,7 @@ get_residuals <- function(ylist, countslist = NULL, res, drawslist, mc.cores = 1
 
   ## Obtain the accompanying counts
   if(!is.null(countslist)){
-    countslist_by_cluster = mclapply(1:TT, function(tt){
+    countslist_by_cluster = parallel::mclapply(1:TT, function(tt){
       counts = countslist[[tt]]
       counts_by_clust = lapply(1:numclust, function(iclust){
         ind = index_by_clust[[tt]][[iclust]]
@@ -175,6 +177,7 @@ check_if_same_size <- function(ylist1, ylist2){
 ##' From subsampling bootstrap results (summary files), produce stability
 ##' measures.
 ##'
+##' @param nsim Number of simulations.
 ##' @param outputdir Contains files named "summary-(isim).RDS".
 ##' @param origres Model estimated from the entire dataset.
 ##' @param ylist_particle Original particle-level cytogram data.
@@ -188,6 +191,7 @@ check_if_same_size <- function(ylist1, ylist2){
 get_frequency <- function(nsim, outputdir, origres, ylist_particle, X, prefix="summary-sim-"){
 
   ## Setup
+  . = NULL ## Fixing check()
   numclust = origres$numclust
 
   ######################
@@ -206,7 +210,7 @@ get_frequency <- function(nsim, outputdir, origres, ylist_particle, X, prefix="s
     cvres = readRDS(file = resfile)
 
     ## Estimated model
-    newres = predict(cvres$bestres, newx = X)
+    newres = predict.flowmix(cvres$bestres, newx = X)
     ## class(newres) = "flowmix"
 
     ## Reorder the new res.
@@ -228,10 +232,10 @@ get_frequency <- function(nsim, outputdir, origres, ylist_particle, X, prefix="s
   beta_arrays = lapply(beta_list, abind, along = 0)
 
   ## Calculate frequencies
-  beta_freq = beta_arrays %>% map(. %>% threshold(1E-8)) %>% Reduce("+", .) %>% `/`(nsim)
+  beta_freq = beta_arrays %>% purrr::map(. %>% threshold(1E-8)) %>% Reduce("+", .) %>% `/`(nsim)
 
   ## Combine all alphas
-  alpha_freq = alpha_list %>% map(. %>% threshold(1E-8)) %>% Reduce("+", .) %>% t() %>% `/`(nsim)
+  alpha_freq = alpha_list %>% purrr::map(. %>% threshold(1E-8)) %>% Reduce("+", .) %>% t() %>% `/`(nsim)
 
   return(list(alpha_freq = alpha_freq,
               beta_freq = beta_freq,

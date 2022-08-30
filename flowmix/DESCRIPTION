@@ -1,5 +1,5 @@
 Package: flowmix
-Title: Ocean Flow Cytometry Analysis 
+Title: Sparse multivariate mixture of regressions for analyzing flow cytometry data
 Version: 0.0.0.9000
 Authors@R: 
     person(given = "Sangwon",
@@ -9,8 +9,6 @@ Authors@R:
 Imports: 
     assertthat,
     glmnet,
-    mvtnorm,
-    data.table,
     dplyr,
     Rcpp,
     RcppArmadillo,
@@ -19,52 +17,29 @@ Imports:
     Matrix,
     abind,
     ellipse,
-    sn,
     CVXR,
-    magrittr,
-    ggplot2,
-    RColorBrewer,
     clue,
-    ggrepel,
-    gridExtra,
-    lattice,
     lubridate,
-    plot3D
+    tibble,
+    purrr,
+    ggplot2,
 LinkingTo: Rcpp, RcppArmadillo, RcppEigen
 Suggests:
+    prettydoc,
     testthat,
     knitr,
-    rmarkdown
-Description: Tools for analyzing ocean flow cytometry data.
+    rmarkdown,
+    lattice,
+    plot3D,
+    gridExtra,
+    BiocStyle,
+    ggrepel,
+    RColorBrewer,
+    maps,
+Enhances: parallel
+Description: Sparse multivariate mixture of regressions for analyzing flow cytometry data.
 License: MIT + file LICENSE 
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.1.1
-VignetteBuilder: knitr
-Collate: 
-    'RcppExports.R'
-    'bin-data.R'
-    'bootstrap.R'
-    'cv-summarize.R'
-    'cv.R'
-    'eigen.R'
-    'estep.R'
-    'flowmix-package.R'
-    'flowmix.R'
-    'gate.R'
-    'generate-data.R'
-    'get-lambda-range.R'
-    'helpers.R'
-    'init.R'
-    'mstep-admm.R'
-    'mstep-solvers.R'
-    'mstep.R'
-    'objective.R'
-    'plot-1d.R'
-    'plot-2d.R'
-    'plot-3d.R'
-    'plot-helpers.R'
-    'plot-other.R'
-    'plot3d-extra.R'
-    'print.R'
-    'reorder-clusters.R'
+RoxygenNote: 7.1.2
+VignetteBuilder: knitr, rmarkdown

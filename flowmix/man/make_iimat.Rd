@@ -10,6 +10,8 @@ make_iimat(cv_gridsize, nfold, nrep)
 \item{cv_gridsize}{CV grid size.}
 
 \item{nfold}{Number of of CV folds.}
+
+\item{nrep}{Number of repetitions.}
 }
 \value{
 Integer matrix.

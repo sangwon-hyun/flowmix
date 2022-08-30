@@ -5,12 +5,14 @@
 \title{Prediction: Given new covariates X's, generate a set of predicted cluster
 means and probs (and return the same Sigma).}
 \usage{
-\method{predict}{flowmix}(object, newx, ...)
+\method{predict}{flowmix}(object, ...)
 }
 \arguments{
 \item{object}{Object returned from \code{flowmix()}.}
 
-\item{newx}{New covariate.}
+\item{...}{Make sure to provide new covariate values, a row vector in the
+same format and column names as the original X used in \code{object}, in
+\code{newx}.}
 }
 \value{
 List containing mean, prob, and sigma.

@@ -1,19 +1,23 @@
 ##' Objectives (negative log likelihood).
 ##'
-##' @param prob matrix of mixture proportions, T by M.
-##' @param mu array of dimension (T x dimdat x numclust ) ; old: T by M by p.
-##' @param data TT lengthed list of data
-##' @param sigma array of dimension T by M by p by p.
-##' @param alpha linear coefficients for regression on (log ratio of) prob.
-##' @param beta linear coefficients for regression on mean.
-##' @param N Sum of the counts/biomass across all cytograms.
+##' @param prob Matrix of mixture proportions, T by M.
+##' @param mu Array of dimension (T x dimdat x numclust ) ; old: T by M by p.
+##' @param sigma Array of dimension T by M by p by p.
+##' @param alpha Alpha coefficients.
+##' @param beta Beta coefficients.
+##' @param ylist Data.
+##' @param countslist (Optional) Counts corresponding to \code{ylist}.
+##' @param denslist_by_clust Pre-calculated densities.
+##' @param mean_lambda lambda for lasso for the mean.
+##' @param prob_lambda lambda for lasso for probabilities.
+##' @param sep if TRUE, return separate log likelihood contributions for each particle.
+##' @param each if TRUE, return separate log likelihood contributions for each cytogram.
 ##'
 ##' @return Either the original objective value or, T-lengthed vector of
 ##'   objective values at each time point.
 ##'
 ##' @export
 objective <- function(mu, prob, sigma,
-                      ## TT, N, dimdat, numclust,
                       ylist,
                       prob_lambda=0, mean_lambda=0,
                       alpha = NULL, beta = NULL,
@@ -80,6 +84,7 @@ objective <- function(mu, prob, sigma,
 ##'
 ##' @return Log likelihood.
 ##'
+##' @inheritParams loglikelihood_tt
 loglikelihood_tt_precalculate <- function(ylist, tt, denslist_by_clust, prob, countslist = NULL, numclust){
 
   ## One particle's log likelihood (weighted density)
@@ -104,6 +109,8 @@ loglikelihood_tt_precalculate <- function(ylist, tt, denslist_by_clust, prob, co
 ##' @param tt Time point of interest.
 ##' @param sigma Covariances.
 ##' @param countslist (Optional) Counts corresponding to \code{ylist}.
+##' @param numclust Number of clusters.
+##' @param sep if TRUE, return separate log likelihood contributions for each particle.
 ##'
 ##' @return Log likelihood.
 ##'

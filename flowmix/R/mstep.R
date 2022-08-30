@@ -218,6 +218,7 @@ Mstep_beta <- function(resp, ylist, X,
 ##' @param first_iter TRUE if this is the first EM iteration.
 ##'
 ##' @return 3 (or dimdat) |numclust|-length lists.
+##' @noRd
 manip <- function(ylist, X, resp, sigma, numclust,
                   sigma_eig_by_clust = NULL,
                   first_iter = FALSE){
@@ -283,6 +284,7 @@ manip <- function(ylist, X, resp, sigma, numclust,
 ##' @param exclude.from.penality If not NULL, contains index in 1:p
 ##'
 ##' @return Penalized objective value.
+##' @noRd
 multinom_objective <- function(alpha, x, y, lambda, N,
                                exclude.from.penalty=NULL) {
   n <- nrow(x)

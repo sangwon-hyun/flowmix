@@ -3,7 +3,7 @@
 \docType{package}
 \name{flowmix}
 \alias{flowmix}
-\title{flowmix: computating sparse mixture of regressions for flow cytometry data.}
+\title{flowmix: computing sparse mixture of regressions for flow cytometry data.}
 \usage{
 flowmix(..., nrep = 5)
 }

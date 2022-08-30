@@ -43,11 +43,18 @@ time (T) and with (nt) particles at every time point.}
 
 \item{prob_lambdas}{Regularization parameters for alphas.}
 
+\item{iimat}{Indices for the cross validation jobs -- made using
+\code{make_iimat()}.}
+
+\item{maxdev}{Maximum deviation of cluster means across time.}
+
 \item{numclust}{Number of clusters}
 
 \item{nfold}{Number of cross-validation folds. Defaults to 5.}
 
 \item{nrep}{Number of repetitions.}
+
+\item{verbose}{TRUE for loudness.}
 
 \item{refit}{If TRUE, estimate the model on the full data, for each pair of
 regularization parameters.}
@@ -60,6 +67,12 @@ regularization parameters.}
 
 \item{folds}{Manually provide CV folds (list of time points of data to use
 as CV folds). Defaults to NULL.}
+
+\item{seedtab}{A table containing seeds (7 columns)}
+
+\item{flatX_thresh}{Threshold for detecting if any covariates are flat (low
+variance). These flat coefficients will have be set to zero and excluded
+from estimation altogether.}
 
 \item{...}{Additional arguments to flowmix().}
 }

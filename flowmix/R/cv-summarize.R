@@ -109,9 +109,12 @@ cv_aggregate <- function(destin,
                          sim = FALSE,
                          isim = 1){
 
+  cv_gridsize = nrep = prob_lambdas = NULL ## fixing check()
+
   ## ## Read the meta data (for |nfold|, |cv_gridsize|, |nrep|, |prob_lambdas|,
   ## ## |mean_lambdas|)
   load(file = file.path(destin, 'meta.Rdata'), verbose = FALSE)
+  assertthat::assert_that(!is.null(cv_gridsize) & !is.null(nrep))
 
   ## This loads all the necessary things; just double-checking.
   stopifnot(exists("nrep"))
@@ -133,6 +136,8 @@ cv_aggregate <- function(destin,
           filename = make_cvscore_filename(ialpha, ibeta, ifold, irep, sim, isim)
           tryCatch({
             load(file.path(destin, filename), verbose = FALSE)
+            assertthat::assert_that(!is.null(prob_lambdas))
+            assertthat::assert_that(!is.null(mean_lambdas))
             cvscore.array[ialpha, ibeta, ifold, irep] = cvscore
             obj[ifold, irep] = objectives[length(objectives)]
           }, error = function(e){})
@@ -191,6 +196,7 @@ cv_aggregate_res <- function(destin,
                              isim = NULL
                              ){
 
+  cv_gridsize = nrep = NULL
   load(file.path(destin, "meta.Rdata"))
 
   ## df.mat = matrix(NA, ncol=cv_gridsize, nrow=cv_gridsize)
@@ -208,6 +214,7 @@ cv_aggregate_res <- function(destin,
         tryCatch({
           ## Load fitted result
           load(file.path(destin, filename))
+          assertthat::assert_that(!is.null(cv_gridsize) & !is.null(nrep))
 
           ## Calculate DF
           res.list.inner[[irep]] = res

@@ -26,9 +26,13 @@ get_max_lambda(
 
 \item{ylist}{List of responses.}
 
+\item{countslist}{Multiplicity for particles in \code{ylist}.}
+
 \item{X}{Covariates.}
 
 \item{numclust}{Number of clusters.}
+
+\item{maxdev}{Maximum value of lambda.}
 
 \item{max_prob_lambda}{Defaults to 1000.}
 

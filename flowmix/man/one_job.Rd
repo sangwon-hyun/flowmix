@@ -44,6 +44,8 @@ containing results for, say `isim=3`, has "3-" appended to the beginning.}
 
 \item{isim}{Simulation number.}
 
+\item{seedtab}{A table containing seeds (7 columns)}
+
 \item{ylist}{Data.}
 
 \item{countslist}{Counts or biomass.}

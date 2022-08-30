@@ -10,9 +10,11 @@ bin_plot_1d(ylist, qclist, col = NULL)
 \item{ylist}{Must be numeric vectors containing bin centers.}
 
 \item{qclist}{Corresponding QC in those bins.}
+
+\item{col}{Vector of colors.}
 }
 \value{
-ggplot
+ggplot object.
 }
 \description{
 Make a 1d binned data plot, using ggplot.

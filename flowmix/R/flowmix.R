@@ -33,15 +33,38 @@ flowmix <- function(..., nrep = 5){
 ##' @param countslist Multiplicity for particles in \code{ylist}.
 ##' @param numclust Number of clusters
 ##' @param X Matrix of size (T x p+1)
-##' @param prob.list (T by K)
 ##' @param mean_lambda lambda for lasso for the mean.
 ##' @param prob_lambda lambda for lasso for probabilities.
 ##' @param tol_em Relative tolerance for EM convergence. Defaults to 1E-4.
 ##' @param zero_stabilize Defaults to FALSE. If TRUE, the EM is only run until
-##'   the zero pattern in the coefficients stabilize.
+##'   the pattern of zeros in the coefficients stabilizes over EM iterations.
 ##' @param seed Seven integers that is called directly before \code{init_mn()}
 ##'   so it can be assigned to \code{.Random.seed} for setting the random state
 ##'   for the initial mean generation.
+##' @param niter Number of EM iterations.
+##' @param mn Initial means to use. Defaults to NULL.
+##' @param verbose TRUE for loudness (e.g. printing EM iterations).
+##' @param maxdev Radius for maximum deviation of cluster means over time.
+##' @param admm_rho Step size for ADMM
+##' @param admm_err_rel Relative error threshold for stopping ADMM.
+##' @param admm_err_abs Absolute error threshold for stopping ADMM.
+##' @param admm_local_adapt_niter Absolute error threshold for stopping ADMM.
+##' @param admm_niter Number of ADMM iterations.
+##' @param admm_local_adapt TRUE if locally adaptive ADMM (LA-ADMM) is to be used. If
+##'   so, \code{admm_niter} becomes the inner number of iterations, and
+##'   \code{admm_local_adapt_niter} becomes the number of outer iterations.
+##' @param admm_local_adapt_niter Number of inner iterations in LA ADMM.
+##' @param CVXR If TRUE, use CVXR instead of ADMM. Slow, and meant to be used
+##'   only for sanity checking during code development.
+##' @param flatX_thresh Threshold for detecting if any covariates are flat (low
+##'   variance). These flat coefficients will have be set to zero and excluded
+##'   from estimation altogether.
+##' @param sigma_fac Defaults to 1, and governs how big the initial covariance
+##'   matrices should be in size.
+##' @param countslist_overwrite Mainly used by \code{cv.flowmix()}; not to be
+##'   modified by user.
+##' @param zerothresh Alpha coefficient values below \code{zerothresh} are set
+##'   to zero.
 ##'
 ##' @return List containing fitted parameters and means and mixture weights,
 ##'   across algorithm iterations. \code{beta} is a list of (p+1 x dimdat)
@@ -57,13 +80,8 @@ flowmix_once <- function(ylist, X,
                          maxdev = NULL,
                          countslist_overwrite = NULL,
                          zero_stabilize  = FALSE,
-                         init_mn_flatten = FALSE,
-                         ## beta Mstep (CVXR) settings
-                         mstep_cvxr_ecos_thresh = 1E-8,
-                         mstep_cvxr_scs_eps = 1E-5,
                          zerothresh = 1E-6,
                          ## beta Mstep (ADMM) settings
-                         admm = TRUE,
                          admm_rho = 0.01,
                          admm_err_rel = 1E-3,
                          admm_err_abs = 1E-4,
@@ -75,6 +93,9 @@ flowmix_once <- function(ylist, X,
                          seed = NULL,
                          flatX_thresh = 1e-5
                          ){
+
+
+  . = NULL ## Fixing check()
 
   ## Capture all arguments once
   call <- sys.call();
@@ -99,7 +120,7 @@ flowmix_once <- function(ylist, X,
 
   ## Detect if any covariates are flat (low variance)
   ## If so, remove that, run flowmix_once(), and add back zeros in the coefficients.
-  flatX = which(apply(X, 2, sd) < flatX_thresh)
+  flatX = which(apply(X, 2, stats::sd) < flatX_thresh)
   if(length(flatX) == 0) rm(args)
   if(length(flatX) > 0){
 
@@ -231,8 +252,7 @@ flowmix_once <- function(ylist, X,
     ## 3. (Continue) Decompose the sigmas.
     sigma_eig_by_clust <- eigendecomp_sigma_array(sigma)
     denslist_by_clust <- make_denslist_eigen(ylist, mn, TT, dimdat, numclust,
-                                             sigma_eig_by_clust,
-                                             countslist)
+                                             sigma_eig_by_clust)
 
     ## Calculate the objectives
     objectives[iter] = objective(mn, prob, sigma, ylist,
@@ -327,17 +347,22 @@ flowmix_once <- function(ylist, X,
 ##' means and probs (and return the same Sigma).
 ##'
 ##' @param object Object returned from \code{flowmix()}.
-##' @param newx New covariate.
+##' @param ... Make sure to provide new covariate values, a row vector in the
+##'   same format and column names as the original X used in \code{object}, in
+##'   \code{newx}.
 ##'
 ##' @return List containing mean, prob, and sigma.
 ##'
 ##' @export
 ##'
-predict.flowmix <- function(object, newx, ...){
+predict.flowmix <- function(object, ...){
 
   ## Basic checks
   ## stopifnot(ncol(new.x) == ncol(object$X))
   ## newx = X[1,,drop=FALSE]
+  . = NULL ## Fixing check()
+  rest = list(...)
+  newx = rest$newx
   if(is.null(newx)){
     newx = object$X
   }
@@ -405,10 +430,10 @@ predict.flowmix <- function(object, newx, ...){
 ##'
 ##' @return numclust-lengthed list of TT-lengthed.
 ##'
+##' @noRd
 make_denslist_eigen <- function(ylist, mu,
                                 TT, dimdat, numclust,
-                                sigma_eig_by_clust,
-                                countslist){ ## Temporary
+                                sigma_eig_by_clust){
 
   ## Basic checks
   assertthat::assert_that(!is.null(sigma_eig_by_clust))
@@ -438,4 +463,5 @@ make_denslist_eigen <- function(ylist, mu,
 
 
 ##' Functions to check convergence.
+##' @noRd
 check_converge_rel <- function(old, new, tol=1E-6){ return(abs((old-new)/old) < tol )  }
