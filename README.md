@@ -5,7 +5,8 @@ This package implements a sparse mixture of multivariate regressions model for
 flow cytometry data. The main motivating application is continuous-time flow
 cytometry data collected in the ocean, over space and time.
 
-The paper preprint is here: [https://arxiv.org/abs/2008.11251](https://arxiv.org/abs/2008.11251).
+The paper preprint is here: [https://arxiv.org/abs/2008.11251](https://arxiv.org/abs/2008.11251), 
+and will appear in the Annals of Applied Statistics.
 
 ## Installation
 
