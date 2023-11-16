@@ -2,82 +2,82 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 sylC <- function(A, B, C) {
-    .Call('_flowmix_sylC', PACKAGE = 'flowmix', A, B, C)
+    .Call(`_flowmix_sylC`, A, B, C)
 }
 
 soft_threshC <- function(a, b) {
-    .Call('_flowmix_soft_threshC', PACKAGE = 'flowmix', a, b)
+    .Call(`_flowmix_soft_threshC`, a, b)
 }
 
 wvec_updateC <- function(b1, uw, lambda, rho) {
-    .Call('_flowmix_wvec_updateC', PACKAGE = 'flowmix', b1, uw, lambda, rho)
+    .Call(`_flowmix_wvec_updateC`, b1, uw, lambda, rho)
 }
 
 rowSumsC <- function(x) {
-    .Call('_flowmix_rowSumsC', PACKAGE = 'flowmix', x)
+    .Call(`_flowmix_rowSumsC`, x)
 }
 
 rowSumsC_arma <- function(x) {
-    .Call('_flowmix_rowSumsC_arma', PACKAGE = 'flowmix', x)
+    .Call(`_flowmix_rowSumsC_arma`, x)
 }
 
 rowSumsC2_arma <- function(x) {
-    .Call('_flowmix_rowSumsC2_arma', PACKAGE = 'flowmix', x)
+    .Call(`_flowmix_rowSumsC2_arma`, x)
 }
 
 projCmatC <- function(mat, C) {
-    .Call('_flowmix_projCmatC', PACKAGE = 'flowmix', mat, C)
+    .Call(`_flowmix_projCmatC`, mat, C)
 }
 
 Z_updateC <- function(Xbeta1, Uz, C, rho, dimdat, TT) {
-    .Call('_flowmix_Z_updateC', PACKAGE = 'flowmix', Xbeta1, Uz, C, rho, dimdat, TT)
+    .Call(`_flowmix_Z_updateC`, Xbeta1, Uz, C, rho, dimdat, TT)
 }
 
 mv_mult <- function(lhs, rhs) {
-    .Call('_flowmix_mv_mult', PACKAGE = 'flowmix', lhs, rhs)
+    .Call(`_flowmix_mv_mult`, lhs, rhs)
 }
 
 b_updateC <- function(wvec, uw, rho, cvec3_el, yvec, D, DtDinv, N) {
-    .Call('_flowmix_b_updateC', PACKAGE = 'flowmix', wvec, uw, rho, cvec3_el, yvec, D, DtDinv, N)
+    .Call(`_flowmix_b_updateC`, wvec, uw, rho, cvec3_el, yvec, D, DtDinv, N)
 }
 
 subtractC2 <- function(wt, mat, vec, mat2) {
-    .Call('_flowmix_subtractC2', PACKAGE = 'flowmix', wt, mat, vec, mat2)
+    .Call(`_flowmix_subtractC2`, wt, mat, vec, mat2)
 }
 
 subtractC3 <- function(wt, mat, vec) {
-    .Call('_flowmix_subtractC3', PACKAGE = 'flowmix', wt, mat, vec)
+    .Call(`_flowmix_subtractC3`, wt, mat, vec)
 }
 
 dothisC <- function(longwt, ylong, mumat, sigma_half) {
-    .Call('_flowmix_dothisC', PACKAGE = 'flowmix', longwt, ylong, mumat, sigma_half)
+    .Call(`_flowmix_dothisC`, longwt, ylong, mumat, sigma_half)
 }
 
 dmvnorm_arma_fast <- function(x, mean, sigma, logd = FALSE) {
-    .Call('_flowmix_dmvnorm_arma_fast', PACKAGE = 'flowmix', x, mean, sigma, logd)
+    .Call(`_flowmix_dmvnorm_arma_fast`, x, mean, sigma, logd)
 }
 
 estepC <- function(ylong, mnlong, sqrt_resp_long, resp_sum) {
-    .Call('_flowmix_estepC', PACKAGE = 'flowmix', ylong, mnlong, sqrt_resp_long, resp_sum)
+    .Call(`_flowmix_estepC`, ylong, mnlong, sqrt_resp_long, resp_sum)
 }
 
 ss <- function(X, ind) {
-    .Call('_flowmix_ss', PACKAGE = 'flowmix', X, ind)
+    .Call(`_flowmix_ss`, X, ind)
 }
 
 matrix_function_solve_triangular_sylvester_barebones <- function(TA, TB, C) {
-    .Call('_flowmix_matrix_function_solve_triangular_sylvester_barebones', PACKAGE = 'flowmix', TA, TB, C)
+    .Call(`_flowmix_matrix_function_solve_triangular_sylvester_barebones`, TA, TB, C)
 }
 
 sylC_upper_tri <- function(TA, UA, tUA, TB, UB, tUB, syl_C) {
-    .Call('_flowmix_sylC_upper_tri', PACKAGE = 'flowmix', TA, UA, tUA, TB, UB, tUB, syl_C)
+    .Call(`_flowmix_sylC_upper_tri`, TA, UA, tUA, TB, UB, tUB, syl_C)
 }
 
 prepare_sylC_const3 <- function(U, Xaug, rho, Z, X, W, term3, sigma, Xinv) {
-    .Call('_flowmix_prepare_sylC_const3', PACKAGE = 'flowmix', U, Xaug, rho, Z, X, W, term3, sigma, Xinv)
+    .Call(`_flowmix_prepare_sylC_const3`, U, Xaug, rho, Z, X, W, term3, sigma, Xinv)
 }
 
 prepare_sylC_const33 <- function(U, Xaug, rho, Z, X, W, N, sigmainv, yXcentered, sigma, Xinv) {
-    .Call('_flowmix_prepare_sylC_const33', PACKAGE = 'flowmix', U, Xaug, rho, Z, X, W, N, sigmainv, yXcentered, sigma, Xinv)
+    .Call(`_flowmix_prepare_sylC_const33`, U, Xaug, rho, Z, X, W, N, sigmainv, yXcentered, sigma, Xinv)
 }
 

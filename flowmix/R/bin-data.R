@@ -321,7 +321,7 @@ trim_one_cytogram <- function(ybin, counts){
   ## Trim both if necessary
   if(any(counts==0)){
     inds = which(counts==0)
-    ybin = ybin[-which(counts==0), ]
+    ybin = ybin[-which(counts==0), ,drop=FALSE]
     counts = as.numeric(counts[-which(counts==0)])
   }
   return(list(ybin = ybin, counts = counts))
