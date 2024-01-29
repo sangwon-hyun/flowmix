@@ -8,21 +8,46 @@
 ##' @export
 flowmix <- function(..., nrep = 5){
 
-  ## Don't do many restarts if warmstart-able mean exists
   dots <- list(...)
+  if("verbose" %in% names(dots)){
+    if(dots$verbose){
+      cat("EM will restart", nrep, "times", fill=TRUE)
+    }
+  }
+
+  ## Don't do many restarts if warmstart-able mean is provided
   if(!is.null(dots$mn)) nrep = 1
   if(!is.null(dots$seed)) stop("Can't provide seed for flowmix()! Only for flowmix_once().")
 
   ## Do |nrep| restarts.
   reslist = list()
-  for(itrial in 1:nrep){
-    reslist[[itrial]] = flowmix_once(...)
+  for(irep in 1:nrep){
+    if("verbose" %in% names(dots)){
+      if(dots$verbose){ cat("EM restart:", irep, fill=TRUE) }
+    }
+    reslist[[irep]] = flowmix_once(...)
+    if("verbose" %in% names(dots)){
+      if(dots$verbose){
+        cat(fill=TRUE)
+      }
+    }
   }
 
   ## Pick the best one and return
   objlist = lapply(reslist, function(res){ res$obj[-1]})
   ii = which.min(sapply(objlist, min))
-  return(reslist[[ii]])
+  final_model = reslist[[ii]]
+
+  ## Also save /all/ the objectives
+  final_model$all_objectives =
+    lapply(1:nrep, function(irep){
+        one_model = reslist[[irep]]
+        data.frame(objective = one_model$objectives) %>%
+          mutate(iter=row_number(), irep = irep) %>%
+          select(irep, iter, objective)
+    }) %>% bind_rows()
+
+  return(final_model)
 }
 
 ##' Main function for running the EM algorithm once.

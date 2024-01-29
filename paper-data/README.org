@@ -5,4 +5,4 @@ produce tables and figures in the paper.
 
 They are too large in size, so they are instead available for download in the following data repository:
 
-https://sandbox.zenodo.org/record/1097433.
+[[https://zenodo.org/records/6471995]]
