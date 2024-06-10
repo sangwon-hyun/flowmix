@@ -14,6 +14,7 @@ Estep(
   numclust,
   denslist_by_clust = NULL,
   first_iter = FALSE,
+  eps = 1e-20,
   countslist = NULL
 )
 }
@@ -32,6 +33,9 @@ Estep(
 
 \item{first_iter}{\code{TRUE} if this is the first EM iteration, which is
 handled separately.}
+
+\item{eps}{A small number that is added to the weighted probabilities
+/before/ normalizing to get the responsibilities. Defaults to 1E-20.}
 
 \item{countslist}{Counts or biomass.}
 }

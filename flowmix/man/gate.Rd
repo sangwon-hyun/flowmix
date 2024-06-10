@@ -5,16 +5,19 @@
 \title{Gate (classify) the particles in \code{ylist_particle} according to random
 draws from the particle responsibilities -- from the model in \code{res}.}
 \usage{
-gate(res, ylist_particle, countslist_particle, seed = NULL)
+gate(res, ylist_particle, countslist_particle, seed = NULL, eps_estep = 1e-20)
 }
 \arguments{
-\item{res}{flowmix class object.}
+\item{res}{flowmix class object (or similar).}
 
 \item{ylist_particle}{Particles}
 
 \item{countslist_particle}{Counts or biomass of the particles.}
 
 \item{seed}{Optionally set a seed for drawing particle membership.}
+
+\item{eps_estep}{A small number that is added to the weighted densities
+/before/ normalizing to get the responsibilities. Defaults to NULL.}
 }
 \value{
 Memberships.

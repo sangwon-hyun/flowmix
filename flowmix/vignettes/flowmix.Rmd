@@ -440,6 +440,7 @@ list which contains the grid centers `ybin_list` and the counts in each
 
 ```{r bin-data, fig.width = 5}
 ## Generate synthetic particle-level (non-binned) data
+library(flowmix)
 set.seed(0)
 datobj = generate_data_generic(p = 5, TT = 100, fac = .2, nt = 2000, dimdat = 3)
 ylist = datobj$ylist
