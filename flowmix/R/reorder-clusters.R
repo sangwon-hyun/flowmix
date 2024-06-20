@@ -60,6 +60,7 @@ reorder_kl <- function(newres, origres, ylist_particle, fac = 100, verbose = FAL
 reorder_clust <- function(res, ord = NULL){
 
   ## Find an order by sums (averages)
+  stopifnot(class(res)=="flowmix")
   if(is.null(ord)) ord = res$mn[,1,] %>% colSums() %>% order(decreasing=TRUE)
   if(!is.null(ord)) all(sort(ord) == 1:res$numclust)
 
