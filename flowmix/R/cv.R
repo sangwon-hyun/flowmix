@@ -141,12 +141,24 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
 
   ## Get the train/test data
   test.inds = unlist(folds[ifold])
-  test.dat = ylist[test.inds]
-  test.count = countslist[test.inds]
-  test.X = X[test.inds,,drop=FALSE]
-  train.dat = ylist[-test.inds]
-  train.count = countslist[-test.inds]
-  train.X = X[-test.inds,, drop=FALSE]
+  # test.dat = ylist[test.inds]
+  # test.count = countslist[test.inds]
+  # test.X = X[test.inds,,drop=FALSE]
+  # train.dat = ylist[-test.inds]
+  # train.count = countslist[-test.inds]
+  # train.X = X[-test.inds,, drop=FALSE]
+  
+  # These lines assume rownames(X) == 1:nrow(X) or is null, 
+  # names(ylist) == 1:length(ylist) or is null, and  
+  # names(countslist) == 1:length(countslist) or is null.
+  # This preserves original indices if cross-validation is performed on 
+  # a subset of the data.
+  test.dat = ylist[as.character(test.inds)]
+  test.count = countslist[as.character(test.inds)]
+  test.X = X[as.character(test.inds), , drop = FALSE]
+  train.dat = ylist[setdiff(names(ylist), test.inds)]
+  train.count = countslist[setdiff(names(countslist), test.inds)]
+  train.X = X[setdiff(rownames(X), test.inds), , drop = FALSE]
 
   ## Check whether this job has been done already.
   filename = make_cvscore_filename(ialpha, ibeta, ifold, irep, sim, isim)
