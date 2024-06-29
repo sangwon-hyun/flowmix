@@ -366,7 +366,7 @@ make_iimat_small <- function(cv_gridsize){
 
 
 ##' Create file name (a string) for cross-validation results.
-##' @noRd
+##' @export
 make_cvscore_filename <- function(ialpha, ibeta, ifold, irep,
                                   ## If simulations, then additional file names
                                   sim = FALSE, isim = 1){
@@ -378,7 +378,7 @@ make_cvscore_filename <- function(ialpha, ibeta, ifold, irep,
 
 ##' Create file name (a string) for re-estimated models for the lambda values
 ##' indexed by \code{ialpha} and \code{ibeta}.
-##' @noRd
+##' @export
 make_refit_filename <- function(ialpha, ibeta, irep,
                                   ## If simulations, then additional file names
                                 sim = FALSE, isim = 1){
