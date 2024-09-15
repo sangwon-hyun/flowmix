@@ -102,7 +102,7 @@ collapse_3d_to_1d <- function(ylist, countslist, idim){
   }, mc.cores = 1)
 
   ## The coordinates are the names of the elements in |countslist|
-  ylist_1d = lapply(countslist_1d, function(a) as.numeric(names(a)))
+  ylist_1d = lapply(countslist_1d, function(a) as.numeric(names(a)) %>% cbind())
 
   ## Final checks
   assertthat::assert_that(all(sapply(ylist_1d, length) ==

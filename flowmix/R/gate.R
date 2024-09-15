@@ -1,15 +1,17 @@
 ##' Gate (classify) the particles in \code{ylist_particle} according to random
 ##' draws from the particle responsibilities -- from the model in \code{res}.
 ##'
-##' @param res flowmix class object.
+##' @param res flowmix class object (or similar).
 ##' @param ylist_particle Particles
 ##' @param countslist_particle Counts or biomass of the particles.
 ##' @param seed Optionally set a seed for drawing particle membership.
+##' @param eps_estep A small number that is added to the weighted densities
+##'   /before/ normalizing to get the responsibilities. Defaults to NULL.
 ##'
 ##' @return Memberships.
 ##'
 ##' @export
-gate <- function(res, ylist_particle, countslist_particle, seed = NULL){
+gate <- function(res, ylist_particle, countslist_particle, seed = NULL, eps_estep = 1E-20){
 
   ## Setup
   TT = length(ylist_particle)
@@ -17,7 +19,7 @@ gate <- function(res, ylist_particle, countslist_particle, seed = NULL){
 
   ## Conduct the E-step once to calculate responsibilities
   resp <- Estep(res$mn, res$sigma, res$prob, ylist = ylist_particle,
-                numclust = res$numclust, first_iter = TRUE)
+                numclust = res$numclust, first_iter = TRUE, eps = eps_estep)
 
   ## Draw cluster membership.
   if(!is.null(seed)) set.seed(seed)

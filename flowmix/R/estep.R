@@ -7,6 +7,8 @@
 ##' @param mn Array of all means.
 ##' @param sigma (numclust x dimdat x dimdat) array.
 ##' @param numclust Number of clusters.
+##' @param eps A small number that is added to the weighted probabilities
+##'   /before/ normalizing to get the responsibilities. Defaults to 1E-20.
 ##' @param first_iter \code{TRUE} if this is the first EM iteration, which is
 ##'   handled separately.
 ##' @param denslist_by_clust Pre-calculated densities.
@@ -21,6 +23,7 @@ Estep <- function(mn, sigma, prob, ylist = NULL,
                   numclust,
                   denslist_by_clust = NULL,
                   first_iter = FALSE,
+                  eps = 1E-20,
                   countslist = NULL){
 
   ## Setup
@@ -35,7 +38,7 @@ Estep <- function(mn, sigma, prob, ylist = NULL,
     mu <- mn[tt,,iclust] ## No problem with memory leak here.
     if(first_iter){
       if(dimdat==1){
-        dens = stats::dnorm(y, mu, sigma[iclust,,])
+        dens = stats::dnorm(y, mu, sd = sqrt(sigma[iclust,,])) ## make sure to use standard deviation here!
       } else {
         dens = dmvnorm_arma_fast(y, mu, sigma[iclust,,], FALSE)
       }
@@ -59,7 +62,7 @@ Estep <- function(mn, sigma, prob, ylist = NULL,
 
     ## Weight them by prob, to produce responsibilities.
     wt.densmat <- matrix(prob[tt,], nrow = ntlist[tt], ncol = ncol.prob, byrow = TRUE) * densmat
-    wt.densmat = wt.densmat + 1E-10 ## Add some small number to prevent ALL zeros.
+    wt.densmat = wt.densmat + eps ## Add some small number to prevent ALL zeros.
     wt.densmat <- wt.densmat / rowSums(wt.densmat)
 
     ## If |countslist| is provided, reweight the responsibilities.
