@@ -2,7 +2,7 @@
 % Please edit documentation in R/mstep.R
 \name{mtsqrt_inv}
 \alias{mtsqrt_inv}
-\title{Given a matrix positive definite matrix a, compute a^{-1/2}.  Only works for
+\title{Given a matrix positive definite matrix a, compute \eqn{a^{-1/2}}.  Only works for
 positive semidefinite matrices that are diagonalizable (no normal Jordan
 forms, etc.)}
 \usage{
@@ -15,7 +15,7 @@ mtsqrt_inv(a)
 Matrix of the same size as \code{a}.
 }
 \description{
-Given a matrix positive definite matrix a, compute a^{-1/2}.  Only works for
+Given a matrix positive definite matrix a, compute \eqn{a^{-1/2}}.  Only works for
 positive semidefinite matrices that are diagonalizable (no normal Jordan
 forms, etc.)
 }

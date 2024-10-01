@@ -98,7 +98,7 @@ Mstep_sigma <- function(resp, ylist, mn, numclust){
   return(sigma_array)
 }
 
-##' Given a matrix positive definite matrix a, compute a^{-1/2}.  Only works for
+##' Given a matrix positive definite matrix a, compute \eqn{a^{-1/2}}.  Only works for
 ##' positive semidefinite matrices that are diagonalizable (no normal Jordan
 ##' forms, etc.)
 ##'

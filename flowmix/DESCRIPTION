@@ -22,7 +22,7 @@ Imports:
     lubridate,
     tibble,
     purrr,
-    ggplot2,
+    ggplot2
 LinkingTo: Rcpp, RcppArmadillo, RcppEigen
 Suggests:
     prettydoc,
@@ -36,10 +36,11 @@ Suggests:
     ggrepel,
     RColorBrewer,
     maps,
+    tidyr
 Enhances: parallel
 Description: Sparse multivariate mixture of regressions for analyzing flow cytometry data.
 License: MIT + file LICENSE 
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.2
 VignetteBuilder: knitr, rmarkdown

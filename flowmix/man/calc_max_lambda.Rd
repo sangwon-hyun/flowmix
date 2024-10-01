@@ -38,7 +38,7 @@ calc_max_lambda(
 
 \item{verbose}{TRUE for loudness.}
 
-\item{iimax}{Maximum value of x for 2^{-x} factors to try.}
+\item{iimax}{Maximum value of \eqn{x} for \eqn{2^{-x}} factors to try.}
 
 \item{...}{Other arguments to \code{flowmix_once()}.}
 }

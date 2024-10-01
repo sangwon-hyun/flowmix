@@ -372,15 +372,21 @@ flowmix_once <- function(ylist, X,
 ##' means and probs (and return the same Sigma).
 ##'
 ##' @param object Object returned from \code{flowmix()}.
+##' @param logits Logical: should the function return the logits of the cluster probs (TRUE)  
+##'   or the cluster probs (FALSE)?
 ##' @param ... Make sure to provide new covariate values, a row vector in the
 ##'   same format and column names as the original X used in \code{object}, in
 ##'   \code{newx}.
 ##'
-##' @return List containing mean, prob, and sigma.
+##' @return List containing mean, prob, and sigma. If 
+##' user specifies logits = TRUE, prob will still be 
+##' called prob, but it will actually contain the linear 
+##' predictor of prob (the multinomial analogue of the 
+##' logit function). 
 ##'
 ##' @export
 ##'
-predict.flowmix <- function(object, ...){
+predict.flowmix <- function(object, logits = FALSE, ...){
 
   ## Basic checks
   ## stopifnot(ncol(new.x) == ncol(object$X))
@@ -418,12 +424,19 @@ predict.flowmix <- function(object, ...){
 
   ## Predict the probs.
   ## newprob = predict(object$alpha.fit, newx=newx, type='response')[,,1]
+  probhatmat = as.matrix(tcrossprod(cbind(1, newx), object$alpha))
+  if(logits) {
+    newprob = probhatmat
+  } else {
+    probhatmat = exp(probhatmat)
+    newprob = probhatmat / rowSums(probhatmat)
+  }
+  # probhatmat = as.matrix(exp(cbind(1,newx) %*% t(object$alpha)))
+  # newprob = probhatmat / rowSums(probhatmat)
 
-  probhatmat = as.matrix(exp(cbind(1,newx) %*% t(object$alpha)))
-  newprob = probhatmat / rowSums(probhatmat)
   ## predict(fit, newx=X, type="response")[,,1]
   stopifnot(all(dim(newprob) == c(TT,numclust)))
-  stopifnot(all(newprob >= 0))
+  stopifnot(logits | all(newprob >= 0)) # stop if not logits and any probs < 0 
 
   ## Return all three things
   return(list(mn = newmn_array,

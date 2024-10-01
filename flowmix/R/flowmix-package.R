@@ -5,7 +5,8 @@
 ##' Try the built-in vignette (`vignette("flowmix")`), for a step-by-step
 ##' tutorial.
 ##'
-##' @docType package
+##' @keywords internal 
+"_PACKAGE"
 ##' @name flowmix
 ##' @useDynLib flowmix, .registration = TRUE
 ##' @importFrom glmnet glmnet
@@ -20,6 +21,10 @@
 ##' @importFrom grDevices rgb
 ##' @import RcppArmadillo
 ##' @import RcppEigen
+
+# TODO: prevent warning about replacing RcppArmadillo imports by RcppEigen 
+# imports
+
 NULL
 #> NULL
 
