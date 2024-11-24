@@ -13,7 +13,7 @@
 ##' @param numclust Number of clusters.
 ##' @param max_mean_lambda Defaults to 4000.
 ##' @param max_prob_lambda Defaults to 1000.
-##' @param iimax Maximum value of x for 2^{-x} factors to try.
+##' @param iimax Maximum value of \eqn{x} for \eqn{2^{-x}} factors to try.
 ##' @param verbose TRUE for loudness.
 ##' @param ... Other arguments to \code{flowmix_once()}.
 ##' @return list containing the two maximum values to use.

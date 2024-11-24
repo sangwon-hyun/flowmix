@@ -5,17 +5,24 @@
 \title{Prediction: Given new covariates X's, generate a set of predicted cluster
 means and probs (and return the same Sigma).}
 \usage{
-\method{predict}{flowmix}(object, ...)
+\method{predict}{flowmix}(object, logits = FALSE, ...)
 }
 \arguments{
 \item{object}{Object returned from \code{flowmix()}.}
+
+\item{logits}{Logical: should the function return the logits of the cluster probs (TRUE)
+or the cluster probs (FALSE)?}
 
 \item{...}{Make sure to provide new covariate values, a row vector in the
 same format and column names as the original X used in \code{object}, in
 \code{newx}.}
 }
 \value{
-List containing mean, prob, and sigma.
+List containing mean, prob, and sigma. If 
+user specifies logits = TRUE, prob will still be 
+called prob, but it will actually contain the linear 
+predictor of prob (the multinomial analogue of the 
+logit function).
 }
 \description{
 Prediction: Given new covariates X's, generate a set of predicted cluster

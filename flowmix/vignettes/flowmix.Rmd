@@ -128,7 +128,9 @@ main function is `flowmix()`.
 
 ```{r setup, message=FALSE}
 library(flowmix)
-library(tidyverse)
+library(tidyr)
+library(ggplot2)
+library(tibble)
 library(RColorBrewer)
 ```
 
@@ -458,9 +460,10 @@ plot(p)
 Then, bin the particle-level data using `bin_many_cytograms()`.
 
 ```{r do-the-binning}
+# TODO: fix this error
 ## Bin this data
 grid = make_grid(ylist, gridsize = 30)
-obj = bin_many_cytograms(ylist, grid, mc.cores = 4, verbose=FALSE)  
+obj = bin_many_cytograms(ylist, grid, mc.cores = 2, verbose=FALSE) # CRAN limits the number of cores to 2  
 ylist = obj$ybin_list
 countslist = obj$counts_list
 
