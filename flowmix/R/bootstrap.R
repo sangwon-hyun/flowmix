@@ -13,13 +13,17 @@ draw_membership <- function(resp, verbose = FALSE){
   . = NULL ## Fixing check()
   TT = length(resp)
 
-  drawslist = list()
+  drawslist = lapply(1:TT, function(tt) c())
   for(tt in 1:TT){
     if(verbose) print_progress(tt, TT, "Membership draw, time point = ")
-    draws = resp[[tt]] %>% apply(., 1, function(p){stats::rmultinom(1, 1, p)}) %>% t()
-    drawslist[[tt]] = draws
+    if(nrow(resp[[tt]]) == 0){
+      next
+    } else {
+      draws = resp[[tt]] %>% apply(., 1, function(p){stats::rmultinom(1, 1, p)}) %>% t()
+      drawslist[[tt]] = draws
+    }
   }
-  cat(fill = TRUE)
+  if(verbose)cat(fill = TRUE)
 
   return(drawslist)
 }

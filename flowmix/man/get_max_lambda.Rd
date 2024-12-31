@@ -41,7 +41,7 @@ get_max_lambda(
 \item{...}{Additional arguments to \code{flowmix()}.}
 }
 \value{
-No return
+List of the pair of lambda regularization parameter values.
 }
 \description{
 A wrapper for \code{calc_max_lambda}. Saves the two maximum lambda values in

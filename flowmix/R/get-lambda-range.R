@@ -126,7 +126,7 @@ calc_max_lambda <- function(ylist, countslist = NULL, X, numclust,
 ##' @param ... Additional arguments to \code{flowmix()}.
 ##' @inheritParams calc_max_lambda
 ##'
-##' @return No return
+##' @return List of the pair of lambda regularization parameter values.
 ##'
 ##' @export
 get_max_lambda <- function(destin, maxres_file = "maxres.Rdata",

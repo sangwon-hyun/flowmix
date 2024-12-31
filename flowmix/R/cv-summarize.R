@@ -120,8 +120,8 @@ cv_aggregate <- function(destin,
   stopifnot(exists("nrep"))
   stopifnot(exists("nfold"))
   stopifnot(exists("cv_gridsize"))
-  stopifnot(exists("prob_lambdas"))
-  stopifnot(exists("mean_lambdas"))
+  stopifnot(exists(c("prob_lambdas")))
+  stopifnot(exists(c("mean_lambdas")))
 
   ## Purely for back-compatability (retire soon)
   ## if(exists("pie_lambdas")) prob_lambdas = pie_lambdas

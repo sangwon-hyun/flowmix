@@ -147,8 +147,8 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
   # train.dat = ylist[-test.inds]
   # train.count = countslist[-test.inds]
   # train.X = X[-test.inds,, drop=FALSE]
-  
-  # These lines assume rownames(X) == 1:nrow(X) or is null, 
+
+  # These lines assume rownames(X) == 1:nrow(X) or is null,
   # names(ylist) == 1:length(ylist) or is null, and  
   # names(countslist) == 1:length(countslist) or is null.
   # This preserves original indices if cross-validation is performed on 

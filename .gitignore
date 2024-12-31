@@ -2,6 +2,7 @@
 flowmix.Rproj
 inst/doc
 output
+*.DS_store
 
 paper-data/*.rds
 paper-data/*.Rdata

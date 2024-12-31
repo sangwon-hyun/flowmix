@@ -26,12 +26,12 @@ gate <- function(res, ylist_particle, countslist_particle, seed = NULL, eps_este
   drawslist = draw_membership(resp)
 
   ## Calculate memberships (a vector consisting of (1,.., res$numclust))
-  start.time = Sys.time()
-  memberships = list()
+  memberships = lapply(1:TT, function(tt) c())##list()
   for(tt in 1:TT){
-    memberships[[tt]] = drawslist[[tt]] %>% apply(1, function(rr) which(rr == 1))
+    if(length(drawslist[[tt]]) != 0){
+      memberships[[tt]] = drawslist[[tt]] %>% apply(1, function(rr) which(rr == 1))
+    }
   }
-  cat(fill = TRUE)
   return(memberships)
 }
 

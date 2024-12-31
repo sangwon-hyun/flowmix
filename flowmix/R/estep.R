@@ -53,6 +53,10 @@ Estep <- function(mn, sigma, prob, ylist = NULL,
   resp <- lapply(1:TT, function(tt){
     ylist_tt = ylist[[tt]]
 
+    if(nrow(ylist_tt) == 0){
+      return(ylist_tt)
+    }
+
     ## Calculate the densities of data with respect to cluster centers
     densmat <- sapply(1:numclust,
                       calculate_dens,
