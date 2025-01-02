@@ -210,6 +210,7 @@ flowmix_once <- function(ylist, X,
 
   start.time = Sys.time()
   for(iter in 2:niter){
+    ##if(iter == 43) browser()
     if(verbose){
       print_progress(iter-1, niter-1, "EM iterations.", start.time = start.time)
     }
@@ -288,10 +289,11 @@ flowmix_once <- function(ylist, X,
                                  countslist = countslist)
 
     ## Check convergence
-    if(iter > 10){ ## don't stop super early. ## We might not need this.
-      if(check_converge_rel(objectives[iter-1],
-                            objectives[iter],
-                            tol = tol_em)) break
+    converged = check_converge_rel(objectives[iter-1],
+                                   objectives[iter],
+                                   tol = tol_em)
+    if((iter > 10) & converged){
+      break()
     }
     ## if(objectives[iter] > objectives[iter-1] * 1.01 ) break # Additional stopping
                                         ## of the likelihood
@@ -302,6 +304,7 @@ flowmix_once <- function(ylist, X,
   ## Measure time
   lapsetime = difftime(Sys.time(), start.time, units = "secs")
   time_per_iter = lapsetime / (iter-1)
+
 
   ## Also calculate per-cytogram likelihoods (NOT divided by nt)
   loglikelihoods = objective(mn, prob, sigma, ylist,

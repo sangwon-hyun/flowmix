@@ -48,6 +48,12 @@ objective <- function(mu, prob, sigma,
     }
   })
 
+  tt=8
+  ylist[[8]]
+
+  loglikelihood_tt(ylist, tt, mu, sigma, prob, countslist, numclust)
+  denslist_by_clust
+
   ## Return penalized likelihood
   l1norm <- function(coef){ sum(abs(coef)) }
 
@@ -117,10 +123,17 @@ loglikelihood_tt_precalculate <- function(ylist, tt, denslist_by_clust, prob, co
 loglikelihood_tt <- function(ylist, tt, mu, sigma, prob, countslist = NULL, numclust,
                              sep=FALSE){
 
-  ## One particle's log likelihood (weighted density)
-  weighted.densities = sapply(1:numclust, function(iclust){
-    return(prob[tt,iclust] * dmvnorm_arma_fast(ylist[[tt]], mu[tt,,iclust], as.matrix(sigma[iclust,,]), FALSE))
-  })
+  ## Every particle's log likelihood (weighted density)
+  weighted.densities =
+    sapply(1:numclust, function(iclust){
+      return(prob[tt,iclust] * dmvnorm_arma_fast(ylist[[tt]], mu[tt,,iclust], as.matrix(sigma[iclust,,]), FALSE))
+    })
+
+  ## If there is only one particle in ylist[[tt]], this is needed.
+  if(is.vector(weighted.densities)){
+    weighted.densities = rbind(weighted.densities)
+  }
+
   nt = nrow(ylist[[tt]])
   counts = (if(!is.null(countslist)) countslist[[tt]] else rep(1, nt))
 
