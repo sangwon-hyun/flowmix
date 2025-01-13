@@ -143,7 +143,7 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
   # train.X = X[-test.inds,, drop=FALSE]
 
   # Three cases: 
-  # 1. names(ylist) & others are arbitrary but equal
+  # 1. names(ylist) & others are arbitrary
   # 2. names(ylist) & others are equal to as.character(1:length(ylist)) (this is to 
   #   allow cross-validation using a subset of the original data)
   # 3. at least one of the names() or rownames() is NULL
