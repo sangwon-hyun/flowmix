@@ -20,24 +20,24 @@ cv_summary <- function(destin = ".",
                        nfold = NULL, 
                        cv_gridsize = NULL, 
                        prob_lambdas = NULL,
-                       mean_lambdas = NULL
-                       ){
+                       mean_lambdas = NULL)
+{
 
   ####################
   ## Load data #######
   ####################
   if(use_meta) {
     load(file = file.path(destin, "meta.Rdata"), verbose = FALSE)
-    ## This loads all the necessary things: nrep, nfold, cv_gridsize, 
-  } else {
-    stopifnot(exists("nrep"))
-    stopifnot(exists("nfold"))
-    stopifnot(exists("cv_gridsize"))  
-    stopifnot(exists("prob_lambdas"))
-    stopifnot(exists("mean_lambdas"))
   }
-  
 
+  # Checking to make sure nrep, nfold, cv_gridsize, prob_lambdas, and mean_lambdas were all 
+  # either correctly loaded from the meta file or properly specified in the function call: 
+  stopifnot(!is.null(nrep))
+  stopifnot(!is.null(nfold))
+  stopifnot(!is.null(cv_gridsize))
+  stopifnot(!is.null(prob_lambdas))
+  stopifnot(!is.null(mean_lambdas))
+    
   ##########################
   ## Get the CV results. ###
   ##########################
@@ -140,14 +140,15 @@ cv_aggregate <- function(destin,
 
     if(use_meta) {
       load(file = file.path(destin, "meta.Rdata"), verbose = FALSE)
-    ## This loads all the necessary things: nrep, nfold, cv_gridsize, prob_lambdas, mean_lambdas
-    } else {
-      stopifnot(exists("nrep"))
-      stopifnot(exists("nfold"))
-      stopifnot(exists("cv_gridsize"))
-      stopifnot(exists("prob_lambdas"))
-      stopifnot(exists("mean_lambdas"))
     }
+
+    # Checking to make sure nrep, nfold, cv_gridsize, prob_lambdas, and mean_lambdas were all 
+    # either correctly loaded from the meta file or properly specified in the function call: 
+    stopifnot(!is.null(nrep))
+    stopifnot(!is.null(nfold))
+    stopifnot(!is.null(cv_gridsize))
+    stopifnot(!is.null(prob_lambdas))
+    stopifnot(!is.null(mean_lambdas))
   # c# v_gridsize = nrep = prob_lambdas = NULL ## fixing check()
 
   ## ## Read the meta data (for |nfold|, |cv_gridsize|, |nrep|, |prob_lambdas|,
@@ -237,13 +238,15 @@ cv_aggregate_res <- function(destin,
   # load(file.path(destin, "meta.Rdata"))
   if(use_meta) {
       load(file = file.path(destin, "meta.Rdata"), verbose = FALSE)
-    ## This loads all the necessary things: nrep, nfold, cv_gridsize, 
-    } else {
-      stopifnot(exists("nrep"))
-      stopifnot(exists("cv_gridsize"))  
-      stopifnot(exists("prob_lambdas"))
-      stopifnot(exists("mean_lambdas"))
-    }
+  }
+
+  # Checking to make sure nrep, nfold, cv_gridsize, prob_lambdas, and mean_lambdas were all 
+  # either correctly loaded from the meta file or properly specified in the function call: 
+  stopifnot(!is.null(nrep))
+  stopifnot(!is.null(nfold))
+  stopifnot(!is.null(cv_gridsize))
+  stopifnot(!is.null(prob_lambdas))
+  stopifnot(!is.null(mean_lambdas))
 
   ## df.mat = matrix(NA, ncol=cv_gridsize, nrow=cv_gridsize)
   res.list = list()
