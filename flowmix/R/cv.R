@@ -562,6 +562,6 @@ cv.flowmix <- function(
                     )
     }
     return(NULL)
-  }, mc.cores = mc.cores)
+  }, mc.cores = mc.cores, mc.preschedule = FALSE)
 }
 
