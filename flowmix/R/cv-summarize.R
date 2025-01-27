@@ -14,28 +14,51 @@
 ##' @export
 cv_summary <- function(destin = ".",
                        save = FALSE,
-                       filename = "summary.RDS"
-                       ){
+                       filename = "summary.RDS",
+                       use_meta = TRUE,
+                       nrep = NULL, 
+                       nfold = NULL, 
+                       cv_gridsize = NULL, 
+                       prob_lambdas = NULL,
+                       mean_lambdas = NULL)
+{
 
   ####################
   ## Load data #######
   ####################
-  load(file = file.path(destin, 'meta.Rdata'), verbose = FALSE)
+  if(use_meta) {
+    load(file = file.path(destin, "meta.Rdata"), verbose = FALSE)
+  }
 
-  ## This loads all the necessary things: nrep, nfold, cv_gridsize
-  stopifnot(exists("nrep"))
-  stopifnot(exists("nfold"))
-  stopifnot(exists("cv_gridsize"))
-
+  # Checking to make sure nrep, nfold, cv_gridsize, prob_lambdas, and mean_lambdas were all 
+  # either correctly loaded from the meta file or properly specified in the function call: 
+  stopifnot(!is.null(nrep))
+  stopifnot(!is.null(nfold))
+  stopifnot(!is.null(cv_gridsize))
+  stopifnot(!is.null(prob_lambdas))
+  stopifnot(!is.null(mean_lambdas))
+    
   ##########################
   ## Get the CV results. ###
   ##########################
-  a = cv_aggregate(destin)
+  a = cv_aggregate(destin, 
+                   use_meta = use_meta,
+                   nrep = nrep, 
+                   nfold = nfold, 
+                   cv_gridsize = cv_gridsize, 
+                   prob_lambdas = prob_lambdas, 
+                   mean_lambdas = mean_lambdas)
+  
   cvscore.mat = a$cvscore.mat
   min.inds = a$min.inds
 
   ## Get the refit flowmix results
-  bestreslist = cv_aggregate_res(destin = destin)
+  bestreslist = cv_aggregate_res(destin = destin, 
+                                use_meta = use_meta, 
+                                nrep = nrep,
+                                cv_gridsize = cv_gridsize,
+                                prob_lambdas = prob_lambdas, 
+                                mean_lambdas = mean_lambdas)
   bestres = bestreslist[[paste0(min.inds[1] , "-", min.inds[2])]]
   if(is.null(bestres)){
     stop(paste0("The model with lambda indices (",
@@ -107,21 +130,31 @@ cv_summary <- function(destin = ".",
 ##' @export
 cv_aggregate <- function(destin,
                          sim = FALSE,
-                         isim = 1){
+                         isim = 1,
+                         use_meta = TRUE,
+                         nrep = NULL, 
+                         nfold = NULL, 
+                         cv_gridsize = NULL, 
+                         prob_lambdas = NULL, 
+                         mean_lambdas = NULL){
 
-  cv_gridsize = nrep = prob_lambdas = NULL ## fixing check()
+    if(use_meta) {
+      load(file = file.path(destin, "meta.Rdata"), verbose = FALSE)
+    }
+
+    # Checking to make sure nrep, nfold, cv_gridsize, prob_lambdas, and mean_lambdas were all 
+    # either correctly loaded from the meta file or properly specified in the function call: 
+    stopifnot(!is.null(nrep))
+    stopifnot(!is.null(nfold))
+    stopifnot(!is.null(cv_gridsize))
+    stopifnot(!is.null(prob_lambdas))
+    stopifnot(!is.null(mean_lambdas))
+  # c# v_gridsize = nrep = prob_lambdas = NULL ## fixing check()
 
   ## ## Read the meta data (for |nfold|, |cv_gridsize|, |nrep|, |prob_lambdas|,
   ## ## |mean_lambdas|)
-  load(file = file.path(destin, 'meta.Rdata'), verbose = FALSE)
+  # load(file = file.path(destin, 'meta.Rdata'), verbose = FALSE)
   assertthat::assert_that(!is.null(cv_gridsize) & !is.null(nrep))
-
-  ## This loads all the necessary things; just double-checking.
-  stopifnot(exists("nrep"))
-  stopifnot(exists("nfold"))
-  stopifnot(exists("cv_gridsize"))
-  stopifnot(exists(c("prob_lambdas")))
-  stopifnot(exists(c("mean_lambdas")))
 
   ## Purely for back-compatability (retire soon)
   ## if(exists("pie_lambdas")) prob_lambdas = pie_lambdas
@@ -194,11 +227,26 @@ cv_aggregate <- function(destin,
 cv_aggregate_res <- function(destin,
                              ## Is this a simulation or not? (soon to be outdated)
                              sim = FALSE,
-                             isim = NULL
-                             ){
+                             isim = NULL,
+                             use_meta = TRUE,
+                             nrep = NULL, 
+                             cv_gridsize = NULL, 
+                             prob_lambdas = NULL, 
+                             mean_lambdas = NULL){
 
-  cv_gridsize = nrep = NULL
-  load(file.path(destin, "meta.Rdata"))
+  # cv_gridsize = nrep = NULL
+  # load(file.path(destin, "meta.Rdata"))
+  if(use_meta) {
+      load(file = file.path(destin, "meta.Rdata"), verbose = FALSE)
+  }
+
+  # Checking to make sure nrep, nfold, cv_gridsize, prob_lambdas, and mean_lambdas were all 
+  # either correctly loaded from the meta file or properly specified in the function call: 
+  stopifnot(!is.null(nrep))
+  stopifnot(!is.null(nfold))
+  stopifnot(!is.null(cv_gridsize))
+  stopifnot(!is.null(prob_lambdas))
+  stopifnot(!is.null(mean_lambdas))
 
   ## df.mat = matrix(NA, ncol=cv_gridsize, nrow=cv_gridsize)
   res.list = list()
