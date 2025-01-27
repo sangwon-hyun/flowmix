@@ -127,12 +127,30 @@ solve_multinom <- function(y, X, lambda, lambda_max = 10){
   N = sum(ysums)
   stopifnot(lambda > 0)
   lambdas = exp(seq(from = log(lambda_max), to = log(lambda), length = 30))
-  fit <- glmnet::glmnet(x = X,
-                        y = y/ysums,
-                        lambda = lambdas,
-                        family = "multinomial",
-                        intercept = TRUE,
-                        weights = ysums / N * TT)
+
+  fit = tryCatch({
+    glmnet::glmnet(x = X,
+                          y = y/ysums,
+                          lambda = lambdas,
+                          family = "multinomial",
+                          intercept = TRUE,
+                          weights = ysums / N * TT)
+  }, error = function(e){return(NULL)})
+
+  ## If an error is thrown (e.g., happens when ys are equal over all time
+  ## points) try adding slight amount of noise to the counts.
+  if(is.null(fit)){
+    numclust = ncol(y)
+    y = y + rnorm(length(y), 0, 0.01)
+    ysums = rowSums(y)
+    fit = glmnet::glmnet(x = X,
+                          y = y/ysums,
+                          lambda = lambdas,
+                          family = "multinomial",
+                          intercept = TRUE,
+                          weights = ysums / N * TT)
+  }
   coefs = glmnet::coef.glmnet(fit, s = lambda)
   return(as.matrix(do.call(cbind, coefs)))
 }
+
