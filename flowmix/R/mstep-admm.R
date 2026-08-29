@@ -1,6 +1,12 @@
 ##' The M step of beta, using ADMM. (TODO: This should be able to use the
 ##' eigendecomp of the Sigmas for the objective value calculation. That is next
 ##' up.)
+
+##' @inheritParams flowmix_once 
+##' @inheritParams Mstep_alpha
+##' @inheritParams Estep
+##' @param sigma_eig_by_clust Result of running
+##'   \code{eigendecomp_sigma_array(sigma.list[[iter]])}.
 ##' @param niter Total number of outer iterations.
 ##' @param local_adapt TRUE if locally adaptive ADMM (LA-ADMM) is to be used. If
 ##'   so, \code{niter} becomes the inner number of iterations, and
@@ -15,9 +21,8 @@
 ##' @param rho todo: fill in
 ##' @param err_rel todo: fill in
 ##' @param err_abs todo: fill in
-##' @param zerothresh todo: fill in
+
 ##'
-##' @inheritParams Mstep_beta
 ##'
 ##' @return Result of M step; a |numclust| length list of (p+1)x(d) matrices,
 ##'   each containing the estimated coefficients for the mean estimation.

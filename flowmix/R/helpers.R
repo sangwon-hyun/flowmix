@@ -122,6 +122,8 @@ check_zero_stabilize <- function(zero.betas, zero.alphas, iter){
 ##' @param fill Whether or not to fill the line.
 ##'
 ##' @return No return
+##' 
+##' @export
 print_progress <- function(isim, nsim,
                            type = "simulation", lapsetime = NULL,
                            lapsetimeunit = "seconds", start.time = NULL,

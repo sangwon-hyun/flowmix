@@ -417,6 +417,11 @@ make_refit_filename <- function(ialpha, ibeta, irep,
 
 ##' Cross-validation wrapper for flowmix(). Saves results to separate files in
 ##' \code{destin}.
+##' 
+##' @details If this function is run in parallel (\code{mc.cores > 1}) and R is 
+##' linked to a multi-threaded BLAS, user should set BLAS to run with a single thread 
+##' to avoid oversubscribing cores. This can be done by running 
+##' \code{RhpcBLASctl::blas_set_num_threads(1); RhpcBLASctl::omp_set_num_threads(1)}.
 ##'
 ##' @param destin Where to save the output.
 ##' @param nfold Number of cross-validation folds. Defaults to 5.
@@ -426,7 +431,10 @@ make_refit_filename <- function(ialpha, ibeta, irep,
 ##' @param prob_lambdas Regularization parameters for alphas.
 ##' @param folds Manually provide CV folds (list of time points of data to use
 ##'   as CV folds). Defaults to NULL.
-##' @param mc.cores Use this many CPU cores.
+##' @param mc.cores Use this many CPU cores. If greater than 1 and R is 
+##' linked to a multi-threaded BLAS, user should set BLAS to run with a single thread 
+##' to avoid oversubscribing cores. This can be done by running 
+##' \code{RhpcBLASctl::blas_set_num_threads(1); RhpcBLASctl::omp_set_num_threads(1)}.
 ##' @param blocksize Contiguous time blocks from which to form CV time folds.
 ##' @param refit If TRUE, estimate the model on the full data, for each pair of
 ##'   regularization parameters.

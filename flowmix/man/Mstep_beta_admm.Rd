@@ -30,7 +30,7 @@ Mstep_beta_admm(
 )
 }
 \arguments{
-\item{resp}{Responsibilities.}
+\item{resp}{Responsibilities; an (T x nt x K) array.}
 
 \item{ylist}{T-length list each containing response matrices of size (nt x
 d), which contains coordinates of the d-variate particles, organized over
@@ -40,11 +40,13 @@ time (T) and with (nt) particles at every time point.}
 
 \item{mean_lambda}{lambda for lasso for the mean.}
 
-\item{sigma}{(numclust x dimdat x dimdat) matrix.}
+\item{sigma}{(numclust x dimdat x dimdat) array.}
 
-\item{sigma_eig_by_clust}{Eigendecomposition of Sigma.}
+\item{sigma_eig_by_clust}{Result of running
+\code{eigendecomp_sigma_array(sigma.list[[iter]])}.}
 
-\item{first_iter}{\code{TRUE} if this is the first iteration}
+\item{first_iter}{\code{TRUE} if this is the first EM iteration, which is
+handled separately.}
 
 \item{betas}{Warm-start variable.}
 
@@ -54,7 +56,7 @@ time (T) and with (nt) particles at every time point.}
 
 \item{Us}{Warm-start variable.}
 
-\item{maxdev}{The desired maximum radius of the fitted means from beta0k.}
+\item{maxdev}{Radius for maximum deviation of cluster means over time.}
 
 \item{niter}{Total number of outer iterations.}
 
@@ -64,7 +66,8 @@ time (T) and with (nt) particles at every time point.}
 
 \item{err_abs}{todo: fill in}
 
-\item{zerothresh}{todo: fill in}
+\item{zerothresh}{Alpha coefficient values below \code{zerothresh} are set
+to zero.}
 
 \item{local_adapt}{TRUE if locally adaptive ADMM (LA-ADMM) is to be used. If
 so, \code{niter} becomes the inner number of iterations, and

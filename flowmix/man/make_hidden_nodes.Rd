@@ -2,14 +2,14 @@
 % Please edit documentation in R/make_hidden_nodes.R
 \name{make_hidden_nodes}
 \alias{make_hidden_nodes}
-\title{Create extreme learning machine (ELM) hidden nodes}
+\title{Create random weight neural network hidden nodes}
 \usage{
 make_hidden_nodes(X, n.h, a)
 }
 \arguments{
 \item{X}{An n x p design matrix where p is the 
-number of covariates (X cannot have a column of all 1s 
-corresponding to an intercept term)}
+number of covariates (without a column of all 1s 
+corresponding to an intercept term).}
 
 \item{n.h}{Number of hidden nodes to output}
 
@@ -17,8 +17,7 @@ corresponding to an intercept term)}
 Unif(-a, a)}
 }
 \value{
-An n x n.h matrix resulting from inputting 
-the data X through the ELM.
+An n x n.h matrix of hidden layer outputs.
 }
 \description{
 Huang, Zhu, and Siew (2006)

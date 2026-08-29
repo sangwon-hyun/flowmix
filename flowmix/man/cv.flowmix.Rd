@@ -61,7 +61,10 @@ regularization parameters.}
 
 \item{save_meta}{If TRUE, save meta data.}
 
-\item{mc.cores}{Use this many CPU cores.}
+\item{mc.cores}{Use this many CPU cores. If greater than 1 and R is 
+linked to a multi-threaded BLAS, user should set BLAS to run with a single thread 
+to avoid oversubscribing cores. This can be done by running 
+\code{RhpcBLASctl::blas_set_num_threads(1); RhpcBLASctl::omp_set_num_threads(1)}.}
 
 \item{blocksize}{Contiguous time blocks from which to form CV time folds.}
 
@@ -82,4 +85,10 @@ No return.
 \description{
 Cross-validation wrapper for flowmix(). Saves results to separate files in
 \code{destin}.
+}
+\details{
+If this function is run in parallel (\code{mc.cores > 1}) and R is 
+linked to a multi-threaded BLAS, user should set BLAS to run with a single thread 
+to avoid oversubscribing cores. This can be done by running 
+\code{RhpcBLASctl::blas_set_num_threads(1); RhpcBLASctl::omp_set_num_threads(1)}.
 }

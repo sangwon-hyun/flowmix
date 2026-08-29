@@ -3,6 +3,11 @@
 ##' @inheritParams cv.flowmix
 ##' @param filename File name to save to.
 ##' @param save If TRUE, save to \code{file.path(destin, filename)}.
+##' @param use_meta If TRUE, load \code{nrep}, \code{nfold}, \code{cv_gridsize}, 
+##'   \code{prob_lambdas}, and \code{mean_lambdas} from \code{file.path(destin, "meta.Rdata")}.
+##'   This is the recommended way to load cross-validation metadata, but we allow the metadata 
+##'   to be input directly to this function in case \code{meta.Rdata} was not previously created.
+##' @param cv_gridsize CV grid size.
 ##'
 ##' @return List containing various outcomes from the cross-validation, such as
 ##'   \code{bestres} which is the \code{flowmix} class object of the overall
@@ -126,6 +131,7 @@ cv_summary <- function(destin = ".",
 ##' @param destin Directory with cross-validation output.
 ##' @param sim Simulation or not?
 ##' @param isim Simulation number.
+##' @inheritParams cv_summary
 ##'
 ##' @export
 cv_aggregate <- function(destin,

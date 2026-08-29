@@ -42,10 +42,12 @@ flowmix <- function(..., nrep = 5){
   final_model$all_objectives =
     lapply(1:nrep, function(irep){
         one_model = reslist[[irep]]
-        data.frame(objective = one_model$objectives) %>%
-          mutate(iter=row_number(), irep = irep) %>%
-          select(irep, iter, objective)
-    }) %>% bind_rows()
+        data.frame(
+          irep = irep, 
+          iter = seq_along(one_model$objectives), 
+          objective = one_model$objectives
+        )
+    }) %>% dplyr::bind_rows()
 
   return(final_model)
 }
@@ -79,8 +81,6 @@ flowmix <- function(..., nrep = 5){
 ##'   so, \code{admm_niter} becomes the inner number of iterations, and
 ##'   \code{admm_local_adapt_niter} becomes the number of outer iterations.
 ##' @param admm_local_adapt_niter Number of inner iterations in LA ADMM.
-##' @param CVXR If TRUE, use CVXR instead of ADMM. Slow, and meant to be used
-##'   only for sanity checking during code development.
 ##' @param flatX_thresh Threshold for detecting if any covariates are flat (low
 ##'   variance). These flat coefficients will have be set to zero and excluded
 ##'   from estimation altogether.
@@ -114,7 +114,6 @@ flowmix_once <- function(ylist, X,
                          admm_local_adapt = TRUE,
                          admm_local_adapt_niter = 10,
                          admm_niter = (if(admm_local_adapt)1E3 else 1E4),
-                         CVXR =FALSE, ## temporary
                          seed = NULL,
                          flatX_thresh = 1e-5
                          ){
@@ -228,15 +227,6 @@ flowmix_once <- function(ylist, X,
     rm(res.alpha)
 
     ## 2. Beta
-
-    ## temporary
-    if(CVXR){
-    res.beta = Mstep_beta(resp, ylist, X,
-                          mean_lambda = mean_lambda,
-                          first_iter = (iter == 2),
-                          sigma_eig_by_clust = sigma_eig_by_clust,
-                          sigma = sigma, maxdev = maxdev)
-    } else {
     res.beta = Mstep_beta_admm(resp, ylist, X,
                                mean_lambda = mean_lambda,
                                first_iter = (iter == 2),
@@ -251,7 +241,6 @@ flowmix_once <- function(ylist, X,
                                niter = admm_niter,
                                local_adapt = admm_local_adapt,
                                local_adapt_niter = admm_local_adapt_niter)
-  }
 
     admm_niters[[iter]] = unlist(res.beta$admm_niters)
 
@@ -459,6 +448,7 @@ predict.flowmix <- function(object, logits = FALSE, ...){
 ##' Helper for making list of densities. Returns list by cluster then time
 ##' e.g. access by \code{denslist_by_clust[[iclust]][[tt]]}
 ##'
+##' @inheritParams Mstep_beta_admm 
 ##' @param ylist T-length list each containing response matrices of size (nt x
 ##'   3), which contains coordinates of the 3-variate particles, organized over
 ##'   time (T) and with (nt) particles at every time.
@@ -466,8 +456,6 @@ predict.flowmix <- function(object, logits = FALSE, ...){
 ##' @param dimdat dimension of data.
 ##' @param numclust number of clusters.
 ##' @param TT number of time points
-##' @param sigma_eig_by_clust Result of running
-##'   \code{eigendecomp_sigma_array(sigma.list[[iter]])}.
 ##'
 ##' @return numclust-lengthed list of TT-lengthed.
 ##'
