@@ -56,8 +56,10 @@ importFrom(Rcpp,sourceCpp)
 importFrom(abind,abind)
 importFrom(clue,solve_LSAP)
 importFrom(ellipse,ellipse)
-importFrom(glmnet,coef.glmnet)
-importFrom(glmnet,glmnet)
+importFrom(glmnet,
+  coef.glmnet,
+  glmnet
+)
 importFrom(grDevices,rgb)
 importFrom(lubridate,as_datetime)
 useDynLib(flowmix)

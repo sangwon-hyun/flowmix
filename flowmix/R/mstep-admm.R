@@ -3,10 +3,11 @@
 ##' up.)
 
 ##' @inheritParams flowmix_once 
-##' @inheritParams Mstep_alpha
 ##' @inheritParams Estep
-##' @param sigma_eig_by_clust Result of running
-##'   \code{eigendecomp_sigma_array(sigma.list[[iter]])}.
+##' @param resp Responsibilities; a length-\code{T} list of (\code{nt x K}) responsibility matrices.
+##' @param zerothresh Beta coefficient values below \code{zerothresh} are set to zero.
+##' @param sigma_eig_by_clust A (numclust x dimdat x dimdat) array; result of running
+##'   \code{eigendecomp_sigma_array(sigma)}.
 ##' @param niter Total number of outer iterations.
 ##' @param local_adapt TRUE if locally adaptive ADMM (LA-ADMM) is to be used. If
 ##'   so, \code{niter} becomes the inner number of iterations, and

@@ -172,7 +172,7 @@ init_mn_temp <- function(ylist, numclust, TT, dimdat, countslist = NULL, seed=NU
       ## Sample so that, in total, we get mean(nt)*30 sized sample. In the case
       ## of binned data, nt is the number of bins.
       if(nrow(y) > 500) nsize = nrow(y) / TT * 30 else nsize = nrow(y)
-      nsize = ceiling(nsize)
+      nsize = ceiling(pmin(nsize, nrow(y)))
       some_rows = sample(1:nrow(y), size = nsize, prob = counts/sum(counts))
       y[some_rows,, drop=FALSE]
     })
@@ -193,7 +193,6 @@ init_mn_temp <- function(ylist, numclust, TT, dimdat, countslist = NULL, seed=NU
     TT = length(ylist)
     ylist_downsampled <- lapply(1:TT, function(tt){
       y = ylist[[tt]]
-      counts = countslist[[tt]]
       nsize = ceiling(pmin(nrow(y) / TT * 30, nrow(y)))
       y[sample(1:nrow(y), size = nsize),, drop=FALSE]
     })

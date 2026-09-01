@@ -30,7 +30,7 @@ Mstep_beta_admm(
 )
 }
 \arguments{
-\item{resp}{Responsibilities; an (T x nt x K) array.}
+\item{resp}{Responsibilities; a length-\code{T} list of (\code{nt x K}) responsibility matrices.}
 
 \item{ylist}{T-length list each containing response matrices of size (nt x
 d), which contains coordinates of the d-variate particles, organized over
@@ -42,8 +42,8 @@ time (T) and with (nt) particles at every time point.}
 
 \item{sigma}{(numclust x dimdat x dimdat) array.}
 
-\item{sigma_eig_by_clust}{Result of running
-\code{eigendecomp_sigma_array(sigma.list[[iter]])}.}
+\item{sigma_eig_by_clust}{A (numclust x dimdat x dimdat) array; result of running
+\code{eigendecomp_sigma_array(sigma)}.}
 
 \item{first_iter}{\code{TRUE} if this is the first EM iteration, which is
 handled separately.}
@@ -66,8 +66,7 @@ handled separately.}
 
 \item{err_abs}{todo: fill in}
 
-\item{zerothresh}{Alpha coefficient values below \code{zerothresh} are set
-to zero.}
+\item{zerothresh}{Beta coefficient values below \code{zerothresh} are set to zero.}
 
 \item{local_adapt}{TRUE if locally adaptive ADMM (LA-ADMM) is to be used. If
 so, \code{niter} becomes the inner number of iterations, and
