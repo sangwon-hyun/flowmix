@@ -551,7 +551,9 @@ cv.flowmix <- function(
               maxdev = maxdev,
               verbose = FALSE,
               seedtab = seedtab,
-              flatX_thresh = flatX_thresh)
+              flatX_thresh = flatX_thresh, 
+              ... # Pass remaining arguments for flowmix()
+              )
     } else {
       one_job_refit(ialpha = ialpha,
                     ibeta = ibeta,
@@ -566,7 +568,8 @@ cv.flowmix <- function(
                     nrep = nrep,
                     verbose = FALSE,
                     seedtab = seedtab,
-                    flatX_thresh = flatX_thresh
+                    flatX_thresh = flatX_thresh, 
+                    ... # Pass remaining arguments for flowmix()
                     )
     }
     return(NULL)

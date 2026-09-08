@@ -74,12 +74,29 @@ cv_summary <- function(destin = ".",
     colnames(bestres$X) = 1:ncol(bestres$X)
   }
 
+  if(!is.null(bestres$X_pc) & is.null(colnames(bestres$X_pn))){
+    colnames(bestres$X_pc) = 1:ncol(bestres$X_pc)
+  }
+
+  if(!is.null(bestres$X_nn) & is.null(colnames(bestres$X_nn))){
+    colnames(bestres$X_nn) = 1:ncol(bestres$X_nn)
+  }
+
+  ## Adaptively assign variable names based on which model we fit
+  var_names = if(!is.null(bestres$X_nn)) {
+    colnames(bestres$X_nn)
+  } else if(!is.null(bestres$X_pc)) {
+    colnames(bestres$X_pc)
+  } else {
+    colnames(bestres$X)
+  }
+
   ########################
   ## Get coefficients ####
   ########################
   betalist =  lapply(1:bestres$numclust, function(iclust){
     ## Get all betas
-    rownames(bestres$beta[[iclust]])[-1] = colnames(bestres$X)
+    rownames(bestres$beta[[iclust]])[-1] = var_names
     cf = bestres$beta[[iclust]][-1,, drop=FALSE]
     ## TODO: TRY dplyr here:
 
@@ -92,7 +109,7 @@ cv_summary <- function(destin = ".",
   })
   names(betalist) = paste0("Beta matrix, cluster ", 1:bestres$numclust)
   pretty.betas = betalist
-  colnames(bestres$alpha)[-1 ] = colnames(bestres$X)
+  colnames(bestres$alpha)[-1 ] = var_names
   alpha = t(bestres$alpha)
   alpha[which(abs(alpha) < 1E-5)] = 0
   pretty.alphas = round(Matrix::Matrix(alpha, sparse=TRUE),3)
