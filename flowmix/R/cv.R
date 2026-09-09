@@ -111,57 +111,13 @@ make_cv_folds_subsample_with_original_membership <- function(nfold, blocksize, o
 ##'   containing results for, say `isim=3`, has "3-" appended to the beginning.
 ##' @param isim Simulation number.
 ##' @param seedtab A table containing seeds (7 columns)
-##' @param subsampled A logical telling whether the \code{ylist}, \code{countslist}, and \code{X}
-##'   are a subset of the original data. This protects against 
-##'   incorrectly splitting the data into cross-validation folds
-##'   if there are time gaps in the subsampled data. (See example below.)
 ##' @param ... Rest of arguments for \code{flowmix_once()}.
-##'
-##' @details
-##' If \code{subsampled} is \code{TRUE}, then before calling this function, you must
-##'   set \code{names(ylist)}, \code{names(countslist)}, and \code{rownames(X)} to the indices 
-##'   of the data you have subsampled from the original dataset. See example below.
 ##'
 ##' @return Nothing is returned. Instead, a file named "1-1-1-1-cvscore.Rdata"
 ##'   is saved in \code{destin}. (The indices here are ialpha-ibeta-ifold-irep).
 ##'
 ##' If this is a simulation, the file name containing results for, say `isim=3`,
 ##'   has "3-" appended to the beginning.
-##'
-##' @examples
-##' # Splitting the data into training (with 5-fold cross-validation) data and test data
-##' \dontrun{
-##'   # Use the middle 20% of the data to test the model and the 
-##'   #   remaining data to cross-validate
-##'   #   In this case, subsample = TRUE is necessary since the 
-##'   #   cross-validation data contains gaps.
-##'  
-##'   n <- length(ylist) 
-##'   test_start <- round(0.4 * n)
-##'   test_end <- round(0.6 * n)
-##'   test_inds <- test_start:test_end
-##'
-##'   # Before splitting the data, store the original indices in the 
-##'   `names` attributes:
-##'   
-##'   names(ylist) <- 1:n 
-##'   names(countslist) <- 1:n 
-##'   rownames(X) <- 1:n
-##'
-##'   # Subset the data for cross-validation
-##'   train_ylist <- ylist[-test_inds]
-##'   train_countslist <- countslist[-test_inds]
-##'   train_X <- X[-test_inds,]
-##'   
-##'   # ... use some scheme to from cross-validation folds TODO: fix
-##'   
-##'   one_job(folds = folds, 
-##'           ylist = train_ylist, 
-##'           countslist = train_countslist, 
-##'           X = train_X, 
-##'           subsampled = TRUE, 
-##'           ...)
-##' }
 ##'
 ##' @export
 one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
@@ -171,77 +127,19 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
                     seedtab = NULL,
                     ## The rest that is needed explicitly for flowmix()
                     ylist, countslist,
-                    X, subsampled = FALSE,
-                    ...){
+                    X, ...){
 
   ## Solving warning from devtools::check()
   seed1 = seed2 = seed3 = seed4 = seed5 = seed6 = seed7 = NULL
 
   ## Get the train/test data
   test.inds = unlist(folds[ifold])
-  # test.dat = ylist[test.inds]
-  # test.count = countslist[test.inds]
-  # test.X = X[test.inds,,drop=FALSE]
-  # train.dat = ylist[-test.inds]
-  # train.count = countslist[-test.inds]
-  # train.X = X[-test.inds,, drop=FALSE]
-
-  ## Get the train/test data
-  if(!subsampled) {
-    train.dat = ylist[-test.inds]
-    train.count = countslist[-test.inds]
-    train.X = X[-test.inds,, drop=FALSE]
-  } else {
-    stopifnot(!is.null(rownames(X)))
-    stopifnot(!is.null(names(ylist)))
-    stopifnot(!is.null(names(countslist)))
-
-    test.inds <- as.character(test.inds)
-    train.inds <- setdiff(names(ylist), test.inds) 
-
-    train.dat = ylist[train.inds]
-    train.count = countslist[train.inds]
-    train.X = X[train.inds, , drop = FALSE]
-  }
-
   test.dat = ylist[test.inds]
   test.count = countslist[test.inds]
   test.X = X[test.inds,,drop=FALSE]
-
-#   # Three cases: 
-    # TODO: update documentation file based on new changes
-#   # 1. names(ylist) & others are arbitrary
-#   # 2. names(ylist) & others are equal to as.character(1:length(ylist)) (this is to 
-#   #   allow cross-validation using a subset of the original data)
-#   # 3. at least one of the names() or rownames() is NULL
-# 
-#   # In the first and third case, we use test.inds directly to subset the data
-#   # In the second case, we assume that ylist, countslist, and X are subsets of the 
-#   #   original data but `test.inds` refers to indices from the original (entire) 
-#   #   dataset. names(ylist) and the like store 1:length(orig_ylist)
-#   #   so that subsetting does not change the indices of the data points.
-# 
-#   # Rough solution for now
-#   if(identical(names(ylist), 1:length(ylist)) & 
-#      identical(names(countslist), 1:length(countslist)) & 
-#      identical(rownames(X), 1:nrow(X))) # case 2
-#   {
-#     test.inds <- as.character(test.inds)
-#     train.inds <- setdiff(names(ylist), test.inds) 
-# 
-#     train.dat = ylist[train.inds]
-#     train.count = countslist[train.inds]
-#     train.X = X[train.inds, , drop = FALSE]
-#   } else { # cases 1 & 3
-#     train.dat = ylist[-test.inds]
-#     train.count = countslist[-test.inds]
-#     train.X = X[-test.inds,, drop=FALSE]
-#   }
-#   
-#   # cases 1, 2, and 3
-#   test.dat = ylist[test.inds]
-#   test.count = countslist[test.inds]
-#   test.X = X[test.inds,,drop=FALSE]
+  train.dat = ylist[-test.inds]
+  train.count = countslist[-test.inds]
+  train.X = X[-test.inds,, drop=FALSE]
 
   ## Check whether this job has been done already.
   filename = make_cvscore_filename(ialpha, ibeta, ifold, irep, sim, isim)
