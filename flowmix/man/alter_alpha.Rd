@@ -2,7 +2,7 @@
 % Please edit documentation in R/helpers.R
 \name{alter_alpha}
 \alias{alter_alpha}
-\title{Altering the beta coefficient (for all clusters) by adding zero coefficients
+\title{Altering the alpha coefficient (for all clusters) by adding zero coefficients
 to certain rows.}
 \usage{
 alter_alpha(alpha, flatX, orig_names)
@@ -19,6 +19,6 @@ Same format as alpha, but with zeros in the columns where variable
   that was flat.
 }
 \description{
-Altering the beta coefficient (for all clusters) by adding zero coefficients
+Altering the alpha coefficient (for all clusters) by adding zero coefficients
 to certain rows.
 }

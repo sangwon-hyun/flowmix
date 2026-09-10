@@ -7,7 +7,7 @@ using namespace arma;
 
 // [[Rcpp::export]]
 arma::mat sylC(arma::mat& A, arma::mat& B, arma::mat& C) {
-  return arma::syl(A, B, C);
+  return arma::sylvester(A, B, C);
 }
 
 // [[Rcpp::export]]

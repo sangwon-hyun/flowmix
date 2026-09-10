@@ -127,54 +127,19 @@ one_job <- function(ialpha, ibeta, ifold, irep, folds, destin,
                     seedtab = NULL,
                     ## The rest that is needed explicitly for flowmix()
                     ylist, countslist,
-                    X,
-                    ...){
+                    X, ...){
 
   ## Solving warning from devtools::check()
   seed1 = seed2 = seed3 = seed4 = seed5 = seed6 = seed7 = NULL
 
   ## Get the train/test data
   test.inds = unlist(folds[ifold])
-  # test.dat = ylist[test.inds]
-  # test.count = countslist[test.inds]
-  # test.X = X[test.inds,,drop=FALSE]
-  # train.dat = ylist[-test.inds]
-  # train.count = countslist[-test.inds]
-  # train.X = X[-test.inds,, drop=FALSE]
-
-  # Three cases: 
-  # 1. names(ylist) & others are arbitrary
-  # 2. names(ylist) & others are equal to as.character(1:length(ylist)) (this is to 
-  #   allow cross-validation using a subset of the original data)
-  # 3. at least one of the names() or rownames() is NULL
-
-  # In the first and third case, we use test.inds directly to subset the data
-  # In the second case, we assume that ylist, countslist, and X are subsets of the 
-  #   original data but `test.inds` refers to indices from the original (entire) 
-  #   dataset. names(ylist) and the like store 1:length(orig_ylist)
-  #   so that subsetting does not change the indices of the data points.
-
-  # Rough solution for now
-  if(identical(names(ylist), 1:length(ylist)) & 
-     identical(names(countslist), 1:length(countslist)) & 
-     identical(rownames(X), 1:nrow(X))) # case 2
-  {
-    test.inds <- as.character(test.inds)
-    train.inds <- setdiff(names(ylist), test.inds) 
-
-    train.dat = ylist[train.inds]
-    train.count = countslist[train.inds]
-    train.X = X[train.inds, , drop = FALSE]
-  } else { # cases 1 & 3
-    train.dat = ylist[-test.inds]
-    train.count = countslist[-test.inds]
-    train.X = X[-test.inds,, drop=FALSE]
-  }
-  
-  # cases 1, 2, and 3
   test.dat = ylist[test.inds]
   test.count = countslist[test.inds]
   test.X = X[test.inds,,drop=FALSE]
+  train.dat = ylist[-test.inds]
+  train.count = countslist[-test.inds]
+  train.X = X[-test.inds,, drop=FALSE]
 
   ## Check whether this job has been done already.
   filename = make_cvscore_filename(ialpha, ibeta, ifold, irep, sim, isim)
@@ -417,6 +382,11 @@ make_refit_filename <- function(ialpha, ibeta, irep,
 
 ##' Cross-validation wrapper for flowmix(). Saves results to separate files in
 ##' \code{destin}.
+##' 
+##' @details If this function is run in parallel (\code{mc.cores > 1}) and R is 
+##' linked to a multi-threaded BLAS, user should set BLAS to run with a single thread 
+##' to avoid oversubscribing cores. This can be done by running 
+##' \code{RhpcBLASctl::blas_set_num_threads(1); RhpcBLASctl::omp_set_num_threads(1)}.
 ##'
 ##' @param destin Where to save the output.
 ##' @param nfold Number of cross-validation folds. Defaults to 5.
@@ -426,7 +396,10 @@ make_refit_filename <- function(ialpha, ibeta, irep,
 ##' @param prob_lambdas Regularization parameters for alphas.
 ##' @param folds Manually provide CV folds (list of time points of data to use
 ##'   as CV folds). Defaults to NULL.
-##' @param mc.cores Use this many CPU cores.
+##' @param mc.cores Use this many CPU cores. If greater than 1 and R is 
+##' linked to a multi-threaded BLAS, user should set BLAS to run with a single thread 
+##' to avoid oversubscribing cores. This can be done by running 
+##' \code{RhpcBLASctl::blas_set_num_threads(1); RhpcBLASctl::omp_set_num_threads(1)}.
 ##' @param blocksize Contiguous time blocks from which to form CV time folds.
 ##' @param refit If TRUE, estimate the model on the full data, for each pair of
 ##'   regularization parameters.
@@ -543,7 +516,9 @@ cv.flowmix <- function(
               maxdev = maxdev,
               verbose = FALSE,
               seedtab = seedtab,
-              flatX_thresh = flatX_thresh)
+              flatX_thresh = flatX_thresh, 
+              ... # Pass remaining arguments for flowmix()
+              )
     } else {
       one_job_refit(ialpha = ialpha,
                     ibeta = ibeta,
@@ -558,7 +533,8 @@ cv.flowmix <- function(
                     nrep = nrep,
                     verbose = FALSE,
                     seedtab = seedtab,
-                    flatX_thresh = flatX_thresh
+                    flatX_thresh = flatX_thresh, 
+                    ... # Pass remaining arguments for flowmix()
                     )
     }
     return(NULL)

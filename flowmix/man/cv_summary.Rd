@@ -4,7 +4,17 @@
 \alias{cv_summary}
 \title{Main function for summarizing the cross-validation results.}
 \usage{
-cv_summary(destin = ".", save = FALSE, filename = "summary.RDS")
+cv_summary(
+  destin = ".",
+  save = FALSE,
+  filename = "summary.RDS",
+  use_meta = TRUE,
+  nrep = NULL,
+  nfold = NULL,
+  cv_gridsize = NULL,
+  prob_lambdas = NULL,
+  mean_lambdas = NULL
+)
 }
 \arguments{
 \item{destin}{Where to save the output.}
@@ -12,6 +22,21 @@ cv_summary(destin = ".", save = FALSE, filename = "summary.RDS")
 \item{save}{If TRUE, save to \code{file.path(destin, filename)}.}
 
 \item{filename}{File name to save to.}
+
+\item{use_meta}{If TRUE, load \code{nrep}, \code{nfold}, \code{cv_gridsize}, 
+\code{prob_lambdas}, and \code{mean_lambdas} from \code{file.path(destin, "meta.Rdata")}.
+This is the recommended way to load cross-validation metadata, but we allow the metadata 
+to be input directly to this function in case \code{meta.Rdata} was not previously created.}
+
+\item{nrep}{Number of repetitions.}
+
+\item{nfold}{Number of cross-validation folds. Defaults to 5.}
+
+\item{cv_gridsize}{CV grid size.}
+
+\item{prob_lambdas}{Regularization parameters for alphas.}
+
+\item{mean_lambdas}{Regularization parameters for betas.}
 }
 \value{
 List containing various outcomes from the cross-validation, such as
