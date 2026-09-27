@@ -16,7 +16,7 @@ The package also implements three variations on the sparse mixture of regression
 2. Mixture of random weight neural networks (RWNN).
 3. Mixture of random weight neural networks, applied on the principal components (PCR-RWNN).
 
-These methods are described in [this paper](https://arxiv.org/abs/2507.01375), soon to appear in *Environmetrics*.
+The paper describing these methods is published in [*Environmetrics*](https://doi.org/10.1002/env.70148).
 
 ## Installation
 
