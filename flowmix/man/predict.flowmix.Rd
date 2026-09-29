@@ -18,10 +18,10 @@ same format and column names as the original X used in \code{object}, in
 \code{newx}.}
 }
 \value{
-List containing mean, prob, and sigma. If 
-user specifies logits = TRUE, prob will still be 
-called prob, but it will actually contain the linear 
-predictor of prob (the multinomial analogue of the 
+List containing mean, prob, and sigma. If
+user specifies logits = TRUE, prob will still be
+called prob, but it will actually contain the linear
+predictor of prob (the multinomial analogue of the
 logit function).
 }
 \description{

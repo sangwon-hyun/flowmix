@@ -14,10 +14,5 @@ tutorial.
 \author{
 \strong{Maintainer}: Sangwon Hyun \email{robohyun66@gmail.com}
 
-Authors:
-\itemize{
-  \item Sangwon Hyun \email{robohyun66@gmail.com}
-}
-
 }
 \keyword{internal}

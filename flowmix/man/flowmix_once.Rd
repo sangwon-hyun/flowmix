@@ -56,20 +56,20 @@ time (T) and with (nt) particles at every time point.}
 
 \item{mean_lambda}{lambda for lasso for the mean.}
 
-\item{n_princomps}{Number of principal components to use if principal components 
-are to be used as regressors, rather than the original covariates (columns of X). 
+\item{n_princomps}{Number of principal components to use if principal components
+are to be used as regressors, rather than the original covariates (columns of X).
 If \code{NULL}, the original covariates will be used as regressors.}
 
-\item{center}{Whether to center the columns of \code{X} before applying principal components 
+\item{center}{Whether to center the columns of \code{X} before applying principal components
 analysis (PCA).}
 
 \item{scale}{Whether to scale the columns of \code{X} before applying PCA.}
 
-\item{n_hidden_nodes}{Number of hidden nodes to use in the random weight neural network (NN). If 
+\item{n_hidden_nodes}{Number of hidden nodes to use in the random weight neural network (NN). If
 \code{NULL}, no NN is applied as the original covariates are used as regressors.}
 
-\item{hidden_node_dist}{Distribution from which the hidden layer weights are randomly drawn. 
-Currently supported options are Uniform(-\code{scale}, \code{scale}) (\code{"unif"}) and 
+\item{hidden_node_dist}{Distribution from which the hidden layer weights are randomly drawn.
+Currently supported options are Uniform(-\code{scale}, \code{scale}) (\code{"unif"}) and
 Normal(0, \code{scale}).}
 
 \item{hidden_node_scale}{Scale parameter of \code{hidden_node_dist}.}

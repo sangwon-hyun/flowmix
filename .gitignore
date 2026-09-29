@@ -5,7 +5,6 @@ output
 *.DS_store
 flowmix/src/*.o
 flowmix/src/*.so
-flowmix/src/*.so
 *.tar.gz
 
 paper-data/*.rds

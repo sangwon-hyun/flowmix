@@ -22,25 +22,7 @@ Mstep_beta_proximal(
 )
 }
 \arguments{
-\item{resp}{Responsibilities.}
-
-\item{ylist}{T-length list each containing response matrices of size (nt x
-d), which contains coordinates of the d-variate particles, organized over
-time (T) and with (nt) particles at every time point.}
-
-\item{X}{Matrix of size (T x p+1)}
-
-\item{mean_lambda}{lambda for lasso for the mean.}
-
-\item{sigma}{(numclust x dimdat x dimdat) matrix.}
-
-\item{sigma_eig_by_clust}{Eigendecomposition of Sigma.}
-
-\item{first_iter}{\code{TRUE} if this is the first iteration}
-
 \item{betas}{Warm-start variable.}
-
-\item{maxdev}{The desired maximum radius of the fitted means from beta0k.}
 
 \item{niter}{Total number of outer iterations.}
 
