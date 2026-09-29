@@ -19,11 +19,6 @@
 ##' @import Rcpp
 ##' @importFrom Rcpp sourceCpp
 ##' @importFrom grDevices rgb
-##' @import RcppArmadillo
-##' @import RcppEigen
-
-# TODO: prevent warning about replacing RcppArmadillo imports by RcppEigen 
-# imports
 
 NULL
 #> NULL

@@ -122,6 +122,8 @@ check_zero_stabilize <- function(zero.betas, zero.alphas, iter){
 ##' @param fill Whether or not to fill the line.
 ##'
 ##' @return No return
+##' 
+##' @export
 print_progress <- function(isim, nsim,
                            type = "simulation", lapsetime = NULL,
                            lapsetimeunit = "seconds", start.time = NULL,
@@ -181,7 +183,7 @@ alter_beta <- function(beta, flatX, orig_names){
 }
 
 
-##' Altering the beta coefficient (for all clusters) by adding zero coefficients
+##' Altering the alpha coefficient (for all clusters) by adding zero coefficients
 ##' to certain rows.
 ##'
 ##' @param alpha alpha coefficients (One numclust x p matrix).
@@ -208,4 +210,95 @@ alter_alpha <- function(alpha, flatX, orig_names){
 
   ## Return the altered alpha
   return(alpha)
+}
+
+##' Altering the hidden layer weights by adding zero coefficients
+##' to certain rows.
+##'
+##' @param W Hidden layer weights ((p + 1) x n_hidden_nodes matrix). Assumes first 
+##' column corresponds to the intercept/bias term.
+##' @param flatX Indices, out of 1 through p, of which variables are flat.
+##' @param orig_names Original column names of X.
+##'
+##' @return Same format as W, but with zeros in the columns where variable
+##'   that was flat.
+alter_W <- function(W, flatX, orig_names){
+
+  ## Basic check
+  n_hidden_nodes = ncol(W)
+  stopifnot(length(flatX) >= 1)
+  stopifnot(all(rownames(W) %in% c("intp", orig_names)))
+  stopifnot(nrow(W) + length(flatX) == length(orig_names) + 1) ## p+1
+
+  ## Make new columns
+  newcol = matrix(0, nrow = length(flatX), ncol = n_hidden_nodes)
+  rownames(newcol) = orig_names[flatX]
+
+  ## Add it to W
+  W = rbind(W, newcol)
+  W = W[c("intp", orig_names),]
+
+  ## Return the altered W
+  return(W)
+}
+
+##' Make table of seeds for reproducibility.
+##' 
+##' Each seed is used to initialize the cluster means in \code{flowmix_once}. If not doing 
+##" cross-validation, set \code{cv_gridsize = 1} and \code{nfold = 0}.
+##' 
+##' @inheritParams make_iimat
+##' @param seeddir Directory in which to save seedtab CSV file.
+##' @param seedfile Name of seedtab CSV file.
+##' 
+##' @return Tibble of dimension \code{cv_gridsize^2 * (nfold + 1) * nrep} by \code{4 + 7}, 
+##' where the rows correspond to specific calls to \code{flowmix_once}, the first four columns 
+##' correspond to indices of the cross-validation settings (\code{ialpha}, \code{ibeta}, \code{ifold}, 
+##' \code{irep}), and the remaining seven columns are RNG seeds.
+##'
+##' @export
+make_seedtab <- function(cv_gridsize, nfold, nrep, seeddir, seedfile = "seedtab.csv") {
+  nrows <- cv_gridsize^2 * (nfold + 1) * nrep 
+
+  if(file.exists(file.path(seeddir, seedfile))) {
+    print("seedtab already exists, loading rather than overwriting.")
+    seedtab <- utils::read.csv(file.path(seeddir, seedfile))
+    seedtab <- seedtab %>% dplyr::as_tibble()
+    return(seedtab)
+  }
+
+  ## Save current seed, if it exists, or NULL if it doesn't
+  prev_seed <- get0(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
+
+  ## Generate the random number /states/ (7 integers each)
+  RNGkind("L'Ecuyer-CMRG")
+  set.seed(NULL)
+  s <- list(.Random.seed)
+  for(ii in 2:nrows){
+    s[[ii]] <- parallel::nextRNGStream(s[[ii-1]])
+  }
+
+  ## If RNG existed beforehand, reset seed (to prevent changing user-set RNG state)
+  if(!is.null(prev_seed)) .GlobalEnv$.Random.seed <- prev_seed
+
+  s <- do.call(rbind, s)
+  colnames(s) <- paste0("seed", 1:7)
+  s <- s %>% dplyr::as_tibble()
+
+  # ifold == 0 corresponds to the refit step
+  tab <- expand.grid(
+    ialpha = 1:cv_gridsize, 
+    ibeta = 1:cv_gridsize, 
+    ifold = 0:nfold, 
+    irep = 1:nrep
+  ) %>% dplyr::as_tibble()
+
+  seedtab <- tab %>% dplyr::bind_cols(s)
+
+  ## Write the table to file
+  utils::write.csv(seedtab, file = file.path(seeddir, seedfile), row.names = FALSE)
+  print(paste0("Wrote table containing seeds to ", file.path(seeddir, seedfile)))
+
+  ## Also return it for immediate use
+  return(seedtab)
 }

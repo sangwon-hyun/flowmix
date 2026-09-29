@@ -8,6 +8,16 @@ cytometry data collected in the ocean, over space and time.
 The paper has been published in the Annals of Applied Statistics and can be accessed 
 on [Project Euclid](https://doi.org/10.1214/22-AOAS1631) or [PubMed Central](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10360992/).
 
+## PCR/RWNN flowmix
+
+The package also implements three variations on the sparse mixture of regressions:
+
+1. Mixture of principal components regressions (PCR).
+2. Mixture of random weight neural networks (RWNN).
+3. Mixture of random weight neural networks, applied on the principal components (PCR-RWNN).
+
+The paper describing these methods is published in [*Environmetrics*](https://doi.org/10.1002/env.70148).
+
 ## Installation
 
 This R package can be installed using the following commands.

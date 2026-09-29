@@ -13,6 +13,13 @@ flowmix_once(
   mn = NULL,
   prob_lambda,
   mean_lambda,
+  n_princomps = NULL,
+  center = TRUE,
+  scale = TRUE,
+  n_hidden_nodes = NULL,
+  hidden_node_dist = c("unif", "norm"),
+  hidden_node_scale = 0.5,
+  hidden_node_seed = NULL,
   verbose = FALSE,
   sigma_fac = 1,
   tol_em = 1e-04,
@@ -48,6 +55,26 @@ time (T) and with (nt) particles at every time point.}
 \item{prob_lambda}{lambda for lasso for probabilities.}
 
 \item{mean_lambda}{lambda for lasso for the mean.}
+
+\item{n_princomps}{Number of principal components to use if principal components 
+are to be used as regressors, rather than the original covariates (columns of X). 
+If \code{NULL}, the original covariates will be used as regressors.}
+
+\item{center}{Whether to center the columns of \code{X} before applying principal components 
+analysis (PCA).}
+
+\item{scale}{Whether to scale the columns of \code{X} before applying PCA.}
+
+\item{n_hidden_nodes}{Number of hidden nodes to use in the random weight neural network (NN). If 
+\code{NULL}, no NN is applied as the original covariates are used as regressors.}
+
+\item{hidden_node_dist}{Distribution from which the hidden layer weights are randomly drawn. 
+Currently supported options are Uniform(-\code{scale}, \code{scale}) (\code{"unif"}) and 
+Normal(0, \code{scale}).}
+
+\item{hidden_node_scale}{Scale parameter of \code{hidden_node_dist}.}
+
+\item{hidden_node_seed}{RNG seed for drawing hidden layer weights.}
 
 \item{verbose}{TRUE for loudness (e.g. printing EM iterations).}
 

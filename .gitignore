@@ -17,3 +17,6 @@ paper-data/*
 paper-figures
 paper-code/aoas-revision
 misc-code
+
+.vscode
+TODO.md

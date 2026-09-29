@@ -23,9 +23,16 @@ cv_summary(
 
 \item{filename}{File name to save to.}
 
+\item{use_meta}{If TRUE, load \code{nrep}, \code{nfold}, \code{cv_gridsize}, 
+\code{prob_lambdas}, and \code{mean_lambdas} from \code{file.path(destin, "meta.Rdata")}.
+This is the recommended way to load cross-validation metadata, but we allow the metadata 
+to be input directly to this function in case \code{meta.Rdata} was not previously created.}
+
 \item{nrep}{Number of repetitions.}
 
 \item{nfold}{Number of cross-validation folds. Defaults to 5.}
+
+\item{cv_gridsize}{CV grid size.}
 
 \item{prob_lambdas}{Regularization parameters for alphas.}
 

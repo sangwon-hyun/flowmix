@@ -3,6 +3,11 @@
 ##' @inheritParams cv.flowmix
 ##' @param filename File name to save to.
 ##' @param save If TRUE, save to \code{file.path(destin, filename)}.
+##' @param use_meta If TRUE, load \code{nrep}, \code{nfold}, \code{cv_gridsize}, 
+##'   \code{prob_lambdas}, and \code{mean_lambdas} from \code{file.path(destin, "meta.Rdata")}.
+##'   This is the recommended way to load cross-validation metadata, but we allow the metadata 
+##'   to be input directly to this function in case \code{meta.Rdata} was not previously created.
+##' @param cv_gridsize CV grid size.
 ##'
 ##' @return List containing various outcomes from the cross-validation, such as
 ##'   \code{bestres} which is the \code{flowmix} class object of the overall
@@ -69,12 +74,29 @@ cv_summary <- function(destin = ".",
     colnames(bestres$X) = 1:ncol(bestres$X)
   }
 
+  if(!is.null(bestres$X_pc) & is.null(colnames(bestres$X_pn))){
+    colnames(bestres$X_pc) = 1:ncol(bestres$X_pc)
+  }
+
+  if(!is.null(bestres$X_nn) & is.null(colnames(bestres$X_nn))){
+    colnames(bestres$X_nn) = 1:ncol(bestres$X_nn)
+  }
+
+  ## Adaptively assign variable names based on which model we fit
+  var_names = if(!is.null(bestres$X_nn)) {
+    colnames(bestres$X_nn)
+  } else if(!is.null(bestres$X_pc)) {
+    colnames(bestres$X_pc)
+  } else {
+    colnames(bestres$X)
+  }
+
   ########################
   ## Get coefficients ####
   ########################
   betalist =  lapply(1:bestres$numclust, function(iclust){
     ## Get all betas
-    rownames(bestres$beta[[iclust]])[-1] = colnames(bestres$X)
+    rownames(bestres$beta[[iclust]])[-1] = var_names
     cf = bestres$beta[[iclust]][-1,, drop=FALSE]
     ## TODO: TRY dplyr here:
 
@@ -87,7 +109,7 @@ cv_summary <- function(destin = ".",
   })
   names(betalist) = paste0("Beta matrix, cluster ", 1:bestres$numclust)
   pretty.betas = betalist
-  colnames(bestres$alpha)[-1 ] = colnames(bestres$X)
+  colnames(bestres$alpha)[-1 ] = var_names
   alpha = t(bestres$alpha)
   alpha[which(abs(alpha) < 1E-5)] = 0
   pretty.alphas = round(Matrix::Matrix(alpha, sparse=TRUE),3)
@@ -126,6 +148,7 @@ cv_summary <- function(destin = ".",
 ##' @param destin Directory with cross-validation output.
 ##' @param sim Simulation or not?
 ##' @param isim Simulation number.
+##' @inheritParams cv_summary
 ##'
 ##' @export
 cv_aggregate <- function(destin,
