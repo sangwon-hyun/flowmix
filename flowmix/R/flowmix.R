@@ -79,8 +79,6 @@ flowmix <- function(..., nrep = 5){
 ##'   so, \code{admm_niter} becomes the inner number of iterations, and
 ##'   \code{admm_local_adapt_niter} becomes the number of outer iterations.
 ##' @param admm_local_adapt_niter Number of inner iterations in LA ADMM.
-##' @param CVXR If TRUE, use CVXR instead of ADMM. Slow, and meant to be used
-##'   only for sanity checking during code development.
 ##' @param flatX_thresh Threshold for detecting if any covariates are flat (low
 ##'   variance). These flat coefficients will have be set to zero and excluded
 ##'   from estimation altogether.
@@ -114,7 +112,6 @@ flowmix_once <- function(ylist, X,
                          admm_local_adapt = TRUE,
                          admm_local_adapt_niter = 10,
                          admm_niter = (if(admm_local_adapt)1E3 else 1E4),
-                         CVXR =FALSE, ## temporary
                          seed = NULL,
                          flatX_thresh = 1e-5
                          ){
@@ -210,17 +207,14 @@ flowmix_once <- function(ylist, X,
 
   start.time = Sys.time()
   for(iter in 2:niter){
-    ##if(iter == 43) browser()
     if(verbose){
       print_progress(iter-1, niter-1, "EM iterations.", start.time = start.time)
     }
     resp <- Estep(mn, sigma, prob, ylist = ylist, numclust = numclust,
                   denslist_by_clust = denslist_by_clust,
-                  first_iter = (iter == 2), countslist = countslist)
+                  first_iter = (iter == 2), countslist = countslist) ## M step (three parts)
 
-    ## M step (three parts)
     ## 1. Alpha
-    ## if(iter==2) browser()
     res.alpha = Mstep_alpha(resp, X, numclust, lambda = prob_lambda,
                             zerothresh = zerothresh)
     prob = res.alpha$prob
@@ -228,15 +222,15 @@ flowmix_once <- function(ylist, X,
     rm(res.alpha)
 
     ## 2. Beta
-
-    ## temporary
-    if(CVXR){
-    res.beta = Mstep_beta(resp, ylist, X,
-                          mean_lambda = mean_lambda,
-                          first_iter = (iter == 2),
-                          sigma_eig_by_clust = sigma_eig_by_clust,
-                          sigma = sigma, maxdev = maxdev)
-    } else {
+    ## if(CVXR){
+    ## res.beta.cvxr = Mstep_beta(resp, ylist, X,
+    ##                            mean_lambda = mean_lambda,
+    ##                            first_iter = (iter == 2),
+    ##                            sigma_eig_by_clust = sigma_eig_by_clust,
+    ##                            sigma = sigma, maxdev = maxdev)
+    ## }
+    regularized = TRUE
+    if(regularized){
     res.beta = Mstep_beta_admm(resp, ylist, X,
                                mean_lambda = mean_lambda,
                                first_iter = (iter == 2),
@@ -251,15 +245,27 @@ flowmix_once <- function(ylist, X,
                                niter = admm_niter,
                                local_adapt = admm_local_adapt,
                                local_adapt_niter = admm_local_adapt_niter)
-  }
+    }
+    ## if(!regularized){
+    ## res.beta = res.beta2 = Mstep_beta_proximal(resp, ylist, X,
+    ##                                mean_lambda = mean_lambda,
+    ##                                first_iter = (iter == 2),
+    ##                                sigma_eig_by_clust = sigma_eig_by_clust,
+    ##                                sigma = sigma, maxdev = maxdev,
+    ##                                betas = betas,
+    ##                                err_rel = 1E-5,
+    ##                                err_abs = 1E-5,
+    ##                                niter = 100)
+    ## }
+
 
     admm_niters[[iter]] = unlist(res.beta$admm_niters)
 
-    ## Harvest means
+    ## Store means
     mn = res.beta$mns
     betas = beta = res.beta$beta
 
-    ## Harvest other things for next iteration's ADMM.
+    ## Store other things for next iteration's ADMM.
     Zs = res.beta$Zs
     Ws = res.beta$Ws
     Us = res.beta$Us
@@ -275,9 +281,16 @@ flowmix_once <- function(ylist, X,
     ## 3. Sigma
     sigma = Mstep_sigma(resp, ylist, mn, numclust)
 
-    ## 3. (Continue) Decompose the sigmas.
-    sigma_eig_by_clust <- eigendecomp_sigma_array(sigma)
+    ## Decompose the sigmas, in preparation for next iteration.
+    sigma_list = lapply(1:numclust, function(iclust){ sigma[iclust,,]})
+
+    ## Removes the need for |dmvnorm| in |make_denslist_eigen| to do this TT x
+    ## numclust times.
+    sigma_eig_by_clust = lapply(1:numclust, function(iclust){
+      eigendecomp_sigma(sigma_list[[iclust]])
+    })
     denslist_by_clust <- make_denslist_eigen(ylist, mn, TT, dimdat, numclust,
+                                             ## sigma_list)
                                              sigma_eig_by_clust)
 
     ## Calculate the objectives
@@ -474,30 +487,30 @@ predict.flowmix <- function(object, logits = FALSE, ...){
 ##' @noRd
 make_denslist_eigen <- function(ylist, mu,
                                 TT, dimdat, numclust,
-                                sigma_eig_by_clust){
+                                sigma_eig_by_clust
+                                ){
 
   ## Basic checks
   assertthat::assert_that(!is.null(sigma_eig_by_clust))
 
-  ## Calculate densities (note to self: nested for loop poses no problems)
+  ## Calculate densities (note to self: nested for loop seems to pose no
+  ## problem; replacing it with an Rcpp double for loop didn't speed it up at
+  ## all.)
   lapply(1:numclust, function(iclust){
     mysigma_eig <- sigma_eig_by_clust[[iclust]]
       lapply(1:TT, function(tt){
-        ## return(dmvnorm_fast(ylist[[tt]],
-        ##                     mu[tt,,iclust],
-        ##                     sigma_eig=mysigma_eig))
         mn = mu[tt,,iclust]
         sgm = mysigma_eig$sigma
         if(dimdat == 1){
           mn = as.matrix(mn)
           sgm = sgm %>% as.matrix()
         }
-        return(dmvnorm_arma_fast(ylist[[tt]],
-                                 mn,
-                                 sgm))
+        return(dmvnorm_arma_fast(ylist[[tt]], mn, sgm))
     })
   })
 }
+
+
 
 
 

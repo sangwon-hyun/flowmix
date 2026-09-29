@@ -3,6 +3,10 @@ flowmix.Rproj
 inst/doc
 output
 *.DS_store
+flowmix/src/*.o
+flowmix/src/*.so
+flowmix/src/*.so
+*.tar.gz
 
 paper-data/*.rds
 paper-data/*.Rdata

@@ -7,10 +7,11 @@
 ##'   \code{eigendecomp_sigma(sigma)} for covariance matrix \code{sigma}).
 ##'
 ##' @return Density vector.
-dmvnorm_fast <- function(y, mu, sigma_eig){
+dmvnorm_fast <- function(y, mu, sigma_eig,
+                         mumat = NULL){
 
   ## Basic checks
-  assertthat::assert_that("matrix" %in% class(y))
+  ## assertthat::assert_that("matrix" %in% class(y)) ## Perhaps we skip this, since it's repetitive!
 
   dimdat = ncol(y)
   const = (2 * pi)^(-dimdat/2)
@@ -22,10 +23,12 @@ dmvnorm_fast <- function(y, mu, sigma_eig){
   dimdat <- ncol(y)
 
   ## Main calculations.
-  mumat = matrix(mu,
-                 ncol=ncol(y),
-                 nrow=nrow(y),
-                 byrow=TRUE)
+  if(is.null(mumat)){
+    mumat = matrix(mu,
+                   ncol=ncol(y),
+                   nrow=nrow(y),
+                   byrow=TRUE)
+  }
   resids = y - mumat
 
   myinv_half <- sigma_eig$inverse_sigma_half

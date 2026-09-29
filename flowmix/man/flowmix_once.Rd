@@ -26,7 +26,6 @@ flowmix_once(
   admm_local_adapt = TRUE,
   admm_local_adapt_niter = 10,
   admm_niter = (if (admm_local_adapt) 1000 else 10000),
-  CVXR = FALSE,
   seed = NULL,
   flatX_thresh = 1e-05
 )
@@ -81,9 +80,6 @@ so, \code{admm_niter} becomes the inner number of iterations, and
 \item{admm_local_adapt_niter}{Number of inner iterations in LA ADMM.}
 
 \item{admm_niter}{Number of ADMM iterations.}
-
-\item{CVXR}{If TRUE, use CVXR instead of ADMM. Slow, and meant to be used
-only for sanity checking during code development.}
 
 \item{seed}{Seven integers that is called directly before \code{init_mn()}
 so it can be assigned to \code{.Random.seed} for setting the random state

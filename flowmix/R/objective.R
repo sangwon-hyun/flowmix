@@ -48,12 +48,6 @@ objective <- function(mu, prob, sigma,
     }
   })
 
-  tt=8
-  ylist[[8]]
-
-  loglikelihood_tt(ylist, tt, mu, sigma, prob, countslist, numclust)
-  denslist_by_clust
-
   ## Return penalized likelihood
   l1norm <- function(coef){ sum(abs(coef)) }
 
@@ -105,6 +99,9 @@ loglikelihood_tt_precalculate <- function(ylist, tt, denslist_by_clust, prob, co
   ## if(sum(log(sum_wt_dens) * counts) < -1E10) browser()
   return(sum(log(sum_wt_dens) * counts))
 }
+
+
+
 
 ##' Second helper function: Calculates one particle's log likelihood *without*
 ##' any pre-calculated densities.

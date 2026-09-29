@@ -79,12 +79,18 @@ Mstep_sigma <- function(resp, ylist, mn, numclust){
   ntlist = sapply(ylist, nrow)
   irows = rep(1:nrow(mn), times = ntlist)
 
+  ## Temporary (?)
+  resp_long_matrix <- do.call(rbind, resp)
+
   for(iclust in 1:numclust){
-      resp.thisclust = lapply(resp, function(myresp) myresp[,iclust, drop = TRUE])
-      resp.long = do.call(c, resp.thisclust)
-      mnlong = mn[irows,,iclust]
-      if(is.vector(mnlong)) mnlong = mnlong %>% cbind()
-      vars[[iclust]] = estepC(ylong, mnlong, sqrt(resp.long), sum(resp.long))
+    mn_thisclust = mn[,,iclust]
+    if(!is.matrix(mn_thisclust)) mn_thisclust = cbind(mn_thisclust)
+      vars[[iclust]] = mstep_sigma_indexed_C(
+          ylong,
+          mn_thisclust,           # The small T x d matrix
+          ntlist,
+          sqrt(resp_long_matrix[, iclust]),
+          sum(resp_long_matrix[, iclust]))
   }
 
   ## Make into an array

@@ -2,7 +2,6 @@
 % Please edit documentation in R/flowmix-package.R
 \docType{package}
 \name{flowmix-package}
-\alias{flowmix}
 \alias{flowmix-package}
 \title{flowmix: computing sparse mixture of regressions for flow cytometry data.}
 \description{

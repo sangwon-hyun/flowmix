@@ -5,7 +5,7 @@
 \title{From eigendecomposition of the sigmas, calculate the same thing as
 \code{mvtnorm::dmvnorm()}.}
 \usage{
-dmvnorm_fast(y, mu, sigma_eig)
+dmvnorm_fast(y, mu, sigma_eig, mumat = NULL)
 }
 \arguments{
 \item{y}{Multivariate data.}

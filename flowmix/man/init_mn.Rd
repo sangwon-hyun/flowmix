@@ -23,7 +23,7 @@ so it can be assigned to \code{.Random.seed} for setting the random state
 for the initial mean generation.}
 }
 \value{
-An array of dimension (T x dimdat x M).
+An array of dimension (T x dimdat x K).
 }
 \description{
 Initialize the cluster centers (naively).

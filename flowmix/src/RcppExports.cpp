@@ -197,6 +197,20 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// dmvnorm_arma_fast_kernel
+arma::vec dmvnorm_arma_fast_kernel(arma::mat const& x, arma::rowvec const& mean, arma::mat const& rooti, double const other_terms);
+RcppExport SEXP _flowmix_dmvnorm_arma_fast_kernel(SEXP xSEXP, SEXP meanSEXP, SEXP rootiSEXP, SEXP other_termsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat const& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< arma::rowvec const& >::type mean(meanSEXP);
+    Rcpp::traits::input_parameter< arma::mat const& >::type rooti(rootiSEXP);
+    Rcpp::traits::input_parameter< double const >::type other_terms(other_termsSEXP);
+    rcpp_result_gen = Rcpp::wrap(dmvnorm_arma_fast_kernel(x, mean, rooti, other_terms));
+    return rcpp_result_gen;
+END_RCPP
+}
 // estepC
 arma::mat estepC(const arma::mat& ylong, const arma::mat& mnlong, const arma::vec& sqrt_resp_long, const double& resp_sum);
 RcppExport SEXP _flowmix_estepC(SEXP ylongSEXP, SEXP mnlongSEXP, SEXP sqrt_resp_longSEXP, SEXP resp_sumSEXP) {
@@ -220,6 +234,76 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
     Rcpp::traits::input_parameter< const arma::uvec& >::type ind(indSEXP);
     rcpp_result_gen = Rcpp::wrap(ss(X, ind));
+    return rcpp_result_gen;
+END_RCPP
+}
+// build_mn_long_rcpp
+arma::mat build_mn_long_rcpp(const arma::cube& mu, const Rcpp::IntegerVector& ntlist, int iclust_r);
+RcppExport SEXP _flowmix_build_mn_long_rcpp(SEXP muSEXP, SEXP ntlistSEXP, SEXP iclust_rSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::cube& >::type mu(muSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type ntlist(ntlistSEXP);
+    Rcpp::traits::input_parameter< int >::type iclust_r(iclust_rSEXP);
+    rcpp_result_gen = Rcpp::wrap(build_mn_long_rcpp(mu, ntlist, iclust_r));
+    return rcpp_result_gen;
+END_RCPP
+}
+// prepare_vectorized_data_rcpp
+Rcpp::List prepare_vectorized_data_rcpp(const Rcpp::List& ylist, const arma::cube& mu, int iclust_r);
+RcppExport SEXP _flowmix_prepare_vectorized_data_rcpp(SEXP ylistSEXP, SEXP muSEXP, SEXP iclust_rSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type ylist(ylistSEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type mu(muSEXP);
+    Rcpp::traits::input_parameter< int >::type iclust_r(iclust_rSEXP);
+    rcpp_result_gen = Rcpp::wrap(prepare_vectorized_data_rcpp(ylist, mu, iclust_r));
+    return rcpp_result_gen;
+END_RCPP
+}
+// dmvnorm_long_fused_cpp
+Rcpp::NumericVector dmvnorm_long_fused_cpp(const arma::mat& y_long, const arma::cube& mu, const Rcpp::IntegerVector& ntlist, int iclust_r, const arma::mat& sigma);
+RcppExport SEXP _flowmix_dmvnorm_long_fused_cpp(SEXP y_longSEXP, SEXP muSEXP, SEXP ntlistSEXP, SEXP iclust_rSEXP, SEXP sigmaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type y_long(y_longSEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type mu(muSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type ntlist(ntlistSEXP);
+    Rcpp::traits::input_parameter< int >::type iclust_r(iclust_rSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type sigma(sigmaSEXP);
+    rcpp_result_gen = Rcpp::wrap(dmvnorm_long_fused_cpp(y_long, mu, ntlist, iclust_r, sigma));
+    return rcpp_result_gen;
+END_RCPP
+}
+// mstep_sigma_indexed_C
+arma::mat mstep_sigma_indexed_C(const arma::mat& ylong, const arma::mat& mn_small, const arma::uvec& ntlist, const arma::vec& sqrt_resp, const double& resp_sum);
+RcppExport SEXP _flowmix_mstep_sigma_indexed_C(SEXP ylongSEXP, SEXP mn_smallSEXP, SEXP ntlistSEXP, SEXP sqrt_respSEXP, SEXP resp_sumSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type ylong(ylongSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type mn_small(mn_smallSEXP);
+    Rcpp::traits::input_parameter< const arma::uvec& >::type ntlist(ntlistSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type sqrt_resp(sqrt_respSEXP);
+    Rcpp::traits::input_parameter< const double& >::type resp_sum(resp_sumSEXP);
+    rcpp_result_gen = Rcpp::wrap(mstep_sigma_indexed_C(ylong, mn_small, ntlist, sqrt_resp, resp_sum));
+    return rcpp_result_gen;
+END_RCPP
+}
+// mstep_sigma_C
+arma::mat mstep_sigma_C(const arma::mat& ylong, const arma::mat& mnlong, const arma::vec& sqrt_resp_long, const double& resp_sum);
+RcppExport SEXP _flowmix_mstep_sigma_C(SEXP ylongSEXP, SEXP mnlongSEXP, SEXP sqrt_resp_longSEXP, SEXP resp_sumSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type ylong(ylongSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type mnlong(mnlongSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type sqrt_resp_long(sqrt_resp_longSEXP);
+    Rcpp::traits::input_parameter< const double& >::type resp_sum(resp_sumSEXP);
+    rcpp_result_gen = Rcpp::wrap(mstep_sigma_C(ylong, mnlong, sqrt_resp_long, resp_sum));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -309,8 +393,14 @@ static const R_CallMethodDef CallEntries[] = {
     {"_flowmix_subtractC3", (DL_FUNC) &_flowmix_subtractC3, 3},
     {"_flowmix_dothisC", (DL_FUNC) &_flowmix_dothisC, 4},
     {"_flowmix_dmvnorm_arma_fast", (DL_FUNC) &_flowmix_dmvnorm_arma_fast, 4},
+    {"_flowmix_dmvnorm_arma_fast_kernel", (DL_FUNC) &_flowmix_dmvnorm_arma_fast_kernel, 4},
     {"_flowmix_estepC", (DL_FUNC) &_flowmix_estepC, 4},
     {"_flowmix_ss", (DL_FUNC) &_flowmix_ss, 2},
+    {"_flowmix_build_mn_long_rcpp", (DL_FUNC) &_flowmix_build_mn_long_rcpp, 3},
+    {"_flowmix_prepare_vectorized_data_rcpp", (DL_FUNC) &_flowmix_prepare_vectorized_data_rcpp, 3},
+    {"_flowmix_dmvnorm_long_fused_cpp", (DL_FUNC) &_flowmix_dmvnorm_long_fused_cpp, 5},
+    {"_flowmix_mstep_sigma_indexed_C", (DL_FUNC) &_flowmix_mstep_sigma_indexed_C, 5},
+    {"_flowmix_mstep_sigma_C", (DL_FUNC) &_flowmix_mstep_sigma_C, 4},
     {"_flowmix_matrix_function_solve_triangular_sylvester_barebones", (DL_FUNC) &_flowmix_matrix_function_solve_triangular_sylvester_barebones, 3},
     {"_flowmix_sylC_upper_tri", (DL_FUNC) &_flowmix_sylC_upper_tri, 7},
     {"_flowmix_prepare_sylC_const3", (DL_FUNC) &_flowmix_prepare_sylC_const3, 9},

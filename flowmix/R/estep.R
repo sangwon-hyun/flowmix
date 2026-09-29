@@ -35,12 +35,12 @@ Estep <- function(mn, sigma, prob, ylist = NULL,
   assertthat::assert_that(dim(mn)[1] == length(ylist))
 
   calculate_dens <- function(iclust, tt, y, mn, sigma, denslist_by_clust, first_iter){
-    mu <- mn[tt,,iclust] ## No problem with memory leak here.
+   mu <- mn[tt,,iclust]
     if(first_iter){
-      if(dimdat==1){
+      if(dimdat == 1){
         dens = stats::dnorm(y, mu, sd = sqrt(sigma[iclust,,])) ## make sure to use standard deviation here!
       } else {
-        dens = dmvnorm_arma_fast(y, mu, sigma[iclust,,], FALSE)
+        dens = dmvnorm_arma_fast(y, t(mu), sigma[iclust,,], FALSE)
       }
     } else {
       dens = unlist(denslist_by_clust[[iclust]][[tt]])
@@ -80,3 +80,68 @@ Estep <- function(mn, sigma, prob, ylist = NULL,
 }
 
 
+
+
+
+
+Estep_new <- function(mn, sigma, prob, ylist = NULL,
+                      numclust,
+                      log_denslist_by_clust = NULL,
+                      first_iter = FALSE,
+                      eps = 1E-20,## Not used here.
+                      countslist = NULL){
+
+  ## Setup
+  TT = length(ylist)
+  ntlist = sapply(ylist, nrow)
+  dimdat = dim(mn)[2]
+
+  ## Basic checks
+  assertthat::assert_that(dim(mn)[1] == length(ylist))
+
+  ## We convert prob to log-prob once
+  log_prob = log(prob)
+
+  resp <- lapply(1:TT, function(tt){
+    ylist_tt = ylist[[tt]]
+    if(nrow(ylist_tt) == 0) return(ylist_tt)
+
+    ## 1. Extract Log-Densities (nt x numclust)
+    ## Assumes your denslist_by_clust now contains LOG densities
+    log_densmat <- sapply(1:numclust, function(iclust){
+      mu <- mn[tt,,iclust]
+      if(first_iter){
+        ## ... (Call dmvnorm_arma_fast with logd = TRUE)
+        if(dimdat==1){
+          ## make sure to use standard deviation here!
+          log_dens = log(stats::dnorm(y, mu, sd = sqrt(sigma[iclust,,])))
+        } else {
+          log_dens = dmvnorm_arma_fast(ylist_tt, t(mu), sigma[iclust,,], logd = TRUE)
+        }
+      } else {
+        unlist(log_denslist_by_clust[[iclust]][[tt]])
+      }
+    })
+
+    ## 2. Calculate Log-Numerator: log(pi_k) + log(f_k)
+    ## We use sweeping to add log_prob[tt,] to each row of log_densmat
+    log_wt_densmat <- sweep(log_densmat, 2, log_prob[tt,], "+")
+
+    ## 3. Log-Sum-Exp Trick for Stability
+    ## Subtract the max log-value in each row to prevent exp() from blowing up or hitting zero
+    row_max <- apply(log_wt_densmat, 1, max)
+
+    # This is effectively: exp(log_wt - max) / rowSums(exp(log_wt - max))
+    wt.densmat <- exp(sweep(log_wt_densmat, 1, row_max, "-"))
+    wt.densmat <- wt.densmat / rowSums(wt.densmat)
+
+    ## 4. Reweight by countslist (biomass/counts)
+    if(!is.null(countslist)){
+      wt.densmat = wt.densmat * countslist[[tt]]
+    }
+
+    return(wt.densmat)
+  })
+
+  return(resp)
+}

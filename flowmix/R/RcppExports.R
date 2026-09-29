@@ -57,12 +57,36 @@ dmvnorm_arma_fast <- function(x, mean, sigma, logd = FALSE) {
     .Call(`_flowmix_dmvnorm_arma_fast`, x, mean, sigma, logd)
 }
 
+dmvnorm_arma_fast_kernel <- function(x, mean, rooti, other_terms) {
+    .Call(`_flowmix_dmvnorm_arma_fast_kernel`, x, mean, rooti, other_terms)
+}
+
 estepC <- function(ylong, mnlong, sqrt_resp_long, resp_sum) {
     .Call(`_flowmix_estepC`, ylong, mnlong, sqrt_resp_long, resp_sum)
 }
 
 ss <- function(X, ind) {
     .Call(`_flowmix_ss`, X, ind)
+}
+
+build_mn_long_rcpp <- function(mu, ntlist, iclust_r) {
+    .Call(`_flowmix_build_mn_long_rcpp`, mu, ntlist, iclust_r)
+}
+
+prepare_vectorized_data_rcpp <- function(ylist, mu, iclust_r) {
+    .Call(`_flowmix_prepare_vectorized_data_rcpp`, ylist, mu, iclust_r)
+}
+
+dmvnorm_long_fused_cpp <- function(y_long, mu, ntlist, iclust_r, sigma) {
+    .Call(`_flowmix_dmvnorm_long_fused_cpp`, y_long, mu, ntlist, iclust_r, sigma)
+}
+
+mstep_sigma_indexed_C <- function(ylong, mn_small, ntlist, sqrt_resp, resp_sum) {
+    .Call(`_flowmix_mstep_sigma_indexed_C`, ylong, mn_small, ntlist, sqrt_resp, resp_sum)
+}
+
+mstep_sigma_C <- function(ylong, mnlong, sqrt_resp_long, resp_sum) {
+    .Call(`_flowmix_mstep_sigma_C`, ylong, mnlong, sqrt_resp_long, resp_sum)
 }
 
 matrix_function_solve_triangular_sylvester_barebones <- function(TA, TB, C) {

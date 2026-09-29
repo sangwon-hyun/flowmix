@@ -8,6 +8,10 @@ using namespace Eigen;
 using Eigen::Map;                       // 'maps' rather than copies
 using Eigen::MatrixXd;                  // variable size matrix, double precision
 
+
+// BRUTE FORCE: Tell the compiler to use O3 even if R passed O2
+#pragma GCC optimize ("O3")
+
 // [[Rcpp::export]]
 Eigen::MatrixXd matrix_function_solve_triangular_sylvester_barebones(const Eigen::MatrixXd & TA,
 								     const Eigen::MatrixXd & TB,

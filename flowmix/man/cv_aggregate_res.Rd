@@ -5,7 +5,16 @@
 \title{Helper to aggregate parallelized CV results and obtain the |res| object, all
 saved in |destin|.}
 \usage{
-cv_aggregate_res(destin, sim = FALSE, isim = NULL)
+cv_aggregate_res(
+  destin,
+  sim = FALSE,
+  isim = NULL,
+  use_meta = TRUE,
+  nrep = NULL,
+  cv_gridsize = NULL,
+  prob_lambdas = NULL,
+  mean_lambdas = NULL
+)
 }
 \arguments{
 \item{destin}{Directory with cross-validation output.}

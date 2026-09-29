@@ -121,7 +121,7 @@ generate_data_generic <- function(p = 5, TT = 50, fac = 1, nt = 1000, dimdat = 2
 }
 
 
-##' Helper for generating mixture of means
+##' Helper for generating mixture of Gaussians
 ##'
 ##' @noRd
 get_mixture_at_timepoint <- function(tt, nt, mnlist, pilist, sigma=NULL, sigmalist = NULL){

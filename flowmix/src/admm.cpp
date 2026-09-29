@@ -3,6 +3,8 @@
 using namespace Rcpp;
 using namespace arma;
 
+// BRUTE FORCE: Tell the compiler to use O3 even if R passed O2
+#pragma GCC optimize ("O3")
 
 
 // [[Rcpp::export]]

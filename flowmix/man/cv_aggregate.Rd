@@ -4,7 +4,17 @@
 \alias{cv_aggregate}
 \title{Aggregate CV scores from the results, saved in \code{destin}.}
 \usage{
-cv_aggregate(destin, sim = FALSE, isim = 1)
+cv_aggregate(
+  destin,
+  sim = FALSE,
+  isim = 1,
+  use_meta = TRUE,
+  nrep = NULL,
+  nfold = NULL,
+  cv_gridsize = NULL,
+  prob_lambdas = NULL,
+  mean_lambdas = NULL
+)
 }
 \arguments{
 \item{destin}{Directory with cross-validation output.}

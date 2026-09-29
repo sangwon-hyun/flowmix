@@ -10,7 +10,7 @@
 ##'   so it can be assigned to \code{.Random.seed} for setting the random state
 ##'   for the initial mean generation.
 ##'
-##' @return An array of dimension (T x dimdat x M).
+##' @return An array of dimension (T x dimdat x K).
 init_mn <- function(ylist, numclust, TT, dimdat, countslist = NULL, seed=NULL){
 
 

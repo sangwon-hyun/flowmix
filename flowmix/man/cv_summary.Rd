@@ -4,7 +4,17 @@
 \alias{cv_summary}
 \title{Main function for summarizing the cross-validation results.}
 \usage{
-cv_summary(destin = ".", save = FALSE, filename = "summary.RDS")
+cv_summary(
+  destin = ".",
+  save = FALSE,
+  filename = "summary.RDS",
+  use_meta = TRUE,
+  nrep = NULL,
+  nfold = NULL,
+  cv_gridsize = NULL,
+  prob_lambdas = NULL,
+  mean_lambdas = NULL
+)
 }
 \arguments{
 \item{destin}{Where to save the output.}
@@ -12,6 +22,14 @@ cv_summary(destin = ".", save = FALSE, filename = "summary.RDS")
 \item{save}{If TRUE, save to \code{file.path(destin, filename)}.}
 
 \item{filename}{File name to save to.}
+
+\item{nrep}{Number of repetitions.}
+
+\item{nfold}{Number of cross-validation folds. Defaults to 5.}
+
+\item{prob_lambdas}{Regularization parameters for alphas.}
+
+\item{mean_lambdas}{Regularization parameters for betas.}
 }
 \value{
 List containing various outcomes from the cross-validation, such as
